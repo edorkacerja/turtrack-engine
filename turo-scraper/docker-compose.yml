@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  calibrator:
+    build: ./calibrator
+    environment:
+      PORT: 5003
+    expose:
+      - "5003"
+
+  scraper:
+    build: ./scraper
+    volumes:
+      - ./scraper/src:/usr/src/app/src
+      - shared:/usr/src/app/database
+    environment:
+      PORT: 5001
+    ports:
+      - "5001:5001"
+      - "9229:9229"  # debugging port
+    depends_on:
+      - calibrator
+
+  plotter:
+    build: ./plotter
+    volumes:
+      - ./plotter/src:/usr/src/app/src
+      - shared:/usr/src/app/public/database/
+
+    environment:
+      PORT: 5002
+    ports:
+      - "5002:5002"
+
+volumes:
+  shared:

@@ -1,0 +1,31 @@
+{
+  "name": "scraper-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon --ignore database/ src/server.js",
+    "start": "node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Vinod Liyanage(vinodsliyanage@gmail.com)",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "cross-fetch": "^4.0.0",
+    "date-fns": "^3.6.0",
+    "dotenv": "^10.0.0",
+    "express": "^4.19.2",
+    "fast-csv": "^5.0.1",
+    "fs-extra": "^11.2.0",
+    "ngeohash": "^0.6.3",
+    "puppeteer": "^22.6.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "kafkajs": "^2.2.4",
+    "nodemon": "^3.1.0"
+  }
+}

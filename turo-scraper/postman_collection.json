@@ -1,0 +1,253 @@
+{
+	"info": {
+		"_postman_id": "22ef3aae-510d-44cc-a2c4-30f86a60007b",
+		"name": "Turo Analyser",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15857483"
+	},
+	"item": [
+		{
+			"name": "/scraper/stop_all",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/stop_all",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"stop_all"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/scraper/database_size",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/database_size",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"database_size"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/scraper/calibrate",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"cell_size\": 1,\r\n    \"country\": \"US\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/calibrate",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"calibrate"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/scraper/search",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"proxyServer\": null,\r\n    \"proxyAuth\": null,\r\n    \"delay\": 1000,\r\n    \"headless\": false,\r\n    \"maxFailedInRow\": 10,\r\n    \"country\": \"US\",\r\n    \"startAt\": 10,\r\n    \"limit\": 20,\r\n    \"divider\": 2,\r\n    \"recursiveDepth\": 8,\r\n    \"sorts\": {\r\n        \"direction\": \"ASC\",\r\n        \"type\": \"DISTANCE\"\r\n    },\r\n    \"filters\": {}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/search",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"search"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/scraper/daily_pricing",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"proxyServer\": null,\r\n    \"proxyAuth\": null,\r\n    \"delay\": 1000,\r\n    \"headless\": false,\r\n    \"maxFailedInRow\": 10,\r\n    \"country\": \"US\",\r\n    \"startAt\": 0,\r\n    \"limit\": 5,\r\n    \"startDate\": \"01/01/2014\",\r\n    \"endDate\": \"05/29/2025\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/daily_pricing",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"daily_pricing"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/scraper/vehicle_detail",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"proxyServer\": null,\r\n    \"proxyAuth\": null,\r\n    \"delay\": 1000,\r\n    \"headless\": false,\r\n    \"maxFailedInRow\": 10,\r\n    \"country\": \"US\",\r\n    \"startAt\": 0,\r\n    \"limit\": 2\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/vehicle_detail",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"vehicle_detail"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/scraper/clear_database",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n   \"type\": \"search\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scraper_base}}/api/v1/scraper/clear_database",
+					"host": [
+						"{{scraper_base}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"scraper",
+						"clear_database"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "scraper_base",
+			"value": "http://localhost:5001",
+			"type": "string"
+		},
+		{
+			"key": "calibrator_base",
+			"value": "http://localhost:5003",
+			"type": "string"
+		}
+	]
+}
