@@ -22,7 +22,6 @@ class BaseScraper {
     const args = ["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"];
 
     if (this.proxyServer) args.push(`--proxy-server=${this.proxyServer}`);
-    if (this.proxyAuth) args.push(`--proxy-auth=${this.proxyAuth}`);
 
     const browser = await puppeteer.launch({
       headless: this.headless,
@@ -30,6 +29,15 @@ class BaseScraper {
     });
 
     const page = await browser.newPage();
+
+    if (this.proxyAuth?.includes(":")) {
+      const [username, password] = this.proxyAuth.split(":");
+
+      await page.authenticate({
+        username,
+        password,
+      });
+    }
 
     await page.setRequestInterception(true);
 
