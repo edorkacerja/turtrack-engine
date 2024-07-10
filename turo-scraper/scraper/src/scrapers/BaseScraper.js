@@ -1,4 +1,5 @@
 const puppeteer = require("puppeteer");
+const Xvfb = require('xvfb');
 
 class BaseScraper {
   static instances = new Map();
@@ -22,6 +23,15 @@ class BaseScraper {
     const args = ["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"];
 
     if (this.proxyServer) args.push(`--proxy-server=${this.proxyServer}`);
+
+    if(!this.headless) {
+      const xvfb = new Xvfb({
+        silent: true,
+        xvfb_args: ["-screen", "0", '1280x720x24', "-ac"],
+      });
+
+      xvfb.startSync();
+    }
 
     const browser = await puppeteer.launch({
       headless: this.headless,
