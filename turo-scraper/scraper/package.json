@@ -22,7 +22,8 @@
     "fs-extra": "^11.2.0",
     "ngeohash": "^0.6.3",
     "puppeteer": "^22.6.3",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "xvfb": "^0.4.0"
   },
   "devDependencies": {
     "kafkajs": "^2.2.4",
