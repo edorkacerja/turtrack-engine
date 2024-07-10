@@ -67,5 +67,38 @@ services:
 #    volumes:
 #      - ~/kui/config.yml:/etc/kafkaui/dynamic_config.yaml
 
+
+  # Data Processor Service
+  data-processor-service:
+    build:
+      context: ./turtrack-file-processing/data-processor-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/turo
+      SPRING_DATASOURCE_USERNAME: turo_user
+      SPRING_DATASOURCE_PASSWORD: turo_password
+
+  # Data Persistor Service
+  data-persistor-service:
+    build:
+      context: ./turtrack-file-processing/data-persistor-service
+      dockerfile: Dockerfile
+    ports:
+      - "8088:8088"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/turo
+      SPRING_DATASOURCE_USERNAME: turo_user
+      SPRING_DATASOURCE_PASSWORD: turo_password
+
+
+
 volumes:
   shared-data:
