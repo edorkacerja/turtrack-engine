@@ -168,6 +168,7 @@ const pricingService = async (dto) => {
 
     fileManager.write(vehicle.getId(), scrapedWithVehicleId);
 
+    console.log(scrapedWithVehicleId);
     // Send vehicle detail data to Kafka
     await sendToKafka('dr-availability-topic', scrapedWithVehicleId);
 

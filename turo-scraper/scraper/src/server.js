@@ -1,9 +1,10 @@
-require('dotenv').config()
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 
 const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
+const { initializeProducer } = require("./utils/kafkaUtil");
 
 const port = process.env.PORT || 5001;
 
@@ -13,13 +14,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
-MetadataManager.init();
-MetadataManager.sync(5000);
+async function startServer() {
+  try {
+    // Initialize MetadataManager
+    await MetadataManager.init();
+    MetadataManager.sync(5000);
 
-app.use("/api/v1", routesV1);
+    // Initialize Kafka producer
+    await initializeProducer();
 
-app.get("/", (req, res) => {
-  res.send(`Server started on port ${port}`);
-});
+    // Set up routes
+    app.use("/api/v1", routesV1);
 
-app.listen(port, () => console.log(`Server started on port ${port}`));
+    app.get("/", (req, res) => {
+      res.send(`Server started on port ${port}`);
+    });
+
+    // Start the server
+    app.listen(port, () => console.log(`Server started on port ${port}`));
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
