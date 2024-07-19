@@ -1,3 +1,7 @@
 /2024-05-17.zip
 /combined_vehicles.json
 /combined_vehicles.json.gz
+
+### Logs ###
+/turtrack-file-processing/data-processor-service/logs/
+/turtrack-file-processing/data-persistor-service/logs/

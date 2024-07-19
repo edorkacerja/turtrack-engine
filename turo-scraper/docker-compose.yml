@@ -8,16 +8,52 @@ services:
     expose:
       - "5003"
 
-  scraper:
+  scraper-1:
     build: ./scraper
     volumes:
       - ./scraper/src:/usr/src/app/src
       - shared:/usr/src/app/database
-    environment:
-      PORT: 5001
     ports:
       - "5001:5001"
       - "9229:9229"  # debugging port
+    environment:
+      PORT: 5001
+    depends_on:
+      - calibrator
+
+  scraper-4:
+    build: ./scraper
+    volumes:
+      - ./scraper/src:/usr/src/app/src
+      - shared:/usr/src/app/database
+    ports:
+      - "5004:5004"
+    environment:
+      PORT: 5004
+    depends_on:
+      - calibrator
+
+  scraper-5:
+    build: ./scraper
+    volumes:
+      - ./scraper/src:/usr/src/app/src
+      - shared:/usr/src/app/database
+    ports:
+      - "5005:5005"
+    environment:
+      PORT: 5005
+    depends_on:
+      - calibrator
+
+  scraper-6:
+    build: ./scraper
+    volumes:
+      - ./scraper/src:/usr/src/app/src
+      - shared:/usr/src/app/database
+    ports:
+      - "5006:5006"
+    environment:
+      PORT: 5006
     depends_on:
       - calibrator
 
@@ -26,7 +62,6 @@ services:
     volumes:
       - ./plotter/src:/usr/src/app/src
       - shared:/usr/src/app/public/database/
-
     environment:
       PORT: 5002
     ports:

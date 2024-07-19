@@ -7,16 +7,50 @@ services:
       file: ./turo-scraper/docker-compose.yml
       service: calibrator
 
-  scraper:
+  scraper-1:
     extends:
       file: ./turo-scraper/docker-compose.yml
-      service: scraper
+      service: scraper-1
     volumes:
       - shared-data:/usr/src/app/database
     depends_on:
       - kafka
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+  scraper-4:
+    extends:
+      file: ./turo-scraper/docker-compose.yml
+      service: scraper-4
+    volumes:
+      - shared-data:/usr/src/app/database
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+  scraper-5:
+    extends:
+      file: ./turo-scraper/docker-compose.yml
+      service: scraper-5
+    volumes:
+      - shared-data:/usr/src/app/database
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+  scraper-6:
+    extends:
+      file: ./turo-scraper/docker-compose.yml
+      service: scraper-6
+    volumes:
+      - shared-data:/usr/src/app/database
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
 
   plotter:
     extends:
@@ -48,7 +82,37 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_NUM_PARTITIONS: 10
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_RETENTION_BYTES: 1073741824
+      KAFKA_LOG_SEGMENT_BYTES: 536870912
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  kafka-setup:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-dr-availability-topic
+    environment:
+      KAFKA_BROKER_ID: ignored
+      KAFKA_ZOOKEEPER_CONNECT: ignored
 
   # Kafka UI
   kafka-ui:
@@ -102,3 +166,5 @@ services:
 
 volumes:
   shared-data:
+  kafka-data:
+
