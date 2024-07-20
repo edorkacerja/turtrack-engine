@@ -107,9 +107,11 @@ services:
       - -c
       - |
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-details-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-skeleton-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-skeleton-topic
     environment:
       KAFKA_BROKER_ID: ignored
       KAFKA_ZOOKEEPER_CONNECT: ignored

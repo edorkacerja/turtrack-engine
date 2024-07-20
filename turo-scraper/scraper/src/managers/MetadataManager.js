@@ -2,6 +2,7 @@ const path = require("path");
 const parser = require("fast-csv");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
+const kafkaUtil = require('../utils/kafkaUtil');
 
 const Vehicle = require("../models/Vehicle");
 const BaseCell = require("../models/BaseCell");
@@ -32,12 +33,24 @@ const MetadataManager = {
     this.read();
   },
 
-  addVehicle(vehicle) {
+  async addVehicle(vehicle) {
     const vehicles = this.metadata.vehicles;
 
-    if (vehicles.has(vehicle.id)) return;
+    if (vehicles.has(vehicle.getId())) return;
 
-    vehicles.set(vehicle.id, vehicle);
+    vehicles.set(vehicle.getId(), vehicle);
+
+    // Send to Kafka
+    try {
+      await kafkaUtil.sendToKafka('vehicle-skeleton-topic', {
+        id: vehicle.getId(),
+        country: vehicle.getCountry(),
+        cellId: vehicle.getCellId(),
+        status: vehicle.getStatus()
+      });
+    } catch (error) {
+      console.error('Error sending vehicle to Kafka:', error);
+    }
   },
 
   addOptimalCell(cell) {
