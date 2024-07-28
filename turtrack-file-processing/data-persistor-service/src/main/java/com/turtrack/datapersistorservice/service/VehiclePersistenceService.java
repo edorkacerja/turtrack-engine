@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.util.List;
 
 @Service
@@ -21,23 +23,37 @@ public class VehiclePersistenceService {
     @PersistenceContext
     private EntityManager entityManager;
 
-
     @Transactional
     public void saveOrUpdateVehicles(List<Vehicle> vehicles) {
-        log.info("Processing batch of {} vehicles", vehicles.size());
-        for (int i = 0; i < vehicles.size(); i++) {
-            Vehicle vehicle = vehicles.get(i);
-            entityManager.merge(vehicle);
-            if (i % 50 == 0 && i > 0) {
-                entityManager.flush();
-                entityManager.clear();
+        try {
+            log.info("Processing batch of {} vehicles", vehicles.size());
+            for (int i = 0; i < vehicles.size(); i++) {
+                Vehicle vehicle = vehicles.get(i);
+                saveOrUpdateVehicle(vehicle);
+                log.info("Processed vehicle {}: ID={}, Make={}, Model={}", i, vehicle.getId(), vehicle.getMake(), vehicle.getModel());
+                if (i % 50 == 0 && i > 0) {
+                    entityManager.flush();
+                    entityManager.clear();
+                    log.info("Flushed and cleared after {} vehicles", i);
+                }
             }
-        }
-        entityManager.flush();
-        entityManager.clear();
-        log.info("Finished processing batch of vehicles");
-    }
+            entityManager.flush();
+            entityManager.clear();
+            log.info("Final flush and clear after processing all vehicles");
 
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                @Override
+                public void afterCommit() {
+                    log.info("Transaction committed successfully");
+                }
+            });
+
+            log.info("Finished processing batch of vehicles");
+        } catch (Exception e) {
+            log.error("Error processing batch of vehicles", e);
+            throw e;
+        }
+    }
 
     @Transactional
     public void saveOrUpdateVehicle(Vehicle vehicle) {
@@ -45,38 +61,94 @@ public class VehiclePersistenceService {
 
         if (existingVehicle == null) {
             // New vehicle
-//            vehicle.setLastUpdated(LocalDateTime.now());
             vehicleRepository.save(vehicle);
-        } else if (hasChanged(existingVehicle, vehicle)) {
-            // Update existing vehicle
-            updateVehicle(existingVehicle, vehicle);
-            vehicleRepository.save(existingVehicle);
+            log.info("Saved new vehicle: ID={}", vehicle.getId());
+        } else {
+            // Update existing vehicle with non-null fields
+            boolean changed = updateVehicle(existingVehicle, vehicle);
+            if (changed) {
+                vehicleRepository.save(existingVehicle);
+                log.info("Updated existing vehicle: ID={}", existingVehicle.getId());
+            } else {
+                log.info("No changes for existing vehicle: ID={}", existingVehicle.getId());
+            }
         }
-        // If the vehicle exists and hasn't changed, do nothing
     }
 
-    private boolean hasChanged(Vehicle existingVehicle, Vehicle newVehicle) {
-        return !existingVehicle.getMake().equals(newVehicle.getMake())
-                || !existingVehicle.getModel().equals(newVehicle.getModel())
-                || !existingVehicle.getYear().equals(newVehicle.getYear())
-                || !existingVehicle.getTrim().equals(newVehicle.getTrim())
-                || !existingVehicle.getType().equals(newVehicle.getType())
-                || !existingVehicle.getRegistrationState().equals(newVehicle.getRegistrationState())
-                || !existingVehicle.getCity().equals(newVehicle.getCity())
-                || !existingVehicle.getState().equals(newVehicle.getState())
-                || !existingVehicle.getAverageDailyPrice().equals(newVehicle.getAverageDailyPrice());
+    @Transactional(readOnly = true)
+    public void verifyVehiclePersistence(String vehicleId) {
+        Vehicle vehicle = vehicleRepository.findById(Integer.valueOf(vehicleId)).orElse(null);
+        if (vehicle != null) {
+            log.info("Vehicle found after update: ID={}, Make={}, Model={}", vehicle.getId(), vehicle.getMake(), vehicle.getModel());
+        } else {
+            log.warn("Vehicle not found after update: ID={}", vehicleId);
+        }
     }
 
-    private void updateVehicle(Vehicle existingVehicle, Vehicle newVehicle) {
-        existingVehicle.setMake(newVehicle.getMake());
-        existingVehicle.setModel(newVehicle.getModel());
-        existingVehicle.setYear(newVehicle.getYear());
-        existingVehicle.setTrim(newVehicle.getTrim());
-        existingVehicle.setType(newVehicle.getType());
-        existingVehicle.setRegistrationState(newVehicle.getRegistrationState());
-        existingVehicle.setCity(newVehicle.getCity());
-        existingVehicle.setState(newVehicle.getState());
-        existingVehicle.setAverageDailyPrice(newVehicle.getAverageDailyPrice());
-//        existingVehicle.setLastUpdated(LocalDateTime.now());
+    private boolean updateVehicle(Vehicle existingVehicle, Vehicle newVehicle) {
+        boolean changed = false;
+
+        if (newVehicle.getMake() != null) {
+            existingVehicle.setMake(newVehicle.getMake());
+            changed = true;
+        }
+        if (newVehicle.getModel() != null) {
+            existingVehicle.setModel(newVehicle.getModel());
+            changed = true;
+        }
+        if (newVehicle.getYear() != null) {
+            existingVehicle.setYear(newVehicle.getYear());
+            changed = true;
+        }
+        if (newVehicle.getTrim() != null) {
+            existingVehicle.setTrim(newVehicle.getTrim());
+            changed = true;
+        }
+        if (newVehicle.getType() != null) {
+            existingVehicle.setType(newVehicle.getType());
+            changed = true;
+        }
+        if (newVehicle.getRegistrationState() != null) {
+            existingVehicle.setRegistrationState(newVehicle.getRegistrationState());
+            changed = true;
+        }
+        if (newVehicle.getCity() != null) {
+            existingVehicle.setCity(newVehicle.getCity());
+            changed = true;
+        }
+        if (newVehicle.getState() != null) {
+            existingVehicle.setState(newVehicle.getState());
+            changed = true;
+        }
+        if (newVehicle.getAverageDailyPrice() != null) {
+            existingVehicle.setAverageDailyPrice(newVehicle.getAverageDailyPrice());
+            changed = true;
+        }
+        if (newVehicle.getCountry() != null) {
+            existingVehicle.setCountry(newVehicle.getCountry());
+            changed = true;
+        }
+        if (newVehicle.getCellId() != null) {
+            existingVehicle.setCellId(newVehicle.getCellId());
+            changed = true;
+        }
+        if (newVehicle.getPricingLastUpdated() != null) {
+            existingVehicle.setPricingLastUpdated(newVehicle.getPricingLastUpdated());
+            changed = true;
+        }
+        if (newVehicle.getSearchLastUpdated() != null) {
+            existingVehicle.setSearchLastUpdated(newVehicle.getSearchLastUpdated());
+            changed = true;
+        }
+        if (newVehicle.getDetailLastUpdated() != null) {
+            existingVehicle.setDetailLastUpdated(newVehicle.getDetailLastUpdated());
+            changed = true;
+        }
+        if (newVehicle.getStatus() != null) {
+            existingVehicle.setStatus(newVehicle.getStatus());
+            changed = true;
+        }
+
+        return changed;
     }
 }

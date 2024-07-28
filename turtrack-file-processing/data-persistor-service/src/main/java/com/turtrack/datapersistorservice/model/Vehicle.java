@@ -4,17 +4,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @Entity
+@Table(name = "vehicle")
 public class Vehicle {
 
     @Id
@@ -47,4 +46,23 @@ public class Vehicle {
 
     @JsonProperty("averageDailyPrice")
     private Double averageDailyPrice;
+
+    // Additional fields
+    @JsonProperty("country")
+    private String country;
+
+    @JsonProperty("cellId")
+    private String cellId;
+
+    @JsonProperty("pricingLastUpdated")
+    private LocalDateTime pricingLastUpdated;
+
+    @JsonProperty("searchLastUpdated")
+    private LocalDateTime searchLastUpdated;
+
+    @JsonProperty("detailLastUpdated")
+    private LocalDateTime detailLastUpdated;
+
+    @JsonProperty("status")
+    private String status;
 }

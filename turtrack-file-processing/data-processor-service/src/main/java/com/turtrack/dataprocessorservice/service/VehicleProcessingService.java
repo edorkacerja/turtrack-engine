@@ -14,7 +14,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VehicleProcessingService {
 
-    private final KafkaTemplate<String, Vehicle> vehicleKafkaTemplate;
+    private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;
 
 
     public void processAndForwardVehicle(Map<String, Object> message) {
@@ -89,6 +89,6 @@ public class VehicleProcessingService {
     }
 
     private void forwardVehicle(Vehicle vehicle) {
-        vehicleKafkaTemplate.send("processed-vehicle-details-topic", vehicle);
+        vehicleDetailsKafkaTemplate.send("processed-vehicle-details-topic", vehicle);
     }
 }

@@ -44,6 +44,15 @@ public class KafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, Vehicle> vehicleSkeletonProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
     public ProducerFactory<String, Vehicle> vehicleProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -59,6 +68,11 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         return new DefaultKafkaProducerFactory<>(configProps, new StringSerializer(), new JsonSerializer<>(jsonObjectMapper));
+    }
+
+    @Bean
+    public KafkaTemplate<String, Vehicle> vehicleSkeletonKafkaTemplate() {
+        return new KafkaTemplate<>(vehicleSkeletonProducerFactory());
     }
 
     @Bean

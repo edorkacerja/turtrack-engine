@@ -10,8 +10,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KafkaConsumerService {
 
+    private final VehicleSkeletonProcessingService vehicleSkeletonProcessingService;
     private final VehicleProcessingService vehicleProcessingService;
     private final DailyRateProcessingService dailyRateProcessingService;
+
+    @KafkaListener(topics = "vehicle-skeleton-topic", groupId = "turtrack-group")
+    public void consumeVehicleSkeletons(Map<String, Object> message) {
+        System.out.println("Received vehicle skeleton message: " + message);
+        vehicleSkeletonProcessingService.processAndForwardVehicleSkeleton(message);
+    }
 
     @KafkaListener(topics = "vehicle-details-topic", groupId = "turtrack-group")
     public void consumeVehicles(Map<String, Object> message) {
