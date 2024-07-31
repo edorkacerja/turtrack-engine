@@ -5,6 +5,7 @@ const cors = require("cors");
 const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
+const { startConsumer } = require("./kafka-consumers/pricingScraperConsumer");
 
 const port = process.env.PORT || 5001;
 
@@ -22,6 +23,9 @@ async function startServer() {
 
     // Initialize Kafka producer
     await initializeProducer();
+
+    // Start the availability scraper consumer
+    await startConsumer();
 
     // Set up routes
     app.use("/api/v1", routesV1);

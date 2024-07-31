@@ -1,6 +1,7 @@
 const fetch = require("cross-fetch");
 const utils = require("../utils/utils");
 const BaseScraper = require("./BaseScraper");
+const {formatDate} = require("../utils/dateutil");
 
 class PricingScraper extends BaseScraper {
   static type = "pricing";
@@ -36,7 +37,7 @@ class PricingScraper extends BaseScraper {
           });
         })
         .catch((error) => {
-          this.onFailedCallback({ vehicle });
+          this.onFailedCallback({ vehicle, error });
           console.log(error);
         });
 

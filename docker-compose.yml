@@ -7,49 +7,21 @@ services:
       file: ./turo-scraper/docker-compose.yml
       service: calibrator
 
-  scraper-1:
+  scraper:
     extends:
       file: ./turo-scraper/docker-compose.yml
-      service: scraper-1
+      service: scraper
     volumes:
       - shared-data:/usr/src/app/database
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-
-  scraper-4:
-    extends:
-      file: ./turo-scraper/docker-compose.yml
-      service: scraper-4
-    volumes:
-      - shared-data:/usr/src/app/database
-    depends_on:
-      - kafka
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-
-  scraper-5:
-    extends:
-      file: ./turo-scraper/docker-compose.yml
-      service: scraper-5
-    volumes:
-      - shared-data:/usr/src/app/database
-    depends_on:
-      - kafka
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-
-  scraper-6:
-    extends:
-      file: ./turo-scraper/docker-compose.yml
-      service: scraper-6
-    volumes:
-      - shared-data:/usr/src/app/database
-    depends_on:
-      - kafka
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    deploy:
+      replicas: 4
 
 
   plotter:
@@ -106,15 +78,30 @@ services:
       - /bin/sh
       - -c
       - |
+        echo "Waiting for Kafka to be ready..."
+        cub kafka-ready -b kafka:29092 1 30
+        echo "Creating topics..."
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-details-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dr-availability-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-skeleton-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-dr-availability-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-details-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-skeleton-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic db-vehicles-to-be-scraped-for-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dlq-availability
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dlq-vehicle-dtls
+        echo "All topics created. Kafka setup completed."
+        sleep infinity
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'vehicle-details-topic' && kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'dlq-availability'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     environment:
       KAFKA_BROKER_ID: ignored
       KAFKA_ZOOKEEPER_CONNECT: ignored
+
 
   # Kafka UI
   kafka-ui:

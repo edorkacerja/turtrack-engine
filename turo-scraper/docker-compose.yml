@@ -8,54 +8,29 @@ services:
     expose:
       - "5003"
 
-  scraper-1:
+  scraper:
     build: ./scraper
     volumes:
       - ./scraper/src:/usr/src/app/src
       - shared:/usr/src/app/database
     ports:
-      - "5001:5001"
-      - "9229:9229"  # debugging port
+      - "5001-5006:5001"
+      - "9229-9232:9229"  # debugging port
     environment:
       PORT: 5001
     depends_on:
       - calibrator
-
-  scraper-4:
-    build: ./scraper
-    volumes:
-      - ./scraper/src:/usr/src/app/src
-      - shared:/usr/src/app/database
-    ports:
-      - "5004:5004"
-    environment:
-      PORT: 5004
-    depends_on:
-      - calibrator
-
-  scraper-5:
-    build: ./scraper
-    volumes:
-      - ./scraper/src:/usr/src/app/src
-      - shared:/usr/src/app/database
-    ports:
-      - "5005:5005"
-    environment:
-      PORT: 5005
-    depends_on:
-      - calibrator
-
-  scraper-6:
-    build: ./scraper
-    volumes:
-      - ./scraper/src:/usr/src/app/src
-      - shared:/usr/src/app/database
-    ports:
-      - "5006:5006"
-    environment:
-      PORT: 5006
-    depends_on:
-      - calibrator
+    deploy:
+      replicas: 4
+      update_config:
+        parallelism: 2
+        order: stop-first
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   plotter:
     build: ./plotter

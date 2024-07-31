@@ -8,10 +8,10 @@ class BaseScraper {
   constructor(config) {
     const { proxyAuth, proxyServer, delay, headless } = config;
 
-    this.proxyAuth = proxyAuth;
-    this.proxyServer = proxyServer;
-    this.delay = delay;
-    this.headless = headless;
+    this.proxyAuth = "intellicode:T3yGrF8Nr63U7q8m";
+    this.proxyServer = "https://proxy.packetstream.io:31111";
+    this.delay = 1000;
+    this.headless = false;
 
     this.browser = null;
     this.page = null;
