@@ -13,21 +13,21 @@ const consumer = kafka.consumer({
     maxInFlightRequests: 1
 });
 
-let scraper;
+let pricingScraper;
 
 async function initializeScraper(startDate, endDate, country) {
-    if (!scraper) {
-        scraper = new PricingScraper({
+    if (!pricingScraper) {
+        pricingScraper = new PricingScraper({
             startDate,
             endDate,
             country,
         });
-        await scraper.init();
-        scraper.onSuccess(handleSuccess);
-        scraper.onFailed(handleFailed);
-        scraper.onFinish(handleFinish);
+        await pricingScraper.init();
+        pricingScraper.onSuccess(handleSuccess);
+        pricingScraper.onFailed(handleFailed);
+        pricingScraper.onFinish(handleFinish);
     }
-    return scraper;
+    return pricingScraper;
 }
 
 async function handleMessage(messageData) {
@@ -75,7 +75,7 @@ function handleFinish() {
     console.log('Finished processing vehicle');
 }
 
-async function startConsumer() {
+async function startPricingConsumer() {
     await consumer.connect();
     await consumer.subscribe({ topic: 'TO-BE-SCRAPED-dr-availability-topic', fromBeginning: true });
 
@@ -91,11 +91,4 @@ async function startConsumer() {
     console.log('Availability scraper consumer is now running and listening for messages...');
 }
 
-// Start the consumer immediately when this module is imported
-startConsumer().catch(error => {
-    console.error('Failed to start availability scraper consumer:', error);
-    process.exit(1);
-});
-
-// Export the startConsumer function in case you want to control when it starts elsewhere
-module.exports = { startConsumer };
+module.exports = { startPricingConsumer };
