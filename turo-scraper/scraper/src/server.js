@@ -7,7 +7,7 @@ const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
 const { startConsumer } = require("./kafka-consumers/pricingScraperConsumer");
 
-const port = process.env.PORT || 5001;
+const port = process.env.PORT || 5011;
 
 const app = express();
 

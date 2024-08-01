@@ -170,7 +170,7 @@ const pricingService = async (dto) => {
 
     console.log(scrapedWithVehicleId);
     // Send vehicle detail data to Kafka
-    await sendToKafka('dr-availability-topic', scrapedWithVehicleId);
+    await sendToKafka('SCRAPED-dr-availability-topic', scrapedWithVehicleId);
 
     failedInRow = 0;
   }
@@ -224,7 +224,7 @@ const vehicleDetailService = async (dto) => {
     fileManager.write(vehicle.getId(), scraped);
 
     // Send vehicle detail data to Kafka
-    await sendToKafka('vehicle-details-topic', scraped);
+    await sendToKafka('SCRAPED-vehicle-details-topic', scraped);
 
     failedInRow = 0;
   }

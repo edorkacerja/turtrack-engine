@@ -22,7 +22,7 @@ public class DailyRateAndAvailabilityConsumer {
     private final DailyRateAndAvailabilityPersistenceService persistenceService;
     private final ObjectMapper jsonObjectMapper;
 
-    @KafkaListener(topics = "processed-dr-availability-topic", groupId = "daily-rate-persistence-group")
+    @KafkaListener(topics = "PROCESSED-dr-availability-topic", groupId = "daily-rate-persistence-group")
     public void consume(List<ConsumerRecord<String, String>> records) {
         log.info("Received batch of {} daily rate records", records.size());
 

@@ -79,6 +79,6 @@ public class VehicleSkeletonProcessingService {
     }
 
     private void forwardVehicleSkeleton(Vehicle vehicle) {
-        vehicleSkeletonKafkaTemplate.send("processed-vehicle-skeleton-topic", vehicle);
+        vehicleSkeletonKafkaTemplate.send("PROCESSED-vehicle-skeleton-topic", vehicle);
     }
 }

@@ -14,19 +14,19 @@ public class KafkaConsumerService {
     private final VehicleProcessingService vehicleProcessingService;
     private final DailyRateProcessingService dailyRateProcessingService;
 
-    @KafkaListener(topics = "vehicle-skeleton-topic", groupId = "turtrack-group")
+    @KafkaListener(topics = "SCRAPED-vehicle-skeleton-topic", groupId = "turtrack-group")
     public void consumeVehicleSkeletons(Map<String, Object> message) {
         System.out.println("Received vehicle skeleton message: " + message);
         vehicleSkeletonProcessingService.processAndForwardVehicleSkeleton(message);
     }
 
-    @KafkaListener(topics = "vehicle-details-topic", groupId = "turtrack-group")
+    @KafkaListener(topics = "SCRAPED-vehicle-details-topic", groupId = "turtrack-group")
     public void consumeVehicles(Map<String, Object> message) {
         System.out.println("Received vehicle message: " + message);
         vehicleProcessingService.processAndForwardVehicle(message);
     }
 
-    @KafkaListener(topics = "dr-availability-topic", groupId = "turtrack-group")
+    @KafkaListener(topics = "SCRAPED-dr-availability-topic", groupId = "turtrack-group")
     public void consumePricing(Map<String, Object> message) {
         System.out.println("Received pricing message: " + message);
         dailyRateProcessingService.processAndForwardDailyRates(message);

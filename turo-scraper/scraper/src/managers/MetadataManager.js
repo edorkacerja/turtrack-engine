@@ -42,7 +42,7 @@ const MetadataManager = {
 
     // Send to Kafka
     try {
-      await kafkaUtil.sendToKafka('vehicle-skeleton-topic', {
+      await kafkaUtil.sendToKafka('SCRAPED-vehicle-skeleton-topic', {
         id: vehicle.getId(),
         country: vehicle.getCountry(),
         cellId: vehicle.getCellId(),

@@ -10,7 +10,7 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 5001
+EXPOSE 5011
 EXPOSE 9229
 
 CMD ["node", "--inspect=0.0.0.0:9229", "./src/server.js"]

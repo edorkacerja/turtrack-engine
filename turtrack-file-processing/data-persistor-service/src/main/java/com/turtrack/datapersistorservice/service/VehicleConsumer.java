@@ -21,7 +21,7 @@ public class VehicleConsumer {
     private final ObjectMapper jsonObjectMapper;
 
 
-    @KafkaListener(topics = "processed-vehicle-details-topic", groupId = "vehicle-persistence-group")
+    @KafkaListener(topics = "PROCESSED-vehicle-details-topic", groupId = "vehicle-persistence-group")
     public void consume(List<ConsumerRecord<String, String>> records) {
         log.info("Received batch of {} records", records.size());
 

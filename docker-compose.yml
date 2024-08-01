@@ -21,7 +21,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     deploy:
-      replicas: 10
+      replicas: 20
 
 
   plotter:
@@ -81,19 +81,20 @@ services:
         echo "Waiting for Kafka to be ready..."
         cub kafka-ready -b kafka:29092 1 30
         echo "Creating topics..."
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic vehicle-skeleton-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic processed-vehicle-skeleton-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic db-vehicles-to-be-scraped-for-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dlq-availability
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic dlq-vehicle-dtls
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 20 --replication-factor 1 --topic TO-BE-SCRAPED-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic TO-BE-SCRAPED-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic SCRAPED-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic SCRAPED-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic SCRAPED-vehicle-skeleton-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic PROCESSED-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic PROCESSED-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic PROCESSED-vehicle-skeleton-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic DLQ-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic DLQ-vehicle-details-topic
         echo "All topics created. Kafka setup completed."
         sleep infinity
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'vehicle-details-topic' && kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'dlq-availability'"]
+      test: ["CMD-SHELL", "kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'SCRAPED-vehicle-details-topic' && kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'DLQ-dr-availability-topic'"]
       interval: 10s
       timeout: 5s
       retries: 10

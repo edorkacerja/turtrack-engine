@@ -78,6 +78,6 @@ public class DailyRateProcessingService {
     }
 
     private void forwardDailyRate(DailyRateAndAvailability dailyRate) {
-        dailyRateAndAvailabilityKafkaTemplate.send("processed-dr-availability-topic", dailyRate);
+        dailyRateAndAvailabilityKafkaTemplate.send("PROCESSED-dr-availability-topic", dailyRate);
     }
 }

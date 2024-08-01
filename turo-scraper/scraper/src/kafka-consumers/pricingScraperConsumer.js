@@ -50,7 +50,7 @@ async function handleSuccess(data) {
 
     console.log(`Successfully scraped availability for vehicle ${vehicle.getId()}`);
 
-    await sendToKafka('dr-availability-topic', scrapedWithVehicleId);
+    await sendToKafka('SCRAPED-dr-availability-topic', scrapedWithVehicleId);
 }
 
 async function handleFailed(data) {
@@ -64,7 +64,7 @@ async function handleFailed(data) {
     };
 
     try {
-        await sendToKafka('dlq-availability', dlqMessage);
+        await sendToKafka('DLQ-dr-availability-topic', dlqMessage);
         console.log(`Sent failed vehicle ${vehicle.getId()} to DLQ`);
     } catch (dlqError) {
         console.error(`Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
@@ -77,7 +77,7 @@ function handleFinish() {
 
 async function startConsumer() {
     await consumer.connect();
-    await consumer.subscribe({ topic: 'db-vehicles-to-be-scraped-for-availability-topic', fromBeginning: true });
+    await consumer.subscribe({ topic: 'TO-BE-SCRAPED-dr-availability-topic', fromBeginning: true });
 
     await consumer.run({
         autoCommit: false,
