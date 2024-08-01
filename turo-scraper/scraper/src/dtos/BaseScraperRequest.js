@@ -1,7 +1,7 @@
 class BaseScraperRequest {
   constructor(config) {
     this.proxyServer = config?.proxyServer ?? "https://proxy.packetstream.io:31111";
-    this.proxyAuth = config?.proxyAuth ?? "edorkacerja:ClHNrQ0x7l72DGZv";
+    this.proxyAuth = config?.proxyAuth ?? "intellicode:T3yGrF8Nr63U7q8m";
     this.delay = config?.delay ?? 1100;
     this.headless = config?.headless ?? false;
     this.maxFailedInRow = config?.maxFailedInRow ?? 10;

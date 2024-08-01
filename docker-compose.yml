@@ -21,7 +21,8 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     deploy:
-      replicas: 20
+      replicas: 1
+#      replicas: 20
 
 
   plotter:
@@ -95,10 +96,10 @@ services:
         sleep infinity
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'SCRAPED-vehicle-details-topic' && kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'DLQ-dr-availability-topic'"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 10s
     environment:
       KAFKA_BROKER_ID: ignored
       KAFKA_ZOOKEEPER_CONNECT: ignored
