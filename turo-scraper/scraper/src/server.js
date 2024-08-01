@@ -6,6 +6,7 @@ const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
 const { startPricingConsumer } = require("./kafka-consumers/pricingScraperConsumer");
+const {startVehicleDetailsConsumer} = require("./kafka-consumers/vehicleDetailsConsumer");
 
 const port = process.env.PORT || 5001;
 
@@ -26,6 +27,9 @@ async function startServer() {
 
     // Start the availability scraper consumer
     await startPricingConsumer();
+
+    // Start the availability scraper consumer
+    await startVehicleDetailsConsumer();
 
     // Set up routes
     app.use("/api/v1", routesV1);
