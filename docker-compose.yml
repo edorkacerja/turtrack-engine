@@ -21,7 +21,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     deploy:
-      replicas: 4
+      replicas: 10
 
 
   plotter:

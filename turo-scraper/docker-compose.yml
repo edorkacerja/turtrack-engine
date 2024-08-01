@@ -14,14 +14,14 @@ services:
       - ./scraper/src:/usr/src/app/src
       - shared:/usr/src/app/database
     ports:
-      - "5001-5006:5001"
-      - "9229-9232:9229"  # debugging port
+      - "5001-5011:5001"
+      - "9229-9239:9229"  # debugging port
     environment:
       PORT: 5001
     depends_on:
       - calibrator
     deploy:
-      replicas: 4
+      replicas: 10
       update_config:
         parallelism: 2
         order: stop-first
