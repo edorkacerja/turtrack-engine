@@ -14,11 +14,9 @@ const consumer = kafka.consumer({
 
 let vehicleDetailsScraper;
 
-async function initializeScraper(country) {
+async function initializeScraper(config) {
     if (!vehicleDetailsScraper) {
-        vehicleDetailsScraper = new VehicleDetailScraper({
-            country,
-        });
+        vehicleDetailsScraper = new VehicleDetailScraper(config);
         await vehicleDetailsScraper.init();
         vehicleDetailsScraper.onSuccess(handleSuccess);
         vehicleDetailsScraper.onFailed(handleFailed);
@@ -28,13 +26,28 @@ async function initializeScraper(country) {
 }
 
 async function handleMessage(messageData) {
-    const { country, vehicleId } = messageData;
-    console.log(`Consumed vehicle with id ${vehicleId} to be scraped for details`);
+    try {
+        if (!messageData || typeof messageData !== 'object' || !messageData.country || !messageData.vehicleId) {
+            throw new Error('Invalid message data');
+        }
 
-    const scraper = await initializeScraper(country);
+        const { country, vehicleId, startDate, endDate, startTime, endTime } = messageData;
+        console.log(`Consumed vehicle with id ${vehicleId} to be scraped for details`);
 
-    const vehicle = { getId: () => vehicleId };
-    await scraper.scrape([vehicle]);
+        const scraper = await initializeScraper({
+            country,
+            startDate,
+            endDate,
+            startTime,
+            endTime
+        });
+
+        const vehicle = { getId: () => vehicleId };
+        await scraper.scrape([vehicle]);
+    } catch (error) {
+        console.error(`Error processing message:`, error);
+        await handleFailed({ vehicle: { getId: () => messageData.vehicleId }, error });
+    }
 }
 
 async function handleSuccess(data) {
@@ -54,17 +67,33 @@ async function handleFailed(data) {
     const { vehicle, error } = data;
     console.log(`Failed to scrape details for vehicle ${vehicle.getId()}`);
 
-    const dlqMessage = {
-        vehicleId: vehicle.getId(),
-        error: error ? (error.message || String(error)) : 'Unknown error',
-        timestamp: new Date().toISOString(),
-    };
+    let dlqMessage;
+
+    if (error && error.errors && Array.isArray(error.errors)) {
+        dlqMessage = {
+            vehicleId: vehicle.getId(),
+            error: "invalid_request",
+            errors: error.errors.map(err => ({
+                field: err.field,
+                message: err.message,
+                data: err.data
+            })),
+            timestamp: new Date().toISOString(),
+        };
+    } else {
+        dlqMessage = {
+            vehicleId: vehicle.getId(),
+            error: error ? (error.message || String(error)) : 'Unknown error',
+            timestamp: new Date().toISOString(),
+        };
+    }
 
     try {
         await sendToKafka('DLQ-vehicle-details-topic', dlqMessage);
         console.log(`Sent failed vehicle ${vehicle.getId()} to DLQ`);
     } catch (dlqError) {
         console.error(`Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
+        // You might want to implement a retry mechanism or alert system here
     }
 }
 

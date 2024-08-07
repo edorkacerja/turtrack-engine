@@ -26,7 +26,7 @@ async function startServer() {
     await initializeProducer();
 
     // Start the availability scraper consumer
-    await startPricingConsumer();
+    // await startPricingConsumer();
 
     // Start the availability scraper consumer
     await startVehicleDetailsConsumer();

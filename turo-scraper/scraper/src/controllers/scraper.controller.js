@@ -2,7 +2,7 @@ const services = require("../services/scraper.service");
 const PricingRequest = require("../dtos/pricingRequest.dto");
 const Searchrequest = require("../dtos/searchRequest.dto");
 const Response = require("../dtos/response.dto");
-const VehicleDetailRequest = require("../dtos/vehilceDetailRequest.dto");
+const VehicleDetailRequest = require("../dtos/vehicleDetailRequest.dto");
 const ResetRequestDTO = require("../dtos/resetRequest.dto");
 const CalibrateRequest = require("../dtos/calibrateRequest.dto");
 

@@ -1,6 +1,7 @@
 const fetch = require("cross-fetch");
 const utils = require("../utils/utils");
 const BaseScraper = require("./BaseScraper");
+const VehicleDetailRequest = require("../dtos/vehicleDetailRequest.dto");
 
 class VehicleDetailScraper extends BaseScraper {
   static type = "vehicle_detail";
@@ -8,14 +9,14 @@ class VehicleDetailScraper extends BaseScraper {
   constructor(config) {
     super(config);
 
-    const { startDate, endDate, startTime, endTime, country } = config;
+    const vehicleDetailRequest = new VehicleDetailRequest(config);
 
-    this.startDate = startDate;
-    this.endDate = endDate;
-    this.startTime = startTime;
-    this.endTime = endTime;
+    this.startDate = vehicleDetailRequest.startDate;
+    this.endDate = vehicleDetailRequest.endDate;
+    this.startTime = vehicleDetailRequest.startTime;
+    this.endTime = vehicleDetailRequest.endTime;
 
-    this.localResourceName = `${country}.vehicles`;
+    this.localResourceName = `${config.country}.vehicles`;
 
     this.onSuccessCallback = () => {};
     this.onFailedCallback = () => {};
@@ -23,28 +24,24 @@ class VehicleDetailScraper extends BaseScraper {
   }
 
   async scrape(vehicles) {
-    const promises = [];
-    for (let vehicle of vehicles) {
-      if (!this.isRunning()) break;
+    const promises = vehicles.map(async (vehicle) => {
+      if (!this.isRunning()) return;
 
       const vehicleId = vehicle.getId();
 
-      const promise = this.fetch(vehicleId)
-        .then((data) => {
-          this.onSuccessCallback({
-            id: vehicleId,
-            vehicle,
-            scraped: data,
-          });
-        })
-        .catch((error) => {
-          this.onFailedCallback({ vehicle });
-          console.log(error);
+      try {
+        const data = await this.fetch(vehicleId);
+        this.onSuccessCallback({
+          id: vehicleId,
+          vehicle,
+          scraped: data,
         });
-
-      promises.push(promise);
-      await utils.sleep(this.delay);
-    }
+      } catch (error) {
+        this.onFailedCallback({ vehicle, error });
+      } finally {
+        await utils.sleep(this.delay);
+      }
+    });
 
     await Promise.allSettled(promises);
     this.onFinishCallback(this.scraped);
@@ -65,21 +62,30 @@ class VehicleDetailScraper extends BaseScraper {
       credentials: "include",
     };
 
-    const queryParams = new URLSearchParams();
-    queryParams.append("endDate", this.endDate);
-    queryParams.append("endTime", this.endTime);
-    queryParams.append("startDate", this.startDate);
-    queryParams.append("startTime", this.startTime);
-    queryParams.append("vehicleId", vehicleId);
+    const queryParams = new URLSearchParams({
+      endDate: this.endDate,
+      endTime: this.endTime,
+      startDate: this.startDate,
+      startTime: this.startTime,
+      vehicleId: vehicleId,
+    });
 
     const url = `https://turo.com/api/vehicle/detail?${queryParams.toString()}`;
 
-    const data = await this.page.evaluate(
-      ({ requestConfig, url }) => fetch(url, requestConfig).then((res) => res.json()),
-      { requestConfig, url }
+    const response = await this.page.evaluate(
+        async ({ requestConfig, url }) => {
+          const res = await fetch(url, requestConfig);
+          const data = await res.json();
+          return { status: res.status, data };
+        },
+        { requestConfig, url }
     );
 
-    return data;
+    if (response.status !== 200) {
+      throw response.data;
+    }
+
+    return response.data;
   }
 
   async onSuccess(callfunction) {
