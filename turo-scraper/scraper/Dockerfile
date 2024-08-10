@@ -1,13 +1,30 @@
-FROM zenika/alpine-chrome:with-puppeteer
+FROM node:18-alpine
 
-USER 0
-RUN apk add --no-cache xvfb
+# Install dependencies
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    nodejs \
+    yarn \
+    xvfb
 
+# Tell Puppeteer to skip installing Chrome. We'll be using the installed package.
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Create app directory
 WORKDIR /usr/src/app
 
-COPY package.json .
+# Install app dependencies
+COPY package*.json ./
 RUN npm install
 
+# Bundle app source
 COPY . .
 
 EXPOSE 5011
