@@ -1,16 +1,20 @@
 # No version specified as it's no longer needed in recent Docker Compose versions
 
+x-common-labels: &common-labels
+  com.docker.compose.project: "turo-project"
+
 services:
   # Turo-scraper services
   calibrator:
     extends:
       file: ./turo-scraper/docker-compose.yml
       service: calibrator
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "turo-scraper"
 
-  scraper:
-    extends:
-      file: ./turo-scraper/docker-compose.yml
-      service: scraper
+  pricing-scraper:
+    build: ./turo-scraper/scraper
     volumes:
       - shared-data:/usr/src/app/database
     depends_on:
@@ -20,10 +24,48 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCRAPER_TYPE: pricing
     deploy:
-      replicas: 1
-#      replicas: 20
+      replicas: 10
+      update_config:
+        parallelism: 2
+        order: stop-first
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "turo-scraper"
 
+  vehicle-details-scraper:
+    build: ./turo-scraper/scraper
+    volumes:
+      - shared-data:/usr/src/app/database
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCRAPER_TYPE: vehicle-details
+    deploy:
+      replicas: 10
+      update_config:
+        parallelism: 2
+        order: stop-first
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "turo-scraper"
 
   plotter:
     extends:
@@ -31,6 +73,9 @@ services:
       service: plotter
     volumes:
       - shared-data:/usr/src/app/public/database/
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "turo-scraper"
 
   # Kafka and Zookeeper
   zookeeper:
@@ -40,6 +85,9 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "kafka-ecosystem"
 
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -69,6 +117,9 @@ services:
       retries: 5
     volumes:
       - kafka-data:/var/lib/kafka/data
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "kafka-ecosystem"
 
   kafka-setup:
     image: confluentinc/cp-kafka:latest
@@ -82,16 +133,16 @@ services:
         echo "Waiting for Kafka to be ready..."
         cub kafka-ready -b kafka:29092 1 30
         echo "Creating topics..."
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 20 --replication-factor 1 --topic TO-BE-SCRAPED-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic TO-BE-SCRAPED-dr-availability-topic
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic TO-BE-SCRAPED-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic SCRAPED-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic SCRAPED-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic SCRAPED-vehicle-skeleton-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic PROCESSED-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic PROCESSED-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic PROCESSED-vehicle-skeleton-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic DLQ-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 10 --replication-factor 1 --topic DLQ-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-vehicle-skeleton-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-vehicle-details-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-vehicle-skeleton-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic DLQ-dr-availability-topic
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic DLQ-vehicle-details-topic
         echo "All topics created. Kafka setup completed."
         sleep infinity
     healthcheck:
@@ -103,9 +154,10 @@ services:
     environment:
       KAFKA_BROKER_ID: ignored
       KAFKA_ZOOKEEPER_CONNECT: ignored
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "kafka-ecosystem"
 
-
-  # Kafka UI
   kafka-ui:
     container_name: kafka-ui
     image: provectuslabs/kafka-ui:latest
@@ -119,11 +171,11 @@ services:
     depends_on:
       - kafka
       - zookeeper
-#    volumes:
-#      - ~/kui/config.yml:/etc/kafkaui/dynamic_config.yaml
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "kafka-ecosystem"
 
-
-  # Data Processor Service
+  # Data Processing Services
   data-processor-service:
     build:
       context: ./turtrack-file-processing/data-processor-service
@@ -137,8 +189,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/turo
       SPRING_DATASOURCE_USERNAME: turo_user
       SPRING_DATASOURCE_PASSWORD: turo_password
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "data-processing"
 
-  # Data Persistor Service
   data-persistor-service:
     build:
       context: ./turtrack-file-processing/data-persistor-service
@@ -152,10 +206,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/turo
       SPRING_DATASOURCE_USERNAME: turo_user
       SPRING_DATASOURCE_PASSWORD: turo_password
-
-
+    labels:
+      <<: *common-labels
+      com.docker.compose.group: "data-processing"
 
 volumes:
   shared-data:
   kafka-data:
-

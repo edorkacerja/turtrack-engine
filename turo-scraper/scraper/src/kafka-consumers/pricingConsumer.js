@@ -2,10 +2,13 @@ const { Kafka } = require('kafkajs');
 const PricingScraper = require('../scrapers/PricingScraper');
 const { sendToKafka } = require('../utils/kafkaUtil');
 const dateutil = require('../utils/dateutil');
+const os = require('os');
+
+const instanceId = os.hostname();
 
 const kafka = new Kafka({
-    clientId: 'availability-scraper-client',
-    brokers: ['kafka:29092']
+    clientId: `availability-scraper-client-${instanceId}`,
+    brokers: [process.env.KAFKA_BOOTSTRAP_SERVERS || 'kafka:29092']
 });
 
 const consumer = kafka.consumer({
@@ -32,7 +35,7 @@ async function initializeScraper(startDate, endDate, country) {
 
 async function handleMessage(messageData) {
     const { startDate, endDate, country, vehicleId } = messageData;
-    console.log(`Consumed vehicle with id ${vehicleId} to be scraped for availability`);
+    console.log(`[Instance ${instanceId}] Consumed vehicle with id ${vehicleId} to be scraped for availability`);
 
     const scraper = await initializeScraper(startDate, endDate, country);
 
@@ -45,34 +48,36 @@ async function handleSuccess(data) {
 
     const scrapedWithVehicleId = {
         ...scraped,
-        vehicleId: vehicle.getId()
+        vehicleId: vehicle.getId(),
+        scrapedBy: instanceId
     };
 
-    console.log(`Successfully scraped availability for vehicle ${vehicle.getId()}`);
+    console.log(`[Instance ${instanceId}] Successfully scraped availability for vehicle ${vehicle.getId()}`);
 
     await sendToKafka('SCRAPED-dr-availability-topic', scrapedWithVehicleId);
 }
 
 async function handleFailed(data) {
     const { vehicle, error } = data;
-    console.log(`Failed to scrape availability for vehicle ${vehicle.getId()}`);
+    console.log(`[Instance ${instanceId}] Failed to scrape availability for vehicle ${vehicle.getId()}`);
 
     const dlqMessage = {
         vehicleId: vehicle.getId(),
         error: error ? (error.message || String(error)) : 'Unknown error',
         timestamp: new Date().toISOString(),
+        instanceId: instanceId
     };
 
     try {
         await sendToKafka('DLQ-dr-availability-topic', dlqMessage);
-        console.log(`Sent failed vehicle ${vehicle.getId()} to DLQ`);
+        console.log(`[Instance ${instanceId}] Sent failed vehicle ${vehicle.getId()} to DLQ`);
     } catch (dlqError) {
-        console.error(`Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
+        console.error(`[Instance ${instanceId}] Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
     }
 }
 
 function handleFinish() {
-    console.log('Finished processing vehicle');
+    console.log(`[Instance ${instanceId}] Finished processing vehicle`);
 }
 
 async function startPricingConsumer() {
@@ -88,7 +93,7 @@ async function startPricingConsumer() {
         },
     });
 
-    console.log('Availability scraper consumer is now running and listening for messages...');
+    console.log(`[Instance ${instanceId}] Availability scraper consumer is now running and listening for messages...`);
 }
 
 module.exports = { startPricingConsumer };

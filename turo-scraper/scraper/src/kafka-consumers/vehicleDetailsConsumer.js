@@ -1,10 +1,13 @@
 const { Kafka } = require('kafkajs');
 const VehicleDetailScraper = require('../scrapers/VehicleDetailScraper');
 const { sendToKafka } = require('../utils/kafkaUtil');
+const os = require('os');
+
+const instanceId = os.hostname();
 
 const kafka = new Kafka({
-    clientId: 'vehicle-details-scraper-client',
-    brokers: ['kafka:29092']
+    clientId: `vehicle-details-scraper-client-${instanceId}`,
+    brokers: [process.env.KAFKA_BOOTSTRAP_SERVERS || 'kafka:29092']
 });
 
 const consumer = kafka.consumer({
@@ -32,7 +35,7 @@ async function handleMessage(messageData) {
         }
 
         const { country, vehicleId, startDate, endDate, startTime, endTime } = messageData;
-        console.log(`Consumed vehicle with id ${vehicleId} to be scraped for details`);
+        console.log(`[Instance ${instanceId}] Consumed vehicle with id ${vehicleId} to be scraped for details`);
 
         const scraper = await initializeScraper({
             country,
@@ -45,7 +48,7 @@ async function handleMessage(messageData) {
         const vehicle = { getId: () => vehicleId };
         await scraper.scrape([vehicle]);
     } catch (error) {
-        console.error(`Error processing message:`, error);
+        console.error(`[Instance ${instanceId}] Error processing message:`, error);
         await handleFailed({ vehicle: { getId: () => messageData.vehicleId }, error });
     }
 }
@@ -55,17 +58,18 @@ async function handleSuccess(data) {
 
     const scrapedWithVehicleId = {
         ...scraped,
-        vehicleId: vehicle.getId()
+        vehicleId: vehicle.getId(),
+        scrapedBy: instanceId
     };
 
-    console.log(`Successfully scraped details for vehicle ${vehicle.getId()}`);
+    console.log(`[Instance ${instanceId}] Successfully scraped details for vehicle ${vehicle.getId()}`);
 
     await sendToKafka('SCRAPED-vehicle-details-topic', scrapedWithVehicleId);
 }
 
 async function handleFailed(data) {
     const { vehicle, error } = data;
-    console.log(`Failed to scrape details for vehicle ${vehicle.getId()}`);
+    console.log(`[Instance ${instanceId}] Failed to scrape details for vehicle ${vehicle.getId()}`);
 
     let dlqMessage;
 
@@ -79,26 +83,28 @@ async function handleFailed(data) {
                 data: err.data
             })),
             timestamp: new Date().toISOString(),
+            instanceId: instanceId
         };
     } else {
         dlqMessage = {
             vehicleId: vehicle.getId(),
             error: error ? (error.message || String(error)) : 'Unknown error',
             timestamp: new Date().toISOString(),
+            instanceId: instanceId
         };
     }
 
     try {
         await sendToKafka('DLQ-vehicle-details-topic', dlqMessage);
-        console.log(`Sent failed vehicle ${vehicle.getId()} to DLQ`);
+        console.log(`[Instance ${instanceId}] Sent failed vehicle ${vehicle.getId()} to DLQ`);
     } catch (dlqError) {
-        console.error(`Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
+        console.error(`[Instance ${instanceId}] Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
         // You might want to implement a retry mechanism or alert system here
     }
 }
 
 function handleFinish() {
-    console.log('Finished processing vehicle details');
+    console.log(`[Instance ${instanceId}] Finished processing vehicle details`);
 }
 
 async function startVehicleDetailsConsumer() {
@@ -114,7 +120,7 @@ async function startVehicleDetailsConsumer() {
         },
     });
 
-    console.log('Vehicle details scraper consumer is now running and listening for messages...');
+    console.log(`[Instance ${instanceId}] Vehicle details scraper consumer is now running and listening for messages...`);
 }
 
 module.exports = { startVehicleDetailsConsumer };
