@@ -1,83 +1,12 @@
-# No version specified as it's no longer needed in recent Docker Compose versions
+version: '3.8'
+
+name: kafka-ecosystem
 
 x-common-labels: &common-labels
   com.docker.compose.project: "turo-project"
+  com.docker.compose.group: "kafka-ecosystem"
 
 services:
-  # Turo-scraper services
-  calibrator:
-    extends:
-      file: turo-scraper/docker-compose-old.yml
-      service: calibrator
-    labels:
-      <<: *common-labels
-      com.docker.compose.group: "turo-scraper"
-
-  pricing-scraper:
-    build: ./turo-scraper/scraper
-    volumes:
-      - shared-data:/usr/src/app/database
-    depends_on:
-      kafka:
-        condition: service_healthy
-      kafka-setup:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SCRAPER_TYPE: pricing
-    deploy:
-      replicas: 10
-      update_config:
-        parallelism: 2
-        order: stop-first
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    labels:
-      <<: *common-labels
-      com.docker.compose.group: "turo-scraper"
-
-  vehicle-details-scraper:
-    build: ./turo-scraper/scraper
-    volumes:
-      - shared-data:/usr/src/app/database
-    depends_on:
-      kafka:
-        condition: service_healthy
-      kafka-setup:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SCRAPER_TYPE: vehicle-details
-    deploy:
-      replicas: 10
-      update_config:
-        parallelism: 2
-        order: stop-first
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    labels:
-      <<: *common-labels
-      com.docker.compose.group: "turo-scraper"
-
-  plotter:
-    extends:
-      file: turo-scraper/docker-compose-old.yml
-      service: plotter
-    volumes:
-      - shared-data:/usr/src/app/public/database/
-    labels:
-      <<: *common-labels
-      com.docker.compose.group: "turo-scraper"
-
-  # Kafka and Zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     environment:
@@ -87,7 +16,6 @@ services:
       - "2181:2181"
     labels:
       <<: *common-labels
-      com.docker.compose.group: "kafka-ecosystem"
 
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -119,7 +47,6 @@ services:
       - kafka-data:/var/lib/kafka/data
     labels:
       <<: *common-labels
-      com.docker.compose.group: "kafka-ecosystem"
 
   kafka-setup:
     image: confluentinc/cp-kafka:latest
@@ -156,7 +83,6 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: ignored
     labels:
       <<: *common-labels
-      com.docker.compose.group: "kafka-ecosystem"
 
   kafka-ui:
     container_name: kafka-ui
@@ -173,43 +99,10 @@ services:
       - zookeeper
     labels:
       <<: *common-labels
-      com.docker.compose.group: "kafka-ecosystem"
-
-  # Data Processing Services
-  data-processor-service:
-    build:
-      context: ./turtrack-file-processing/data-processor-service
-      dockerfile: Dockerfile
-    ports:
-      - "8085:8085"
-    depends_on:
-      - kafka
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/turo
-      SPRING_DATASOURCE_USERNAME: turo_user
-      SPRING_DATASOURCE_PASSWORD: turo_password
-    labels:
-      <<: *common-labels
-      com.docker.compose.group: "data-processing"
-
-  data-persistor-service:
-    build:
-      context: ./turtrack-file-processing/data-persistor-service
-      dockerfile: Dockerfile
-    ports:
-      - "8088:8088"
-    depends_on:
-      - kafka
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/turo
-      SPRING_DATASOURCE_USERNAME: turo_user
-      SPRING_DATASOURCE_PASSWORD: turo_password
-    labels:
-      <<: *common-labels
-      com.docker.compose.group: "data-processing"
 
 volumes:
-  shared-data:
   kafka-data:
+
+networks:
+  default:
+    name: kafka_network

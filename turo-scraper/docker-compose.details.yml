@@ -1,0 +1,43 @@
+version: '3.8'
+
+name: details-scraper
+
+services:
+  details-scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    volumes:
+      - turo_scraper_data:/usr/src/app/database
+    environment:
+      SCRAPER_TYPE: vehicle-details
+      KAFKA_BROKERS: kafka:29092  # Use the internal Kafka port
+    deploy:
+      replicas: 10
+    networks:
+      - turo_scraper_network
+      - turtrack_common_network
+      - kafka_network
+    ports:
+      - "5051-5061:5051"
+      - "9259-9269:9259"  # debugging port
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 10s
+#    depends_on:
+#      kafka:
+#        condition: service_healthy
+
+volumes:
+  turo_scraper_data:
+    external: true
+
+networks:
+  turo_scraper_network:
+  turtrack_common_network:
+    external: true
+  kafka_network:
+    external: true

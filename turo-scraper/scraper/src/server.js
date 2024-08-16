@@ -9,7 +9,7 @@ const { startPricingConsumer } = require('./kafka-consumers/pricingConsumer');
 const { startVehicleDetailsConsumer } = require('./kafka-consumers/vehicleDetailsConsumer');
 
 const port = process.env.PORT || 5001;
-const scraperType = process.env.SCRAPER_TYPE || 'pricing';
+const scraperType = process.env.SCRAPER_TYPE || 'search';
 
 const app = express();
 
@@ -37,6 +37,8 @@ async function startServer() {
     } else if (scraperType === 'vehicle-details') {
       await startVehicleDetailsConsumer();
       console.log("Vehicle details consumer started successfully");
+    } else if (scraperType === 'search') {
+      console.log("Search scraper started successfully.");
     } else {
       throw new Error(`Unknown SCRAPER_TYPE: ${scraperType}`);
     }
