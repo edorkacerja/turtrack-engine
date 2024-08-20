@@ -1,7 +1,5 @@
-const fetch = require("cross-fetch");
-const utils = require("../utils/utils");
 const BaseScraper = require("./BaseScraper");
-const {formatDate} = require("../utils/dateutil");
+const {sleep, getRandomInt} = require("../utils/utils");
 
 class PricingScraper extends BaseScraper {
   static type = "pricing";
@@ -9,44 +7,69 @@ class PricingScraper extends BaseScraper {
   constructor(config) {
     super(config);
 
-    const { startDate, endDate, country } = config;
+    const { startDate, endDate, country, instanceId } = config;
 
     this.startDate = startDate;
     this.endDate = endDate;
-
     this.localResourceName = `${country}.vehicles`;
+    this.instanceId = instanceId || 'unknown';
 
     this.onSuccessCallback = () => {};
     this.onFailedCallback = () => {};
     this.onFinishCallback = () => {};
   }
 
+  async recreateBrowserInstance() {
+    console.log(`[Instance ${this.instanceId}] Recreating browser instance...`);
+    if (this.browser) {
+      await this.browser.close();
+    }
+
+
+
+    await this.init();
+
+
+
+
+
+
+
+    console.log(`[Instance ${this.instanceId}] Browser instance recreated successfully.`);
+  }
+
   async scrape(vehicles) {
-    const promises = [];
+    const results = [];
     for (let vehicle of vehicles) {
       if (!this.isRunning()) break;
 
       const vehicleId = vehicle.getId();
 
-      const promise = this.fetch(vehicleId)
-        .then((data) => {
+      try {
+        // await this.logIpAddress();
+        const data = await this.fetch(vehicleId);
+        if (this.isValidResponse(data)) {
           this.onSuccessCallback({
             id: vehicleId,
             vehicle,
             scraped: data,
           });
-        })
-        .catch((error) => {
-          this.onFailedCallback({ vehicle, error });
-          console.log(error);
-        });
+          results.push({ success: true, vehicleId });
+          console.log(`[Instance ${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
+        } else {
+          throw new Error("Invalid response structure");
+        }
+      } catch (error) {
+        this.onFailedCallback({ vehicle, error });
+        console.error(`[Instance ${this.instanceId}] Failed to scrape vehicle ${vehicleId}: ${error.message}`);
+        results.push({ success: false, vehicleId, error: error.message });
+      }
 
-      promises.push(promise);
-      await utils.sleep(this.delay);
+      await new Promise(resolve => setTimeout(resolve, this.delay));
     }
 
-    await Promise.allSettled(promises);
-    this.onFinishCallback(this.scraped);
+    this.onFinishCallback(results);
+    return results;
   }
 
   async fetch(vehicleId) {
@@ -71,12 +94,38 @@ class PricingScraper extends BaseScraper {
 
     const url = `https://turo.com/api/vehicle/daily_pricing?${queryParams.toString()}`;
 
-    const data = await this.page.evaluate(
-      ({ requestConfig, url }) => fetch(url, requestConfig).then((res) => res.json()),
-      { requestConfig, url }
-    );
+    try {
+      const data = await this.page.evaluate(
+          async ({ requestConfig, url }) => {
+            const response = await fetch(url, requestConfig);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          },
+          { requestConfig, url }
+      );
 
-    return data;
+      return {
+        ...data,
+        vehicleId,
+        scrapedBy: this.instanceId
+      };
+    } catch (error) {
+      console.error(`[Instance ${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  isValidResponse(data) {
+    return (
+        data &&
+        typeof data === 'object' &&
+        Array.isArray(data.dailyPricingResponses) &&
+        typeof data.calendarCurrencyHeader === 'string' &&
+        typeof data.vehicleId === 'string' &&
+        typeof data.scrapedBy === 'string'
+    );
   }
 
   async onSuccess(callfunction) {

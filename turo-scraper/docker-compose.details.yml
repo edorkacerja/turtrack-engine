@@ -11,7 +11,7 @@ services:
       - turo_scraper_data:/usr/src/app/database
     environment:
       SCRAPER_TYPE: vehicle-details
-      KAFKA_BROKERS: kafka:29092  # Use the internal Kafka port
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092  # Use the internal Kafka port
     deploy:
       replicas: 10
     networks:

@@ -1,6 +1,5 @@
 version: '3.8'
 
-
 name: pricing-scraper
 
 services:
@@ -12,25 +11,26 @@ services:
       - turo_scraper_data:/usr/src/app/database
     environment:
       SCRAPER_TYPE: pricing
-      KAFKA_BROKERS: kafka:29092  # Use the internal Kafka port
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092  # Use the internal Kafka port
+      DELAY_MILLIS: 2000
     deploy:
-      replicas: 10
+      replicas: 8
+      update_config:
+        parallelism: 2
+        order: stop-first
     networks:
       - turo_scraper_network
       - turtrack_common_network
       - kafka_network
     ports:
-      - "5011-5021:5011"
-      - "9229-9239:9229"  # debugging port
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 10s
-#    depends_on:
-#      kafka:
-#        condition: service_healthy
+      - "5011"
+      - "9229"  # debugging port
+    healthcheck:
+      test: ["CMD", "node", "/usr/src/app/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
   turo_scraper_data:

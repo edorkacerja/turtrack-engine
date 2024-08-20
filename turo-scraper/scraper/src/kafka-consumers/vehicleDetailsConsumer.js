@@ -7,7 +7,7 @@ const instanceId = os.hostname();
 
 const kafka = new Kafka({
     clientId: `vehicle-details-scraper-client-${instanceId}`,
-    brokers: [process.env.KAFKA_BOOTSTRAP_SERVERS || 'kafka:29092']
+    brokers: [process.env.KAFKA_BOOTSTRAP_SERVERS]
 });
 
 const consumer = kafka.consumer({

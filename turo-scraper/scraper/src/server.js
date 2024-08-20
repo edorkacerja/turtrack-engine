@@ -21,10 +21,7 @@ async function startServer() {
   try {
     console.log(`Starting server with scraper type: ${scraperType}`);
 
-    // Initialize MetadataManager
-    await MetadataManager.init();
-    MetadataManager.sync(5000);
-    console.log("MetadataManager initialized and syncing");
+
 
     // Initialize Kafka producer
     await initializeProducer();
@@ -32,16 +29,27 @@ async function startServer() {
 
     // Start the appropriate consumer based on SCRAPER_TYPE
     if (scraperType === 'pricing') {
-      await startPricingConsumer();
+      await startPricingConsumer().catch(console.error);
       console.log("Pricing consumer started successfully");
+
+
     } else if (scraperType === 'vehicle-details') {
       await startVehicleDetailsConsumer();
       console.log("Vehicle details consumer started successfully");
+
+
     } else if (scraperType === 'search') {
+      // Initialize MetadataManager
+      await MetadataManager.init();
+      MetadataManager.sync(5000);
+      console.log("MetadataManager initialized and syncing");
+
+
       console.log("Search scraper started successfully.");
     } else {
       throw new Error(`Unknown SCRAPER_TYPE: ${scraperType}`);
     }
+
 
     // Set up routes
     app.use("/api/v1", routesV1);
