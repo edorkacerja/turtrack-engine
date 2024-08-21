@@ -17,6 +17,7 @@ class PricingScraper extends BaseScraper {
     this.onSuccessCallback = () => {};
     this.onFailedCallback = () => {};
     this.onFinishCallback = () => {};
+    this.currentRequestTotalBytes = 0;
   }
 
   async recreateBrowserInstance() {
@@ -25,15 +26,7 @@ class PricingScraper extends BaseScraper {
       await this.browser.close();
     }
 
-
-
     await this.init();
-
-
-
-
-
-
 
     console.log(`[Instance ${this.instanceId}] Browser instance recreated successfully.`);
   }
@@ -46,8 +39,10 @@ class PricingScraper extends BaseScraper {
       const vehicleId = vehicle.getId();
 
       try {
-        // await this.logIpAddress();
+        this.currentRequestTotalBytes = 0;  // Reset for each vehicle
         const data = await this.fetch(vehicleId);
+        console.log(`[Instance ${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
+
         if (this.isValidResponse(data)) {
           this.onSuccessCallback({
             id: vehicleId,
@@ -105,6 +100,10 @@ class PricingScraper extends BaseScraper {
           },
           { requestConfig, url }
       );
+
+      // Update total bytes received
+      const responseSize = JSON.stringify(data).length;
+      this.currentRequestTotalBytes += responseSize;
 
       return {
         ...data,

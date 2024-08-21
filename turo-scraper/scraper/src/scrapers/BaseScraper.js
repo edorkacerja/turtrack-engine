@@ -6,6 +6,10 @@ class BaseScraper {
   static instances = new Map();
   static type = "base";
 
+  bytesToMB(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(2);
+  }
+
   constructor(config) {
     const { proxyAuth, proxyServer, delay, headless, instanceId } = config;
 
@@ -19,6 +23,8 @@ class BaseScraper {
     this.page = null;
 
     this.running = true;
+    this.currentRequestTotalBytes = 0;
+    this.maxDataLimit = 0.01 * 1024 * 1024; // 1KB limit for testing
   }
 
   async init() {
@@ -55,22 +61,74 @@ class BaseScraper {
       await this.page.setRequestInterception(true);
 
       this.page.on("request", (request) => {
-        if (request.resourceType() === "image" || request.resourceType() === "media") request.abort();
-        else request.continue();
+        if (this.currentRequestTotalBytes >= this.maxDataLimit) {
+          request.abort();
+        } else if (request.resourceType() === "image" || request.resourceType() === "media") {
+          request.abort();
+        } else {
+          request.continue();
+        }
       });
 
-      await this.page.goto("https://www.turo.com");
+      this.page.on('response', async response => {
+        const request = response.request();
+        const url = request.url();
 
-      const sleepDuration = getRandomInt(1, 2) * 1000; // Convert to milliseconds
+        let responseSize = 0;
+        const contentLength = response.headers()['content-length'];
+        if (contentLength) {
+          responseSize = parseInt(contentLength, 10);
+        } else {
+          try {
+            const buffer = await response.buffer();
+            responseSize = buffer.length;
+          } catch (error) {
+            console.error(`[Instance ${this.instanceId}] Error getting response size for ${url}:`, error.message);
+          }
+        }
 
+        if (this.currentRequestTotalBytes + responseSize > this.maxDataLimit) {
+          responseSize = this.maxDataLimit - this.currentRequestTotalBytes;
+          console.warn(`[Instance ${this.instanceId}] Data limit reached for ${url}. Truncating response.`);
+        }
+
+        this.currentRequestTotalBytes += responseSize;
+
+        if (!response.ok()) {
+          console.error(`[Instance ${this.instanceId}] Failed request to ${url}: ${response.status()} ${response.statusText()}. Data received: ${responseSize} Bytes`);
+        }
+      });
+
+      await this.logRequestSizes("https://www.turo.com");
+
+      const sleepDuration = getRandomInt(1, 2) * 1000;
       console.log(`Sleeping for ${sleepDuration / 1000} seconds`);
       await sleep(sleepDuration);
-
 
       BaseScraper.instances.set(this, true);
     } catch (error) {
       console.error(`[Instance ${this.instanceId}] Failed to initialize scraper: ${error.message}`);
       throw error;
+    }
+  }
+
+  async logRequestSizes(url) {
+    console.log(`[Instance ${this.instanceId}] Starting request to ${url}`);
+
+    this.currentRequestTotalBytes = 0;
+
+    try {
+      await this.page.goto(url, {
+        waitUntil: 'networkidle0',
+        timeout: 60000, // 60 seconds timeout
+      });
+    } catch (error) {
+      console.error(`[Instance ${this.instanceId}] Error navigating to ${url}: ${error.message}`);
+    }
+
+    console.log(`[Instance ${this.instanceId}] Total data received for ${url}: ${this.currentRequestTotalBytes} Bytes`);
+    if (this.currentRequestTotalBytes >= this.maxDataLimit) {
+      // console.warn(`[Instance ${this.instanceId}] Data limit reached for ${url}. Received: ${this.bytesToMB(this.currentRequestTotalBytes)} MB, Limit: ${this.bytesToMB(this.maxDataLimit)} MB`);
     }
   }
 
