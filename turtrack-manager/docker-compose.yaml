@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  turtrack-manager-db:
+    image: postgres:16-alpine
+    container_name: turtrack-manager-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+    volumes:
+      - turtrack-manager-db-data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+
+#  turtrack-manager:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    image: turtrack-manager
+#    container_name: turtrack-manager-app
+#    ports:
+#      - "9999:9999"
+#    depends_on:
+#      - turtrack-manager-db
+#    environment:
+#      SERVER_PORT: 9999
+#      SPRING_DATASOURCE_TURTRACK_URL: jdbc:postgresql://localhost:5432/turo
+#      SPRING_DATASOURCE_TURTRACK_USERNAME: turo_user
+#      SPRING_DATASOURCE_TURTRACK_PASSWORD: turo_password
+#      SPRING_DATASOURCE_MANAGER_URL: jdbc:postgresql://localhost:5433/turtrack_manager_db
+#      SPRING_DATASOURCE_MANAGER_USERNAME: turtrack_user
+#      SPRING_DATASOURCE_MANAGER_PASSWORD: turtrack_password
+#      SPRING_KAFKA_BOOTSTRAP-SERVERS: localhost:9092
+
+volumes:
+  turtrack-manager-db-data:
