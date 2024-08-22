@@ -87,7 +87,7 @@ spec:
             - name: KAFKA_LISTENERS
               value: "INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092"
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: "INTERNAL://$(POD_IP):29092,EXTERNAL://kafka:9092"
+              value: "INTERNAL://$(POD_IP):29092,EXTERNAL://192.168.49.2:30092"
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
               value: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
@@ -128,6 +128,7 @@ metadata:
 spec:
   selector:
     app: kafka-server
+  type: NodePort  # Add this line to change the service type
   ports:
     - name: internal
       port: 29092
@@ -135,6 +136,7 @@ spec:
     - name: external
       port: 9092
       targetPort: 9092
+      nodePort: 30092  # Add this line to specify the node port
 
 ---
 apiVersion: batch/v1

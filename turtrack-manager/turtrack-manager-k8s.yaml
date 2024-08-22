@@ -1,0 +1,205 @@
+#---
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: turtrack-config
+#data:
+#  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/turtrack
+#  SPRING_DATASOURCE_USERNAME: turtrack_user
+#  REDIS_HOST: redis
+#  KAFKA_BOOTSTRAPSERVERS: localhost:9092
+#
+#---
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: redis
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: redis
+#  template:
+#    metadata:
+#      labels:
+#        app: redis
+#    spec:
+#      containers:
+#        - name: redis
+#          image: redis:6.2-alpine
+#          ports:
+#            - containerPort: 6379
+#          volumeMounts:
+#            - name: redis-data
+#              mountPath: /data
+#
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: redis
+#spec:
+#  selector:
+#    app: redis
+#  ports:
+#    - port: 6379
+#      targetPort: 6379
+#
+#---
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: postgres
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: postgres
+#  template:
+#    metadata:
+#      labels:
+#        app: postgres
+#    spec:
+#      containers:
+#        - name: postgres
+#          image: postgres:13
+#          env:
+#            - name: POSTGRES_DB
+#              value: turtrack
+#            - name: POSTGRES_USER
+#              value: turtrack_user
+#            - name: POSTGRES_PASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  name: turtrack-secrets
+#                  key: db-password
+#          ports:
+#            - containerPort: 5432
+#          volumeMounts:
+#            - name: postgres-data
+#              mountPath: /var/lib/postgresql/data
+#
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: postgres
+#spec:
+#  selector:
+#    app: postgres
+#  ports:
+#    - port: 5432
+#      targetPort: 5432
+#
+#---
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: turtrack-manager
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: turtrack-manager
+#  template:
+#    metadata:
+#      labels:
+#        app: turtrack-manager
+#    spec:
+#      containers:
+#        - name: turtrack-manager
+#          image: your-docker-registry/turtrack-manager:latest
+#          envFrom:
+#            - configMapRef:
+#                name: turtrack-config
+#          env:
+#            - name: SPRING_DATASOURCE_PASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  name: turtrack-secrets
+#                  key: db-password
+#          ports:
+#            - containerPort: 8080
+#
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: turtrack-manager
+#spec:
+#  selector:
+#    app: turtrack-manager
+#  ports:
+#    - port: 80
+#      targetPort: 8080
+#
+#---
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: redis-commander
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: redis-commander
+#  template:
+#    metadata:
+#      labels:
+#        app: redis-commander
+#    spec:
+#      containers:
+#        - name: redis-commander
+#          image: rediscommander/redis-commander:latest
+#          env:
+#            - name: REDIS_HOSTS
+#              value: redis
+#          ports:
+#            - containerPort: 8081
+#
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: redis-commander
+#spec:
+#  selector:
+#    app: redis-commander
+#  type: NodePort
+#  ports:
+#    - port: 8081
+#      targetPort: 8081
+#      nodePort: 30081
+#
+#---
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  name: redis-data
+#spec:
+#  accessModes:
+#    - ReadWriteOnce
+#  resources:
+#    requests:
+#      storage: 1Gi
+#
+#---
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  name: postgres-data
+#spec:
+#  accessModes:
+#    - ReadWriteOnce
+#  resources:
+#    requests:
+#      storage: 5Gi
+#
+#---
+#apiVersion: v1
+#kind: Secret
+#metadata:
+#  name: turtrack-secrets
+#type: Opaque
+#stringData:
+#  db-password: your-secure-password-here
