@@ -31,7 +31,7 @@ class PricingScraper extends BaseScraper {
     console.log(`[Instance ${this.instanceId}] Browser instance recreated successfully.`);
   }
 
-  async scrape(vehicles) {
+  async scrape(vehicles, jobId) {
     const results = [];
     for (let vehicle of vehicles) {
       if (!this.isRunning()) break;
@@ -47,7 +47,7 @@ class PricingScraper extends BaseScraper {
           this.onSuccessCallback({
             id: vehicleId,
             vehicle,
-            scraped: data,
+            scraped: {...data, jobId},
           });
           results.push({ success: true, vehicleId });
           console.log(`[Instance ${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);

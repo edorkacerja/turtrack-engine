@@ -9,4 +9,5 @@ public class VehicleKafkaMessage {
     private String country;
     private String startDate;
     private String endDate;
+    private String jobId;
 }

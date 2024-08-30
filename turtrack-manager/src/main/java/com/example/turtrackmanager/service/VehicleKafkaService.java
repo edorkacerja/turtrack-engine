@@ -11,6 +11,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC;
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -24,7 +27,7 @@ public class VehicleKafkaService {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         LocalDate sevenDaysAgo = LocalDate.now().minusDays(7);
 
-        return feedVehiclesToAvailabilityScraper("TO-BE-SCRAPED-dr-availability-topic", numberOfVehicles, sevenDaysAgo, yesterday);
+        return feedVehiclesToAvailabilityScraper(TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC, numberOfVehicles, sevenDaysAgo, yesterday, null);
     }
 
     public void feedVehiclesToAvailabilityScraper() {
@@ -32,10 +35,20 @@ public class VehicleKafkaService {
     }
 
     public void feedVehiclesToAvailabilityScraper(LocalDate startDate, LocalDate endDate) {
-        feedVehiclesToAvailabilityScraper("TO-BE-SCRAPED-dr-availability-topic", 0, startDate, endDate);
+        feedVehiclesToAvailabilityScraper(TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC, 0, startDate, endDate, null);
     }
 
-    public int feedVehiclesToAvailabilityScraper(String topicName, int numberOfVehicles, LocalDate startDate, LocalDate endDate) {
+    public int feedVehiclesToAvailabilityScraper(String topicName, int numberOfVehicles, LocalDate startDate, LocalDate endDate, String jobId) {
+//        if (topicName == null || topicName.isEmpty()) {
+//            topicName = TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC;
+//        }
+
+        if(jobId == null) {
+            jobId = "DONT WORRY BE HAPPY";
+        }
+        String finalJobId = jobId;
+
+
         String sql = "SELECT id, country, pricing_last_updated FROM vehicle";
         if (numberOfVehicles > 0) {
             sql += " LIMIT ?";
@@ -57,8 +70,9 @@ public class VehicleKafkaService {
                             pricingLastUpdated.format(dateFormatter) :
                             startDate.format(dateFormatter));
                     message.setEndDate(endDate.format(dateFormatter));
+                    message.setJobId(finalJobId);
 
-                    kafkaTemplate.send(topicName, String.valueOf(id), message);
+                    kafkaTemplate.send(TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC, String.valueOf(id), message);
 
                     processedCount.incrementAndGet();
                     return null;
@@ -88,7 +102,7 @@ public class VehicleKafkaService {
                     message.setVehicleId(String.valueOf(id));
                     message.setCountry(country);
 
-                    kafkaTemplate.send("TO-BE-SCRAPED-vehicle-details-topic", String.valueOf(id), message);
+                    kafkaTemplate.send(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, String.valueOf(id), message);
 
                     processedCount.incrementAndGet();
                     return null;

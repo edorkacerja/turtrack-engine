@@ -40,8 +40,8 @@ public class Job {
     @Enumerated(EnumType.STRING)
     private JobType jobType;
 
-    @Column(name = "kafka_topic_title", nullable = true)
-    private String kafkaTopicTitle;
+//    @Column(name = "kafka_topic_title", nullable = true)
+//    private String kafkaTopicTitle;
 
     @Column(name = "percent_completed")
     private Double percentCompleted;

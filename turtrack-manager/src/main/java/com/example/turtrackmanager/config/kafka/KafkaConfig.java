@@ -1,4 +1,4 @@
-package com.example.turtrackmanager.config;
+package com.example.turtrackmanager.config.kafka;
 
 import com.example.turtrackmanager.dto.VehicleKafkaMessage;
 import lombok.extern.slf4j.Slf4j;

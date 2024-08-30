@@ -6,6 +6,8 @@ import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.service.JobService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +17,9 @@ import com.example.turtrackmanager.service.VehicleKafkaService;
 
 import java.time.LocalDate;
 
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC;
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC;
+
 @RestController
 @RequestMapping("/api/v1/jobs")
 @Slf4j
@@ -23,6 +28,14 @@ public class JobController {
 
     private final VehicleKafkaService vehicleKafkaService;
     private final JobService jobService;
+
+    @GetMapping
+    public ResponseEntity<Page<JobDTO>> getAllJobs(Pageable pageable) {
+        log.info("Received request to get all jobs with pagination: {}", pageable);
+        Page<Job> jobPage = jobService.getAllJobs(pageable);
+        Page<JobDTO> jobDTOPage = jobPage.map(JobDTO::toDTO);
+        return ResponseEntity.ok(jobDTOPage);
+    }
 
     @PostMapping("/create")
     public ResponseEntity<JobDTO> startJob(@RequestBody @Validated JobCreationDTO jobCreationDTO) {
@@ -83,7 +96,7 @@ public class JobController {
             } else {
                 int processedCount;
                 if (startDate != null && endDate != null) {
-                    processedCount = vehicleKafkaService.feedVehiclesToAvailabilityScraper(null, numberOfVehicles, startDate, endDate);
+                    processedCount = vehicleKafkaService.feedVehiclesToAvailabilityScraper(TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC, numberOfVehicles, startDate, endDate, null);
                     return String.format("Successfully started availability scraper job for %d vehicles from %s to %s.", processedCount, startDate, endDate);
                 } else {
                     processedCount = vehicleKafkaService.feedVehiclesToAvailabilityScraper(numberOfVehicles);
@@ -99,7 +112,7 @@ public class JobController {
     @PostMapping("/startVehicleDetailsScraperJob")
     public String startVehicleDetailsScraperJob(@RequestParam(defaultValue = "0") int numberOfVehicles) {
         try {
-            int processedCount = vehicleKafkaService.feedVehiclesToDetailsScraper("TO-BE-SCRAPED-vehicle-details-topic", numberOfVehicles);
+            int processedCount = vehicleKafkaService.feedVehiclesToDetailsScraper(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, numberOfVehicles);
             if (numberOfVehicles <= 0) {
                 return "Successfully started vehicle details scraper job for all vehicles in the database.";
             } else {

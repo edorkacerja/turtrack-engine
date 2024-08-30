@@ -1,6 +1,9 @@
 package com.example.turtrackmanager.service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.example.turtrackmanager.dto.JobCreationDTO;
+import com.example.turtrackmanager.service.kafka.KafkaAdminService;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,12 @@ public class JobService {
     private final VehicleKafkaService vehicleKafkaService;
     private final KafkaAdminService kafkaAdminService;
 
+//    @Override
+    public Page<Job> getAllJobs(Pageable pageable) {
+        return jobRepository.findAll(pageable);
+    }
+
+
     @Transactional
     public Job createAndStartJob(JobCreationDTO jobCreationDTO) {
         // Step 1: Create the job with status CREATED and save it to the database
@@ -28,12 +37,6 @@ public class JobService {
         log.info("Created job: {}", job);
 
         try {
-            // Step 2: Generate the topic name using the saved job ID and the creation date
-            String topicName = generateTopicName(job);
-            job.setKafkaTopicTitle(topicName);
-
-            // Step 3: Create the Kafka topic
-            kafkaAdminService.createTopic(topicName, 10, (short) 1);
 
             // Step 4: Start the job and set total items (number of vehicles)
             int totalItems = startJob(job, jobCreationDTO);
@@ -62,24 +65,26 @@ public class JobService {
                 .status(Job.JobStatus.CREATED)
                 .createdAt(LocalDateTime.now())
                 .jobType(jobCreationDTO.getJobType())
+                .completedItems(0)  // Initialize to 0
+                .percentCompleted(0.0)  // Initialize to 0.0
                 .build();
     }
-
     private int startJob(Job job, JobCreationDTO jobCreationDTO) {
         int totalItems = 0;
 
         switch (job.getJobType()) {
             case DAILY_RATE_AND_AVAILABILITY:
                 totalItems = vehicleKafkaService.feedVehiclesToAvailabilityScraper(
-                        job.getKafkaTopicTitle(),
+                        null,
                         jobCreationDTO.getNumberOfVehicles(),
                         jobCreationDTO.getStartDate(),
-                        jobCreationDTO.getEndDate()
+                        jobCreationDTO.getEndDate(),
+                        String.valueOf(job.getId())
                 );
                 break;
             case VEHICLE_DETAILS:
                 totalItems = vehicleKafkaService.feedVehiclesToDetailsScraper(
-                        job.getKafkaTopicTitle(),
+                        null,
                         jobCreationDTO.getNumberOfVehicles()
                 );
                 break;
@@ -129,15 +134,6 @@ public class JobService {
     public void deleteJob(Long jobId) {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
-
-        // Delete the Kafka topic associated with the job
-        try {
-            kafkaAdminService.deleteTopic(job.getKafkaTopicTitle());
-        } catch (Exception e) {
-            log.error("Failed to delete Kafka topic for job: {}", jobId, e);
-            // Depending on your requirements, you might want to throw an exception here
-            // or continue with the job deletion even if the topic deletion fails
-        }
 
         // Update job status to CANCELLED
         job.setStatus(Job.JobStatus.CANCELLED);

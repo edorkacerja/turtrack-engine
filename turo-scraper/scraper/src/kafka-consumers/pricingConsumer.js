@@ -2,6 +2,7 @@ const { Kafka } = require('kafkajs');
 const PricingScraper = require('../scrapers/PricingScraper');
 const { sendToKafka, commitOffsetsWithRetry } = require('../utils/kafkaUtil');
 const os = require('os');
+const db = require("../config/db");
 
 const instanceId = os.hostname();
 
@@ -62,13 +63,24 @@ async function handleScraperFailure(startDate, endDate, country) {
 }
 
 async function handleMessage(messageData, topic, partition, message) {
-    const { startDate, endDate, country, vehicleId } = messageData;
+    const { startDate, endDate, country, vehicleId, jobId } = messageData;
     console.log(`[Instance ${instanceId}] Consumed vehicle with id ${vehicleId} for availability scraping`);
+
+
+    console.log(messageData);
+
+    // Check job status in the db
+    const result = await db.query('SELECT status FROM job WHERE id = $1', [BigInt(jobId)]);
+
+    // Assuming the query returns an array of rows
+    const jobStatus = result.rows[0]?.status;
+
+    console.log(`Job ID: ${jobId}. Job Status: ${jobStatus}`);
 
     try {
         const scraper = await initializeScraper(startDate, endDate, country);
         const vehicle = { getId: () => vehicleId };
-        const results = await scraper.scrape([vehicle]);
+        const results = await scraper.scrape([vehicle], jobId);
 
         if (results[0].success) {
             await commitOffsetsWithRetry(consumer, topic, partition, message.offset, instanceId);
@@ -85,7 +97,7 @@ async function handleMessage(messageData, topic, partition, message) {
 }
 
 async function handleSuccess(data) {
-    const { vehicle, scraped } = data;
+    const { vehicle, scraped, jobId } = data;
     console.log(`[Instance ${instanceId}] Successfully scraped availability for vehicle ${vehicle.getId()}`);
     try {
         await sendToKafka('SCRAPED-dr-availability-topic', scraped, instanceId);

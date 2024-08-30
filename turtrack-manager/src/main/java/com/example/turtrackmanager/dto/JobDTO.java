@@ -20,7 +20,7 @@ public class JobDTO {
     private LocalDateTime finishedAt;
     private Job.JobStatus status;
     private Job.JobType jobType;
-    private String kafkaTopicTitle;
+//    private String kafkaTopicTitle;
     private Double percentCompleted;
     private Integer totalItems;
     private Integer completedItems;
@@ -34,7 +34,7 @@ public class JobDTO {
                 .finishedAt(job.getFinishedAt())
                 .status(job.getStatus())
                 .jobType(job.getJobType())
-                .kafkaTopicTitle(job.getKafkaTopicTitle())
+//                .kafkaTopicTitle(job.getKafkaTopicTitle())
                 .percentCompleted(job.getPercentCompleted())
                 .totalItems(job.getTotalItems())
                 .completedItems(job.getCompletedItems())

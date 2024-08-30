@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
+const os = require('os');
 
 const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
@@ -8,7 +9,7 @@ const { initializeProducer } = require("./utils/kafkaUtil");
 const { startPricingConsumer } = require('./kafka-consumers/pricingConsumer');
 const { startVehicleDetailsConsumer } = require('./kafka-consumers/vehicleDetailsConsumer');
 
-const port = process.env.PORT || 5001;
+const port = process.env.PORT || 5011;
 const scraperType = process.env.SCRAPER_TYPE || 'search';
 
 const app = express();
@@ -16,6 +17,14 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
+
+// Add the new endpoint here, before starting the server
+app.get('/container-id', (req, res) => {
+  console.log("got this request...");
+  console.log(os.hostname());
+  res.send(os.hostname());
+});
+
 
 async function startServer() {
   try {

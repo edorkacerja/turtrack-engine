@@ -12,6 +12,11 @@ services:
     volumes:
       - turtrack-manager-db-data:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    networks:
+      - turtrack-manager-network
+      - turtrack_common_network
+
+
 
 #  turtrack-manager:
 #    build:
@@ -25,13 +30,26 @@ services:
 #      - turtrack-manager-db
 #    environment:
 #      SERVER_PORT: 9999
-#      SPRING_DATASOURCE_TURTRACK_URL: jdbc:postgresql://localhost:5432/turo
+#      SPRING_DATASOURCE_TURTRACK_URL: jdbc:postgresql://timescaledb-turtrack:5432/turo
 #      SPRING_DATASOURCE_TURTRACK_USERNAME: turo_user
 #      SPRING_DATASOURCE_TURTRACK_PASSWORD: turo_password
-#      SPRING_DATASOURCE_MANAGER_URL: jdbc:postgresql://localhost:5433/turtrack_manager_db
+#      SPRING_DATASOURCE_MANAGER_URL: jdbc:postgresql://turtrack-manager-db:5432/turtrack_manager_db
 #      SPRING_DATASOURCE_MANAGER_USERNAME: turtrack_user
 #      SPRING_DATASOURCE_MANAGER_PASSWORD: turtrack_password
 #      SPRING_KAFKA_BOOTSTRAP-SERVERS: localhost:9092
+#    networks:
+#      - turtrack-manager-network
+#      - turtrack_common_network
+
 
 volumes:
   turtrack-manager-db-data:
+
+
+networks:
+  turtrack-manager-network:
+    name: turtrack-manager-network
+  kafka_network:
+    external: true
+  turtrack_common_network:
+    external: true

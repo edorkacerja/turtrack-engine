@@ -1,4 +1,4 @@
-package com.example.turtrackmanager.service;
+package com.example.turtrackmanager.service.kafka;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
