@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchJobs, setCurrentPage, updateJobStatus, updateJobProgress } from '../redux/jobsSlice.js';
-import JobList from '../components/JobList';
-import JobSearch from '../components/JobSearch';
-import JobFilters from '../components/JobFilters';
-import Pagination from '../components/Pagination';
+import { fetchJobs, setCurrentPage, updateJobStatus, updateJobProgress } from '../../redux/jobsSlice.js';
+import JobList from '../../components/JobList/JobList.jsx';
+import JobSearch from '../../components/JobSearch/JobSearch.jsx';
+import JobFilters from '../../components/JobFilters/JobFilters.jsx';
+import Pagination from '../../components/Pagination/Pagination.jsx';
+import "./JobsDashboard.scss"
 
 const JobsDashboard = () => {
     const dispatch = useDispatch();
@@ -71,10 +72,10 @@ const JobsDashboard = () => {
     if (status === 'failed') return <div>Error: {error}</div>;
 
     return (
-        <div className="container mx-auto px-4">
+        <div className="jobs-dashboard container mx-auto px-4">
             <h1 className="text-3xl font-bold mb-4">Jobs Dashboard</h1>
-            <JobSearch onSearch={handleSearch} />
-            <JobFilters onFilter={handleFilter} />
+            {/*<JobSearch onSearch={handleSearch} />*/}
+            {/*<JobFilters onFilter={handleFilter} />*/}
             <JobList
                 jobs={jobs}
                 onSort={handleSort}

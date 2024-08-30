@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import JobsDashboard from '../features/jobs/pages/JobsDashboard';
+import JobsDashboard from '../features/jobs/pages/JobsDashboard/JobsDashboard';
 // import JobDetails from '../features/jobs/pages/JobDetails';
 // import CreateJob from '../features/jobs/pages/CreateJob';
 

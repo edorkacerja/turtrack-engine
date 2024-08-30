@@ -1,0 +1,68 @@
+// Variables
+$max-width: 100%;
+$width: 100%;
+$primary-color: #646cff;
+$secondary-color: #61dafb;
+$text-color: #333;
+$muted-text-color: #888;
+
+// Mixins
+@mixin hover-shadow($color) {
+  filter: drop-shadow(0 0 2em rgba($color, 0.6));
+}
+
+@mixin spin-animation {
+  @keyframes logo-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}
+
+// Root styles
+   #root {
+     width: $width;
+     height: 100vh;
+     max-width: $max-width;
+     margin: 0 auto;
+     text-align: center;
+     color: $text-color;
+   }
+
+// Logo styles
+   .logo {
+     height: 6em;
+     padding: 1.5em;
+     will-change: filter;
+     transition: filter 300ms;
+
+     &:hover {
+       @include hover-shadow($primary-color);
+     }
+
+     &.react:hover {
+       @include hover-shadow($secondary-color);
+     }
+   }
+
+// Animation
+@include spin-animation;
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+// Other components
+   .card {
+     padding: 2em;
+     background-color: #f9f9f9;
+     border-radius: 8px;
+     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+   }
+
+.read-the-docs {
+  color: $muted-text-color;
+  font-size: 0.9em;
+  margin-top: 2em;
+}
