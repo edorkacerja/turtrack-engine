@@ -17,6 +17,8 @@ $border-color: #e5e7eb;  // Tailwind gray-200
 // Custom styles for JobList
 .job-list {
   @apply overflow-x-auto;
+  width: 1200px;
+  margin-right: 200px;
 
   table {
     @apply min-w-full bg-white;

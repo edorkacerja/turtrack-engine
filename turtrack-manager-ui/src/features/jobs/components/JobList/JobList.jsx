@@ -140,7 +140,7 @@ const JobList = () => {
     if (status === 'failed') return <Typography color="error">Error: {error}</Typography>;
 
     return (
-        <Paper>
+        <Paper className="job-list">
             <TableContainer>
                 <Table aria-label="job list">
                     <TableHead>

@@ -30,9 +30,7 @@ $warning-color: #f39c12;
 .jobs-dashboard {
   background-color: $background-color;
   color: $text-color;
-  min-height: 100vh;
-  //padding: 2rem 0;
-
+  height: 100vh;
   flex-grow: 1;
   padding: 20px;
   overflow-y: auto;

@@ -1,14 +1,13 @@
 import React from 'react';
 import { PieChart, BarChart2, Filter, Settings, Info } from 'lucide-react';
-import './JobsSidebar.scss';
+import './JobsRightSidebar.scss';
 
-const JobsSidebar = () => {
+const JobsRightSidebar = () => {
     return (
         <div className="jobs-sidebar">
             <div className="sidebar-content">
                 <div className="quick-stats">
-                    <h3>Quick Stats</h3>
-                    <p>Total Jobs: 150</p>
+                    <h3>Create Job</h3>
                     <p>Running: 25</p>
                     <p>Completed: 100</p>
                     <p>Failed: 25</p>
@@ -43,4 +42,4 @@ const JobsSidebar = () => {
     );
 };
 
-export default JobsSidebar;
+export default JobsRightSidebar;
