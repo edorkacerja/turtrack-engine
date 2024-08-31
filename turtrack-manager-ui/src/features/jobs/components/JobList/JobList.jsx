@@ -1,5 +1,5 @@
-import React, {useEffect} from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     LinearProgress, IconButton, Tooltip, Typography, Chip, Box,
@@ -16,57 +16,89 @@ import {
     setCurrentPage,
     setItemsPerPage,
     setSorting,
-    updateJobProgress,
     updateJobStatus
 } from '../../redux/jobsSlice';
 import { getStatusColor, getJobTypeColor, formatDate } from '../../utils/jobUtils';
 import ProgressBar from "@ramonak/react-progress-bar";
+import {useTraceRender, useTraceUpdate} from "../../utils/hooksUtil.js";
 
-const JobList = () => {
+const JobList = React.memo(() => {
+
+    useTraceRender('JobList');  // Add this line at the beginning of your component
+
     const dispatch = useDispatch();
-    const { jobs, status, error, currentPage, itemsPerPage, totalElements, sortBy, sortDirection } = useSelector(state => state.jobs);
+    const { jobs, currentPage, itemsPerPage, totalElements, sortBy, sortDirection } = useSelector(
+        state => ({
+            jobs: state.jobs.jobs,
+            // status: state.jobs.status,
+            // error: state.jobs.error,
+            currentPage: state.jobs.currentPage,
+            itemsPerPage: state.jobs.itemsPerPage,
+            totalElements: state.jobs.totalElements,
+            sortBy: state.jobs.sortBy,
+            sortDirection: state.jobs.sortDirection,
+        }),
+        shallowEqual
+    );
 
+    useTraceUpdate({
+        jobs,
+        // status,
+        // error,
+        currentPage,
+        itemsPerPage,
+        totalElements,
+        sortBy,
+        sortDirection
+    });
+    const intervalRef = useRef(null);
+
+    const lastFetchRef = useRef(Date.now());
+
+    const fetchJobsData = useCallback(() => {
+        const now = Date.now();
+        if (now - lastFetchRef.current > 1000) {  // 1 second threshold
+            lastFetchRef.current = now;
+            dispatch(fetchJobs());
+        }
+    }, [dispatch]);
 
     useEffect(() => {
-        dispatch(fetchJobs());
-    }, [dispatch, currentPage, sortBy, sortDirection]);
+        fetchJobsData();
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            jobs.forEach(job => {
-                if (job.status === 'running') {
-                    const newProcessed = Math.min(job.processedItems + Math.floor(Math.random() * 5), job.totalItems);
-                    const newFailed = Math.floor(Math.random() * 2);
-                    dispatch(updateJobProgress({ id: job.id, processedItems: newProcessed, failedItems: job.failedItems + newFailed }));
-                }
-            });
-        }, 1000);
+        // Set up interval to fetch jobs every second
+        intervalRef.current = setInterval(fetchJobsData, 100);
 
-        return () => clearInterval(interval);
-    }, [dispatch, jobs]);
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [fetchJobsData]);
 
-
-    const handleChangePage = (event, newPage) => {
+    const handleChangePage = useCallback((event, newPage) => {
         dispatch(setCurrentPage(newPage));
-    };
+    }, [dispatch]);
 
-    const handleChangeRowsPerPage = (event) => {
+    const handleChangeRowsPerPage = useCallback((event) => {
         const newItemsPerPage = parseInt(event.target.value, 10);
         dispatch(setItemsPerPage(newItemsPerPage));
         dispatch(setCurrentPage(0));
-    };
+    }, [dispatch]);
 
-    const handleSort = (column) => {
+    const handleSort = useCallback((column) => {
         const isAsc = sortBy === column && sortDirection === 'asc';
         dispatch(setSorting({ sortBy: column, sortDirection: isAsc ? 'desc' : 'asc' }));
-    };
+    }, [dispatch, sortBy, sortDirection]);
 
-    const handleJobAction = (jobId, action) => {
+    const handleJobAction = useCallback((jobId, action) => {
         dispatch(updateJobStatus({ jobId, status: action }))
             .then(() => dispatch(fetchJobs()));  // Re-fetch jobs after status update
-    };
+    }, [dispatch]);
 
-    const renderActionButtons = (job) => {
+    const renderActionButtons = useCallback((job) => {
+        if (job.status !== 'RUNNING' && job.status !== 'STOPPED') return null;
+
         const actionMap = {
             'RUNNING': {
                 icon: <StopIcon />,
@@ -83,17 +115,15 @@ const JobList = () => {
         };
         const { icon, color, tooltip, action } = actionMap[job.status] || {};
         return (
-            icon && (
-                <Tooltip title={tooltip}>
-                    <IconButton onClick={() => handleJobAction(job.id, action)} color={color} size="small">
-                        {icon}
-                    </IconButton>
-                </Tooltip>
-            )
+            <Tooltip title={tooltip}>
+                <IconButton onClick={() => handleJobAction(job.id, action)} color={color} size="small">
+                    {icon}
+                </IconButton>
+            </Tooltip>
         );
-    };
+    }, [handleJobAction]);
 
-    const renderProgress = ({ totalItems, completedItems, failedItems = 0, percentCompleted, isRunning }) => {
+    const renderProgress = useCallback(({ totalItems, completedItems, failedItems = 0, percentCompleted, isRunning }) => {
         if (!totalItems || !percentCompleted) return <Typography variant="body2" color="text.secondary">Progress not available</Typography>;
 
         return (
@@ -124,10 +154,9 @@ const JobList = () => {
                 </Box>
             </Box>
         );
-    };
+    }, []);
 
-
-    const renderDateTime = (startedAt) => {
+    const renderDateTime = useCallback((startedAt) => {
         const { date, time } = formatDate(startedAt);
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -141,10 +170,10 @@ const JobList = () => {
                 </Box>
             </Box>
         );
-    };
+    }, []);
 
-    if (status === 'loading') return <LinearProgress />;
-    if (status === 'failed') return <Typography color="error">Error: {error}</Typography>;
+    // if (status === 'loading') return <LinearProgress />;
+    // if (status === 'failed') return <Typography color="error">Error: {error}</Typography>;
 
     return (
         <Paper>
@@ -198,6 +227,6 @@ const JobList = () => {
             />
         </Paper>
     );
-};
+});
 
 export default JobList;
