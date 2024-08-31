@@ -1,11 +1,16 @@
 .navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   background-color: #3498db;
-  padding: 1rem 2rem;
+  padding: 1rem 0;
+
+  &-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+  }
 
   &-logo {
+    width: 250px; // Fixed width for the logo
     .logo-link {
       font-size: 1.5rem;
       font-weight: bold;
@@ -18,24 +23,36 @@
   }
 
   &-links {
+    flex: 2;
     display: flex;
+    justify-content: center;
     list-style-type: none;
     margin: 0;
     padding: 0;
 
     li {
-      margin-left: 1.5rem;
+      margin: 0 0.75rem;
     }
 
     .nav-link {
       color: #ffffff;
       text-decoration: none;
       font-size: 1rem;
-      transition: color 0.3s ease;
+      transition: color 0.3s ease, border-bottom 0.3s ease;
+      padding-bottom: 5px;
+      border-bottom: 2px solid transparent;
 
       &:hover {
         color: #f0f0f0;
       }
+
+      &.active {
+        border-bottom: 2px solid #ffffff;
+      }
     }
+  }
+
+  &-placeholder {
+    width: 250px;
   }
 }
