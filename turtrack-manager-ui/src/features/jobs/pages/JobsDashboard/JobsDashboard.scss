@@ -17,6 +17,14 @@ $warning-color: #f39c12;
   transition: all 0.3s ease;
 }
 
+// Dashboard Container
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+
+
 // JobsDashboard Styles
 .jobs-dashboard {
   background-color: $background-color;
@@ -24,6 +32,13 @@ $warning-color: #f39c12;
   min-height: 100vh;
   //padding: 2rem 0;
 
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto;
+
+  .dashboard-content {
+
+  }
 
   h1 {
     color: $primary-color;

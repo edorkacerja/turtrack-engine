@@ -1,28 +1,43 @@
 import React from 'react';
-import { Play, GitBranch, GitPullRequest, Settings } from 'lucide-react';
+import { PieChart, BarChart2, Filter, Settings, Info } from 'lucide-react';
+import './JobsSidebar.scss';
 
 const JobsSidebar = () => {
     return (
-        <div className="w-64 bg-gray-900 text-white h-screen p-4">
-            <div className="mb-8">
-                <div className="space-y-2">
-                    <button className="w-full text-left py-2 px-4 rounded hover:bg-gray-800 flex items-center">
-                        <Play className="mr-2" size={18} />
-                        Actions
-                    </button>
-                    <button className="w-full text-left py-2 px-4 rounded hover:bg-gray-800 flex items-center">
-                        <GitBranch className="mr-2" size={18} />
-                        Branches
-                    </button>
-                    <button className="w-full text-left py-2 px-4 rounded hover:bg-gray-800 flex items-center">
-                        <GitPullRequest className="mr-2" size={18} />
-                        Pull requests
-                    </button>
-                    <button className="w-full text-left py-2 px-4 rounded hover:bg-gray-800 flex items-center">
-                        <Settings className="mr-2" size={18} />
-                        Settings
-                    </button>
+        <div className="jobs-sidebar">
+            <div className="sidebar-content">
+                <div className="quick-stats">
+                    <h3>Quick Stats</h3>
+                    <p>Total Jobs: 150</p>
+                    <p>Running: 25</p>
+                    <p>Completed: 100</p>
+                    <p>Failed: 25</p>
                 </div>
+
+                <button className="sidebar-button">
+                    <PieChart size={18} />
+                    <span>Job Distribution</span>
+                </button>
+
+                <button className="sidebar-button">
+                    <BarChart2 size={18} />
+                    <span>Performance Metrics</span>
+                </button>
+
+                <button className="sidebar-button">
+                    <Filter size={18} />
+                    <span>Filter Jobs</span>
+                </button>
+
+                <button className="sidebar-button">
+                    <Settings size={18} />
+                    <span>Settings</span>
+                </button>
+
+                <button className="sidebar-button">
+                    <Info size={18} />
+                    <span>Help & Documentation</span>
+                </button>
             </div>
         </div>
     );
