@@ -1,103 +1,101 @@
-import React from 'react';
+import React, {useEffect} from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-    LinearProgress, Button, IconButton, Tooltip, Typography, Chip, Box
+    LinearProgress, IconButton, Tooltip, Typography, Chip, Box,
+    TablePagination, TableSortLabel
 } from '@mui/material';
 import {
     PlayArrow as PlayIcon,
-    Pause as PauseIcon,
     Stop as StopIcon,
-    ArrowUpward as ArrowUpIcon,
-    ArrowDownward as ArrowDownIcon
+    CalendarToday as CalendarIcon,
+    AccessTime as ClockIcon
 } from '@mui/icons-material';
+import {
+    fetchJobs,
+    setCurrentPage,
+    setItemsPerPage,
+    setSorting,
+    updateJobProgress,
+    updateJobStatus
+} from '../../redux/jobsSlice';
+import { getStatusColor, getJobTypeColor, formatDate } from '../../utils/jobUtils';
 
-const JobList = ({ jobs, onSort, sortBy, sortDirection, onJobAction }) => {
-    const handleSort = (key) => {
-        onSort(key);
+const JobList = () => {
+    const dispatch = useDispatch();
+    const { jobs, status, error, currentPage, itemsPerPage, totalElements, sortBy, sortDirection } = useSelector(state => state.jobs);
+
+
+    useEffect(() => {
+        dispatch(fetchJobs());
+    }, [dispatch, currentPage, sortBy, sortDirection]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            jobs.forEach(job => {
+                if (job.status === 'running') {
+                    const newProcessed = Math.min(job.processedItems + Math.floor(Math.random() * 5), job.totalItems);
+                    const newFailed = Math.floor(Math.random() * 2);
+                    dispatch(updateJobProgress({ id: job.id, processedItems: newProcessed, failedItems: job.failedItems + newFailed }));
+                }
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [dispatch, jobs]);
+
+
+    const handleChangePage = (event, newPage) => {
+        dispatch(setCurrentPage(newPage));
     };
 
-    const getSortIcon = (key) => {
-        if (sortBy === key) {
-            return sortDirection === 'asc' ? <ArrowUpIcon fontSize="small" /> : <ArrowDownIcon fontSize="small" />;
-        }
-        return null;
+    const handleChangeRowsPerPage = (event) => {
+        const newItemsPerPage = parseInt(event.target.value, 10);
+        dispatch(setItemsPerPage(newItemsPerPage));
+        dispatch(setCurrentPage(0));
     };
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'RUNNING': return 'success';
-            case 'PAUSED': return 'warning';
-            case 'STOPPED': return 'error';
-            case 'COMPLETED': return 'info';
-            default: return 'default';
-        }
+    const handleSort = (column) => {
+        const isAsc = sortBy === column && sortDirection === 'asc';
+        dispatch(setSorting({ sortBy: column, sortDirection: isAsc ? 'desc' : 'asc' }));
     };
 
-    const getJobTypeColor = (jobType) => {
-        switch (jobType.toLowerCase()) {
-            case 'import': return 'primary';
-            case 'export': return 'secondary';
-            case 'analysis': return 'info';
-            case 'cleanup': return 'warning';
-            default: return 'default';
-        }
+    const handleJobAction = (jobId, action) => {
+        dispatch(updateJobStatus({ jobId, status: action }))
+            .then(() => dispatch(fetchJobs()));  // Re-fetch jobs after status update
     };
 
     const renderActionButtons = (job) => {
-        switch (job.status) {
-            case 'RUNNING':
-                return (
-                    <>
-                        <Tooltip title="Pause">
-                            <IconButton onClick={() => onJobAction(job.id, 'pause')} color="warning" size="small">
-                                <PauseIcon />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Stop">
-                            <IconButton onClick={() => onJobAction(job.id, 'stop')} color="error" size="small">
-                                <StopIcon />
-                            </IconButton>
-                        </Tooltip>
-                    </>
-                );
-            case 'PAUSED':
-                return (
-                    <>
-                        <Tooltip title="Resume">
-                            <IconButton onClick={() => onJobAction(job.id, 'resume')} color="success" size="small">
-                                <PlayIcon />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Stop">
-                            <IconButton onClick={() => onJobAction(job.id, 'stop')} color="error" size="small">
-                                <StopIcon />
-                            </IconButton>
-                        </Tooltip>
-                    </>
-                );
-            case 'STOPPED':
-                return (
-                    <Tooltip title="Start">
-                        <IconButton onClick={() => onJobAction(job.id, 'start')} color="success" size="small">
-                            <PlayIcon />
-                        </IconButton>
-                    </Tooltip>
-                );
-            default:
-                return null;
-        }
+        const actionMap = {
+            'RUNNING': {
+                icon: <StopIcon />,
+                color: "error",
+                tooltip: "Stop",
+                action: "STOPPED"
+            },
+            'STOPPED': {
+                icon: <PlayIcon />,
+                color: "success",
+                tooltip: "Start",
+                action: "RUNNING"
+            }
+        };
+        const { icon, color, tooltip, action } = actionMap[job.status] || {};
+        return (
+            icon && (
+                <Tooltip title={tooltip}>
+                    <IconButton onClick={() => handleJobAction(job.id, action)} color={color} size="small">
+                        {icon}
+                    </IconButton>
+                </Tooltip>
+            )
+        );
     };
 
     const renderProgress = (job) => {
-        if (job.totalItems === null || job.totalItems === undefined) {
-            return (
-                <Typography variant="body2" color="text.secondary">
-                    Progress not available
-                </Typography>
-            );
-        }
+        if (!job.totalItems) return <Typography variant="body2" color="text.secondary">Progress not available</Typography>;
 
-        const successValue = (job.completedItems / job.totalItems) * 100;
+        const successValue = (job.processedItems / job.totalItems) * 100;
         const failureValue = (job.failedItems / job.totalItems) * 100;
 
         return (
@@ -110,125 +108,86 @@ const JobList = ({ jobs, onSort, sortBy, sortDirection, onJobAction }) => {
                         height: 10,
                         borderRadius: 5,
                         backgroundColor: '#ffcccb',
-                        '& .MuiLinearProgress-bar': {
-                            backgroundColor: '#4caf50'
-                        },
-                        '& .MuiLinearProgress-dashed': {
-                            backgroundImage: 'none'
-                        }
+                        '& .MuiLinearProgress-bar': { backgroundColor: '#4caf50' }
                     }}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                    <Typography variant="body2" color="success.main">
-                        Succeeded: {job.completedItems}
-                    </Typography>
-                    <Typography variant="body2" color="error.main">
-                        Failed: {job.failedItems}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Total: {job.totalItems}
-                    </Typography>
+                    <Typography variant="body2" color="success.main">Succeeded: {job.processedItems}</Typography>
+                    <Typography variant="body2" color="error.main">Failed: {job.failedItems}</Typography>
+                    <Typography variant="body2" color="text.secondary">Total: {job.totalItems}</Typography>
                 </Box>
             </Box>
         );
     };
 
-    const parseDate = (input) => {
-        if (input === null || input === undefined) {
-            return null;
-        }
-
-        // Handle date as an array of numbers
-        if (Array.isArray(input) && input.length >= 7) {
-            const [year, month, day, hour, minute, second, microsecond] = input;
-            // Note: JavaScript months are 0-indexed, so we subtract 1 from the month
-            return new Date(Date.UTC(year, month - 1, day, hour, minute, second, microsecond / 1000));
-        }
-
-        // If it's already a Date object, return it
-        if (input instanceof Date) {
-            return isNaN(input.getTime()) ? null : input;
-        }
-
-        // If it's a number, assume it's a timestamp
-        if (typeof input === 'number') {
-            const date = new Date(input);
-            return isNaN(date.getTime()) ? null : date;
-        }
-
-        // If it's a string, try parsing as ISO 8601
-        if (typeof input === 'string') {
-            const date = new Date(input);
-            return isNaN(date.getTime()) ? null : date;
-        }
-
-        // If it's none of the above, return null
-        return null;
+    const renderStartedAt = (startedAt) => {
+        const { date, time } = formatDate(startedAt);
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <CalendarIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">{date}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <ClockIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">{time}</Typography>
+                </Box>
+            </Box>
+        );
     };
 
-    const formatDate = (input) => {
-        const date = parseDate(input);
-        if (!date) return 'Not available';
-
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true,
-            timeZone: 'UTC'  // Adjust this if your times are not in UTC
-        });
-    };
-
-    // Sort jobs by startedAt date, most recent first
-    const sortedJobs = [...jobs].sort((a, b) => {
-        const dateA = parseDate(a.startedAt);
-        const dateB = parseDate(b.startedAt);
-        if (!dateA && !dateB) return 0;
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateB.getTime() - dateA.getTime();
-    });
+    if (status === 'loading') return <LinearProgress />;
+    if (status === 'failed') return <Typography color="error">Error: {error}</Typography>;
 
     return (
-        <TableContainer component={Paper}>
-            <Table aria-label="job list">
-                <TableHead>
-                    <TableRow>
-                        {['ID', 'Status', 'Job Type', 'Started At', 'Progress', 'Actions'].map((header) => (
-                            <TableCell key={header} sortDirection={sortBy === header.toLowerCase() ? sortDirection : false}>
-                                <Tooltip title={`Sort by ${header}`} placement="top-start" enterDelay={300}>
-                                    <Button
-                                        onClick={() => handleSort(header.toLowerCase().replace(' ', ''))}
-                                        endIcon={getSortIcon(header.toLowerCase().replace(' ', ''))}
+        <Paper>
+            <TableContainer>
+                <Table aria-label="job list">
+                    <TableHead>
+                        <TableRow>
+                            {['id', 'status', 'jobType', 'startedAt'].map((column) => (
+                                <TableCell key={column}>
+                                    <TableSortLabel
+                                        active={sortBy === column}
+                                        direction={sortBy === column ? sortDirection : 'asc'}
+                                        onClick={() => handleSort(column)}
                                     >
-                                        {header}
-                                    </Button>
-                                </Tooltip>
-                            </TableCell>
-                        ))}
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {sortedJobs.map((job) => (
-                        <TableRow key={job.id}>
-                            <TableCell>{job.id}</TableCell>
-                            <TableCell>
-                                <Chip label={job.status} color={getStatusColor(job.status)} size="small" />
-                            </TableCell>
-                            <TableCell>
-                                <Chip label={job.jobType} color={getJobTypeColor(job.jobType)} size="small" />
-                            </TableCell>
-                            <TableCell>{formatDate(job.startedAt)}</TableCell>
-                            <TableCell>{renderProgress(job)}</TableCell>
-                            <TableCell>{renderActionButtons(job)}</TableCell>
+                                        {column.charAt(0).toUpperCase() + column.slice(1)}
+                                    </TableSortLabel>
+                                </TableCell>
+                            ))}
+                            <TableCell>Progress</TableCell>
+                            <TableCell>Actions</TableCell>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                        {jobs.map((job) => (
+                            <TableRow key={job.id}>
+                                <TableCell>{job.id}</TableCell>
+                                <TableCell>
+                                    <Chip label={job.status} color={getStatusColor(job.status)} size="small" />
+                                </TableCell>
+                                <TableCell>
+                                    <Chip label={job.jobType} sx={{ backgroundColor: getJobTypeColor(job.jobType), color: 'white' }} size="small" />
+                                </TableCell>
+                                <TableCell>{renderStartedAt(job.startedAt)}</TableCell>
+                                <TableCell>{renderProgress(job)}</TableCell>
+                                <TableCell>{renderActionButtons(job)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={totalElements}
+                rowsPerPage={itemsPerPage}
+                page={currentPage}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+        </Paper>
     );
 };
 

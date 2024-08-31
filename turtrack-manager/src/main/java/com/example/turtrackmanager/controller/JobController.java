@@ -7,7 +7,9 @@ import com.example.turtrackmanager.service.JobService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,13 +30,24 @@ public class JobController {
 
     private final VehicleKafkaService vehicleKafkaService;
     private final JobService jobService;
-
     @GetMapping
-    public ResponseEntity<Page<JobDTO>> getAllJobs(Pageable pageable) {
-        log.info("Received request to get all jobs with pagination: {}", pageable);
+    public ResponseEntity<Page<JobDTO>> getAllJobs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "startedAt,desc") String[] sort) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(createSortOrder(sort)));
         Page<Job> jobPage = jobService.getAllJobs(pageable);
         Page<JobDTO> jobDTOPage = jobPage.map(JobDTO::toDTO);
         return ResponseEntity.ok(jobDTOPage);
+    }
+
+    private Sort.Order createSortOrder(String[] sort) {
+        Sort.Direction direction = Sort.Direction.ASC;
+        if (sort[1].equals("desc")) {
+            direction = Sort.Direction.DESC;
+        }
+        return new Sort.Order(direction, sort[0]);
     }
 
     @PostMapping("/create")

@@ -10,33 +10,30 @@ const initialState = {
     itemsPerPage: 10,
     totalPages: 1,
     totalElements: 0,
+    sortBy: 'startedAt',
+    sortDirection: 'desc',
 };
 
 export const fetchJobs = createAsyncThunk('jobs/fetchJobs', async (_, { getState }) => {
-    const state = getState();
-    const { currentPage, itemsPerPage } = state.jobs;
-    const response = await fetch(`${API_BASE_URL}/jobs?page=${currentPage}&size=${itemsPerPage}`);
+    const { currentPage, itemsPerPage, sortBy, sortDirection } = getState().jobs;
+    const response = await fetch(`${API_BASE_URL}/jobs?page=${currentPage}&size=${itemsPerPage}&sort=${sortBy},${sortDirection}`);
     if (!response.ok) {
         throw new Error('Failed to fetch jobs');
     }
-    const data = await response.json();
-    return data;
+    return await response.json();
 });
 
-export const updateJobStatus = createAsyncThunk(
-    'jobs/updateJobStatus',
-    async ({ jobId, status }) => {
-        const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/${status === 'STOPPED' ? 'stop' : 'start'}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-        });
-        if (!response.ok) {
-            throw new Error('Failed to update job status');
-        }
-        const data = await response.json();
-        return data;
+export const updateJobStatus = createAsyncThunk('jobs/updateJobStatus', async ({ jobId, status }) => {
+    const action = status === 'STOPPED' ? 'stop' : 'start';
+    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update job status');
     }
-);
+    return await response.json();
+});
 
 const jobsSlice = createSlice({
     name: 'jobs',
@@ -45,11 +42,18 @@ const jobsSlice = createSlice({
         setCurrentPage: (state, action) => {
             state.currentPage = action.payload;
         },
+        setItemsPerPage: (state, action) => {
+            state.itemsPerPage = action.payload;
+        },
+        setSorting: (state, action) => {
+            state.sortBy = action.payload.sortBy;
+            state.sortDirection = action.payload.sortDirection;
+        },
         updateJobProgress: (state, action) => {
-            const job = state.jobs.find(job => job.id === action.payload.id);
-            if (job) {
-                job.processedItems = action.payload.processedItems;
-                job.failedItems = action.payload.failedItems;
+            const index = state.jobs.findIndex(job => job.id === action.payload.id);
+            if (index !== -1) {
+                state.jobs[index].processedItems = action.payload.processedItems;
+                state.jobs[index].failedItems = action.payload.failedItems;
             }
         },
     },
@@ -59,26 +63,26 @@ const jobsSlice = createSlice({
                 state.status = 'loading';
             })
             .addCase(fetchJobs.fulfilled, (state, action) => {
-                state.status = 'succeeded';
                 state.jobs = action.payload.content;
                 state.totalPages = action.payload.totalPages;
                 state.totalElements = action.payload.totalElements;
                 state.currentPage = action.payload.number;
                 state.itemsPerPage = action.payload.size;
+                state.status = 'succeeded';
             })
             .addCase(fetchJobs.rejected, (state, action) => {
                 state.status = 'failed';
-                state.error = action.error.message || 'Failed to fetch jobs';
+                state.error = action.error.message;
             })
             .addCase(updateJobStatus.fulfilled, (state, action) => {
                 const index = state.jobs.findIndex(job => job.id === action.payload.id);
                 if (index !== -1) {
-                    state.jobs[index] = action.payload;
+                    state.jobs[index].status = action.payload.status;
                 }
             });
     },
 });
 
-export const { setCurrentPage, updateJobProgress } = jobsSlice.actions;
+export const { setCurrentPage, setItemsPerPage, setSorting, updateJobProgress } = jobsSlice.actions;
 
 export default jobsSlice.reducer;
