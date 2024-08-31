@@ -20,6 +20,7 @@ import {
     updateJobStatus
 } from '../../redux/jobsSlice';
 import { getStatusColor, getJobTypeColor, formatDate } from '../../utils/jobUtils';
+import ProgressBar from "@ramonak/react-progress-bar";
 
 const JobList = () => {
     const dispatch = useDispatch();
@@ -92,35 +93,41 @@ const JobList = () => {
         );
     };
 
-    const renderProgress = (job) => {
-        if (!job.totalItems) return <Typography variant="body2" color="text.secondary">Progress not available</Typography>;
-
-        const successValue = (job.processedItems / job.totalItems) * 100;
-        const failureValue = (job.failedItems / job.totalItems) * 100;
+    const renderProgress = ({ totalItems, completedItems, failedItems = 0, percentCompleted, isRunning }) => {
+        if (!totalItems || !percentCompleted) return <Typography variant="body2" color="text.secondary">Progress not available</Typography>;
 
         return (
             <Box sx={{ width: '100%', mt: 1 }}>
-                <LinearProgress
-                    variant="buffer"
-                    value={successValue}
-                    valueBuffer={successValue + failureValue}
-                    sx={{
-                        height: 10,
-                        borderRadius: 5,
-                        backgroundColor: '#ffcccb',
-                        '& .MuiLinearProgress-bar': { backgroundColor: '#4caf50' }
+                <ProgressBar
+                    completed={percentCompleted}
+                    customLabel={`${percentCompleted.toFixed(1)}%`}
+                    bgColor="#4caf50"
+                    baseBgColor="#ffcccb"
+                    height="20px"
+                    width="100%"
+                    borderRadius="10px"
+                    labelAlignment="center"
+                    labelColor="#ffffff"
+                    labelSize="14px"
+                    animateOnRender={true}
+                    maxCompleted={100}
+                    customLabelStyles={{
+                        fontWeight: 'bold',
+                        textShadow: '1px 1px 2px rgba(0,0,0,0.6)',
                     }}
+                    barContainerClassName={isRunning ? "running" : ""}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                    <Typography variant="body2" color="success.main">Succeeded: {job.processedItems}</Typography>
-                    <Typography variant="body2" color="error.main">Failed: {job.failedItems}</Typography>
-                    <Typography variant="body2" color="text.secondary">Total: {job.totalItems}</Typography>
+                    <Typography variant="body2" color="success.main">Succeeded: {completedItems}</Typography>
+                    <Typography variant="body2" color="error.main">Failed: {failedItems}</Typography>
+                    <Typography variant="body2" color="text.secondary">Total: {totalItems}</Typography>
                 </Box>
             </Box>
         );
     };
 
-    const renderStartedAt = (startedAt) => {
+
+    const renderDateTime = (startedAt) => {
         const { date, time } = formatDate(startedAt);
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -140,12 +147,12 @@ const JobList = () => {
     if (status === 'failed') return <Typography color="error">Error: {error}</Typography>;
 
     return (
-        <Paper className="job-list">
+        <Paper>
             <TableContainer>
                 <Table aria-label="job list">
                     <TableHead>
                         <TableRow>
-                            {['id', 'status', 'jobType', 'startedAt'].map((column) => (
+                            {['id', 'createdAt', 'status', 'jobType', 'startedAt', 'completedAt'].map((column) => (
                                 <TableCell key={column}>
                                     <TableSortLabel
                                         active={sortBy === column}
@@ -164,13 +171,15 @@ const JobList = () => {
                         {jobs.map((job) => (
                             <TableRow key={job.id}>
                                 <TableCell>{job.id}</TableCell>
+                                <TableCell>{renderDateTime(job.createdAt)}</TableCell>
                                 <TableCell>
                                     <Chip label={job.status} color={getStatusColor(job.status)} size="small" />
                                 </TableCell>
                                 <TableCell>
                                     <Chip label={job.jobType} sx={{ backgroundColor: getJobTypeColor(job.jobType), color: 'white' }} size="small" />
                                 </TableCell>
-                                <TableCell>{renderStartedAt(job.startedAt)}</TableCell>
+                                <TableCell>{renderDateTime(job.startedAt)}</TableCell>
+                                <TableCell>{renderDateTime(job.finishedAt)}</TableCell>
                                 <TableCell>{renderProgress(job)}</TableCell>
                                 <TableCell>{renderActionButtons(job)}</TableCell>
                             </TableRow>
