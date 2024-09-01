@@ -24,7 +24,8 @@ const consumer = kafka.consumer({
         initialRetryTime: 300,
         retries: 10
     },
-    readUncommitted: false
+    readUncommitted: false,
+    autoCommit: false
 });
 
 let pricingScraper;
@@ -66,36 +67,52 @@ async function handleMessage(messageData, topic, partition, message) {
     const { startDate, endDate, country, vehicleId, jobId } = messageData;
     console.log(`[Instance ${instanceId}] Consumed vehicle with id ${vehicleId} for availability scraping`);
 
-
     console.log(messageData);
 
     // Check job status in the db
     const result = await db.query('SELECT status FROM job WHERE id = $1', [BigInt(jobId)]);
-
-    // Assuming the query returns an array of rows
     const jobStatus = result.rows[0]?.status;
 
     console.log(`Job ID: ${jobId}. Job Status: ${jobStatus}`);
 
-    try {
-        const scraper = await initializeScraper(startDate, endDate, country);
-        const vehicle = { getId: () => vehicleId };
-        const results = await scraper.scrape([vehicle], jobId);
+    switch (jobStatus) {
+        case 'STOPPED':
+            console.log(`[Instance ${instanceId}] Job ${jobId} is paused. Putting scraper on hold.`);
+            // Don't commit the message, allowing it to be reprocessed later
+            return;
 
-        if (results[0].success) {
+        case 'CANCELLED':
+            console.log(`[Instance ${instanceId}] Job ${jobId} is cancelled. Committing offset to remove from queue.`);
             await commitOffsetsWithRetry(consumer, topic, partition, message.offset, instanceId);
-            console.log(`[Instance ${instanceId}] Successfully processed and committed offset for vehicle ${vehicleId}`);
-            consecutiveFailures = 0;
-        } else {
-            console.log(`[Instance ${instanceId}] Failed to scrape vehicle ${vehicleId}: ${results[0].error}`);
-            await handleScraperFailure(startDate, endDate, country);
-        }
-    } catch (error) {
-        console.error(`[Instance ${instanceId}] Error processing vehicle ${vehicleId}:`, error);
-        await handleScraperFailure(startDate, endDate, country);
+            return;
+
+        case 'RUNNING':
+            try {
+                const scraper = await initializeScraper(startDate, endDate, country);
+                const vehicle = { getId: () => vehicleId };
+                const results = await scraper.scrape([vehicle], jobId);
+
+                if (results[0].success) {
+                    await commitOffsetsWithRetry(consumer, topic, partition, message.offset, instanceId);
+                    console.log(`[Instance ${instanceId}] Successfully processed and committed offset for vehicle ${vehicleId}`);
+                    consecutiveFailures = 0;
+                } else {
+                    console.log(`[Instance ${instanceId}] Failed to scrape vehicle ${vehicleId}: ${results[0].error}`);
+                    await handleScraperFailure(startDate, endDate, country);
+                }
+            } catch (error) {
+                console.error(`[Instance ${instanceId}] Error processing vehicle ${vehicleId}:`, error);
+                await handleScraperFailure(startDate, endDate, country);
+            }
+            break;
+
+        default:
+            console.log(`[Instance ${instanceId}] Unknown job status: ${jobStatus}. Skipping processing.`);
+            // Optionally, you might want to commit the offset here to avoid reprocessing messages with unknown statuses
+            // await commitOffsetsWithRetry(consumer, topic, partition, message.offset, instanceId);
+            break;
     }
 }
-
 async function handleSuccess(data) {
     const { vehicle, scraped, jobId } = data;
     console.log(`[Instance ${instanceId}] Successfully scraped availability for vehicle ${vehicle.getId()}`);
@@ -137,7 +154,7 @@ async function startPricingConsumer() {
 
             console.log(`KAFKA_BOOTSTRAP_SERVERS: ${process.env.KAFKA_BOOTSTRAP_SERVERS}. Attempting to connect to TO-BE-SCRAPED-dr-availability-topic`)
             await consumer.connect();
-            await consumer.subscribe({ topic: 'TO-BE-SCRAPED-dr-availability-topic', fromBeginning: true });
+            await consumer.subscribe({ topic: 'TO-BE-SCRAPED-dr-availability-topic'});
 
             await consumer.run({
                 autoCommit: false,
