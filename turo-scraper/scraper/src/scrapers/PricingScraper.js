@@ -1,5 +1,5 @@
 const BaseScraper = require("./BaseScraper");
-const {sleep, getRandomInt} = require("../utils/utils");
+const { sleep, getRandomInt } = require("../utils/utils");
 
 class PricingScraper extends BaseScraper {
   static type = "pricing";
@@ -21,46 +21,43 @@ class PricingScraper extends BaseScraper {
   }
 
   async recreateBrowserInstance() {
-    console.log(`[Instance ${this.instanceId}] Recreating browser instance...`);
+    console.log(`Recreating browser instance...`);
     if (this.browser) {
       await this.browser.close();
     }
 
     await this.init();
-
-    console.log(`[Instance ${this.instanceId}] Browser instance recreated successfully.`);
+    console.log(`Browser instance recreated successfully.`);
   }
 
   async scrape(vehicles, jobId) {
     const results = [];
-    for (let vehicle of vehicles) {
+    for (const vehicle of vehicles) {
       if (!this.isRunning()) break;
 
       const vehicleId = vehicle.getId();
-
       try {
-        this.currentRequestTotalBytes = 0;  // Reset for each vehicle
+        this.currentRequestTotalBytes = 0;
         const data = await this.fetch(vehicleId);
-        console.log(`[Instance ${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
+        console.log(`Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
 
         if (this.isValidResponse(data)) {
           this.onSuccessCallback({
             id: vehicleId,
             vehicle,
-            scraped: {...data, jobId},
+            scraped: { ...data, jobId },
           });
           results.push({ success: true, vehicleId });
-          console.log(`[Instance ${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
+          console.log(`Successfully scraped vehicle ${vehicleId}`);
         } else {
           throw new Error("Invalid response structure");
         }
       } catch (error) {
-        this.onFailedCallback({ vehicle, error });
-        console.error(`[Instance ${this.instanceId}] Failed to scrape vehicle ${vehicleId}: ${error.message}`);
+        this.handleScrapingError(vehicle, error);
         results.push({ success: false, vehicleId, error: error.message });
       }
 
-      await new Promise(resolve => setTimeout(resolve, this.delay));
+      await sleep(this.delay);
     }
 
     this.onFinishCallback(results);
@@ -76,16 +73,16 @@ class PricingScraper extends BaseScraper {
 
     const requestConfig = {
       headers,
-      body: null,
       method: "GET",
       mode: "cors",
       credentials: "include",
     };
 
-    const queryParams = new URLSearchParams();
-    queryParams.append("end", this.endDate);
-    queryParams.append("start", this.startDate);
-    queryParams.append("vehicleId", vehicleId);
+    const queryParams = new URLSearchParams({
+      end: this.endDate,
+      start: this.startDate,
+      vehicleId,
+    });
 
     const url = `https://turo.com/api/vehicle/daily_pricing?${queryParams.toString()}`;
 
@@ -101,9 +98,7 @@ class PricingScraper extends BaseScraper {
           { requestConfig, url }
       );
 
-      // Update total bytes received
-      const responseSize = JSON.stringify(data).length;
-      this.currentRequestTotalBytes += responseSize;
+      this.updateTotalBytes(data);
 
       return {
         ...data,
@@ -111,9 +106,14 @@ class PricingScraper extends BaseScraper {
         scrapedBy: this.instanceId
       };
     } catch (error) {
-      console.error(`[Instance ${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);
+      console.error(`Error fetching data for vehicle ${vehicleId}: ${error.message}`);
       throw error;
     }
+  }
+
+  updateTotalBytes(data) {
+    const responseSize = JSON.stringify(data).length;
+    this.currentRequestTotalBytes += responseSize;
   }
 
   isValidResponse(data) {
@@ -127,16 +127,21 @@ class PricingScraper extends BaseScraper {
     );
   }
 
-  async onSuccess(callfunction) {
-    this.onSuccessCallback = callfunction;
+  handleScrapingError(vehicle, error) {
+    this.onFailedCallback({ vehicle, error });
+    console.error(`Failed to scrape vehicle ${vehicle.getId()}: ${error.message}`);
   }
 
-  async onFailed(callfunction) {
-    this.onFailedCallback = callfunction;
+  onSuccess(callback) {
+    this.onSuccessCallback = callback;
   }
 
-  async onFinish(callfunction) {
-    this.onFinishCallback = callfunction;
+  onFailed(callback) {
+    this.onFailedCallback = callback;
+  }
+
+  onFinish(callback) {
+    this.onFinishCallback = callback;
   }
 }
 

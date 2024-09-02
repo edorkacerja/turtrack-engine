@@ -6,7 +6,7 @@ const os = require('os');
 const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
-const { startPricingConsumer } = require('./kafka-consumers/pricingConsumer');
+const { startPricingConsumer } = require('./kafka-consumers/PricingConsumer');
 const { startVehicleDetailsConsumer } = require('./kafka-consumers/vehicleDetailsConsumer');
 
 const port = process.env.PORT || 5011;

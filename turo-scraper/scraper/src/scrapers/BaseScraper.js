@@ -1,6 +1,7 @@
 const puppeteer = require("puppeteer");
 const Xvfb = require('xvfb');
 const {getRandomInt, sleep} = require("../utils/utils");
+const {PROXY_AUTH, PROXY_SERVER} = require("../utils/constants");
 
 class BaseScraper {
   static instances = new Map();
@@ -13,8 +14,8 @@ class BaseScraper {
   constructor(config) {
     const { proxyAuth, proxyServer, delay, headless, instanceId } = config;
 
-    this.proxyAuth = proxyAuth || "intellicode:T3yGrF8Nr63U7q8m";
-    this.proxyServer = proxyServer || "https://proxy.packetstream.io:31111";
+    this.proxyAuth = proxyAuth || PROXY_AUTH;
+    this.proxyServer = proxyServer || PROXY_SERVER;
     this.delay = delay || 1100;
     this.headless = headless ?? false;
     this.instanceId = instanceId || 'unknown';
