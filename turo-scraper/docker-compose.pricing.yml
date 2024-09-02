@@ -21,7 +21,7 @@ services:
       PROXY_AUTH: intellicode:T3yGrF8Nr63U7q8m
       PROXY_SERVER: https://proxy.packetstream.io:31111
     deploy:
-      replicas: 3
+      replicas: 1
       update_config:
         parallelism: 2
         order: stop-first
@@ -32,7 +32,7 @@ services:
       - turtrack-manager-network
     ports:
       - "5011"
-#      - "9229:9229"
+      - "9229:9229"
     healthcheck:
       test: ["CMD", "node", "/usr/src/app/healthcheck.js"]
       interval: 30s

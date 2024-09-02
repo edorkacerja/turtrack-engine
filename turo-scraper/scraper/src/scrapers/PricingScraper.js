@@ -30,16 +30,14 @@ class PricingScraper extends BaseScraper {
     console.log(`Browser instance recreated successfully.`);
   }
 
-  async scrape(vehicles, jobId) {
+  async scrape(vehicle, jobId, startDate, endDate) {
     const results = [];
-    for (const vehicle of vehicles) {
-      if (!this.isRunning()) break;
 
       const vehicleId = vehicle.getId();
       try {
         this.currentRequestTotalBytes = 0;
-        const data = await this.fetch(vehicleId);
-        console.log(`Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
+        const data = await this.fetchFromTuro(vehicleId, startDate, endDate);
+        console.log(`[${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
 
         if (this.isValidResponse(data)) {
           this.onSuccessCallback({
@@ -47,10 +45,10 @@ class PricingScraper extends BaseScraper {
             vehicle,
             scraped: { ...data, jobId },
           });
-          results.push({ success: true, vehicleId });
-          console.log(`Successfully scraped vehicle ${vehicleId}`);
+          results.push({ success: true, vehicleId, scraped: {...date, jobId} });
+          console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
         } else {
-          throw new Error("Invalid response structure");
+          throw new Error("[${this.instanceId}] Invalid response structure");
         }
       } catch (error) {
         this.handleScrapingError(vehicle, error);
@@ -58,13 +56,13 @@ class PricingScraper extends BaseScraper {
       }
 
       await sleep(this.delay);
-    }
+
 
     this.onFinishCallback(results);
     return results;
   }
 
-  async fetch(vehicleId) {
+  async fetchFromTuro(vehicleId, startDate, endDate) {
     const headers = {
       accept: "*/*",
       "accept-language": "en-US,en;q=0.9",
@@ -79,8 +77,8 @@ class PricingScraper extends BaseScraper {
     };
 
     const queryParams = new URLSearchParams({
-      end: this.endDate,
-      start: this.startDate,
+      end: endDate,
+      start: startDate,
       vehicleId,
     });
 
@@ -106,7 +104,7 @@ class PricingScraper extends BaseScraper {
         scrapedBy: this.instanceId
       };
     } catch (error) {
-      console.error(`Error fetching data for vehicle ${vehicleId}: ${error.message}`);
+      console.error(`[${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);
       throw error;
     }
   }
@@ -129,7 +127,7 @@ class PricingScraper extends BaseScraper {
 
   handleScrapingError(vehicle, error) {
     this.onFailedCallback({ vehicle, error });
-    console.error(`Failed to scrape vehicle ${vehicle.getId()}: ${error.message}`);
+    console.error(`[${this.instanceId}] Failed to scrape vehicle ${vehicle.getId()}: ${error.message}`);
   }
 
   onSuccess(callback) {
