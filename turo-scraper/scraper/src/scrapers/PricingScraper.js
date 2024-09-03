@@ -45,7 +45,7 @@ class PricingScraper extends BaseScraper {
             vehicle,
             scraped: { ...data, jobId },
           });
-          results.push({ success: true, vehicleId, scraped: {...date, jobId} });
+          results.push({ success: true, vehicleId, scraped: {...data, jobId} });
           console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
         } else {
           throw new Error("[${this.instanceId}] Invalid response structure");

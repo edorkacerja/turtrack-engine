@@ -16,7 +16,7 @@ const {
 const INSTANCE_ID = os.hostname();
 const proxyAuth = process.env.PROXY_AUTH;
 const proxyServer = process.env.PROXY_SERVER;
-const POOL_SIZE = 2;
+const POOL_SIZE = 3;
 
 const kafka = new Kafka({
     clientId: `${KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY}-${INSTANCE_ID}`,

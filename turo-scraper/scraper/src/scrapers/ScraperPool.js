@@ -50,11 +50,11 @@ class ScraperPool {
 
         const processingPromise = this.scrapeVehicle(scraper, startDate, endDate, country, vehicleId, jobId)
             .then(async (result) => {
-                if (result.success) {
-                    await this.config.handleSuccessfulScrape(result);
+                if (result[0].success) {
+                    await this.config.handleSuccessfulScrape(result[0]);
                     await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset, this.config.instanceId);
                 } else {
-                    await this.config.handleFailedScrape({ getId: () => vehicleId }, result.error, jobId);
+                    await this.config.handleFailedScrape({ getId: () => vehicleId }, result[0].error, jobId);
                 }
             })
             .catch(async (error) => {
