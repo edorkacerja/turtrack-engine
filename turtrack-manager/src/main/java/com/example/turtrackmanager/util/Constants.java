@@ -14,6 +14,10 @@ public final class Constants {
         public static final String SCRAPED_VEHICLE_SKELETON_TOPIC = "SCRAPED-vehicle-skeleton-topic";
         public static final String SCRAPED_VEHICLE_DETAILS_TOPIC = "SCRAPED-vehicle-details-topic";
         public static final String PROCESSED_DR_AVAILABILITY_TOPIC = "PROCESSED-dr-availability-topic";
+        public static final String PROCESSED_VEHICLE_DETAILS_TOPIC = "PROCESSED-vehicle-details-topic";
+        public static final String PROCESSED_VEHICLE_SKELETON_TOPIC = "PROCESSED-vehicle-skeleton-topic";
+        public static final String DLQ_DR_AVAILABILITY_TOPIC = "DLQ-dr-availability-topic";
+        public static final String DLQ_VEHICLE_DETAILS_TOPIC = "DLQ-vehicle-details-topic";
     }
 
 }

@@ -44,13 +44,16 @@ public class Job {
 //    private String kafkaTopicTitle;
 
     @Column(name = "percent_completed")
-    private Double percentCompleted;
+    private Double percentCompleted = 0.0;
 
     @Column(name = "total_items")
     private Integer totalItems;
 
     @Column(name = "completed_items")
-    private Integer completedItems;
+    private Integer completedItems = 0;
+
+    @Column(name = "failed_items")
+    private Integer failedItems = 0;
 
     public enum JobStatus {
         CREATED, RUNNING, STOPPED, CANCELLED, FINISHED, FAILED

@@ -37,4 +37,10 @@ public class KafkaConsumerService {
         System.out.println("Received pricing message: " + message);
         dailyRateAndAvailabilityService.processAndForwardDailyRates(message);
     }
+
+    @KafkaListener(topics = DLQ_DR_AVAILABILITY_TOPIC, groupId = "turtrack-group")
+    public void consumeDLQPricing(Map<String, Object> message) {
+        System.out.println("Received DQL pricing message: " + message);
+        dailyRateAndAvailabilityService.processAndForwardDailyRates(message);
+    }
 }

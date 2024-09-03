@@ -95,7 +95,7 @@ class ScraperPool {
                 throw new Error(`[${scraper.instanceId}] Something went wrong with scraping`);
             }
         } catch (error) {
-            if (retryCount < 2) {  // Allow up to 3 attempts (initial + 2 retries)
+            if (retryCount < 4) {  // Allow up to 5 attempts
                 console.log(`[${scraper.instanceId}] Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
 
                 // Destroy the current scraper instance

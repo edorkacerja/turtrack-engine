@@ -25,6 +25,46 @@ public class DailyRateAndAvailabilityService {
     private final KafkaTemplate<String, DailyRateAndAvailability> kafkaTemplate;
     private final JobRepository jobRepository;
 
+
+    @Transactional
+    public void processFailedVehicle(Map<String, Object> message) {
+        Long jobId = extractJobId(message);
+        updateJobForFailedVehicle(jobId);
+    }
+
+    private void updateJobForFailedVehicle(Long jobId) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
+
+        // Increment the failed items count
+        job.setFailedItems(job.getFailedItems() == null ? 1 : job.getFailedItems() + 1);
+
+//        // Update the job status
+//        job.setStatus(Job.JobStatus.PARTIALLY_COMPLETED);
+
+        // Update completion percentage
+        if (job.getTotalItems() != null && job.getTotalItems() > 0) {
+            int processedItems = (job.getCompletedItems() == null ? 0 : job.getCompletedItems())
+                    + (job.getFailedItems() == null ? 0 : job.getFailedItems());
+            double percentCompleted = (double) processedItems / job.getTotalItems() * 100;
+            job.setPercentCompleted(percentCompleted);
+
+            if (processedItems >= job.getTotalItems()) {
+                job.setStatus(Job.JobStatus.FINISHED);
+                job.setFinishedAt(LocalDateTime.now());
+            }
+        } else {
+            log.warn("Job {} has no total items set. Unable to calculate percent completed.", jobId);
+        }
+
+        jobRepository.save(job);
+        log.info("Updated job for failed vehicle: jobId={}, failedItems={}, percentCompleted={}%, status={}",
+                jobId, job.getFailedItems(), job.getPercentCompleted(), job.getStatus());
+    }
+
+
+
+
     @Transactional
     public void processAndForwardDailyRates(Map<String, Object> message) {
         Long vehicleId = extractVehicleId(message);
@@ -35,7 +75,8 @@ public class DailyRateAndAvailabilityService {
             forwardDailyRate(dailyRate);
         }
 
-        updateJobProgress(jobId, dailyRates.size());
+//        updateJobProgress(jobId, dailyRates.size());
+        updateJobProgress(jobId, 1);
     }
 
     private List<DailyRateAndAvailability> extractDailyRates(Map<String, Object> message, Long vehicleId) {
