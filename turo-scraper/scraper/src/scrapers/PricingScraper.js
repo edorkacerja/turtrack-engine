@@ -7,11 +7,8 @@ class PricingScraper extends BaseScraper {
   constructor(config) {
     super(config);
 
-    const { startDate, endDate, country, instanceId } = config;
+    const { instanceId } = config;
 
-    this.startDate = startDate;
-    this.endDate = endDate;
-    this.localResourceName = `${country}.vehicles`;
     this.instanceId = instanceId || 'unknown';
 
     this.onSuccessCallback = () => {};

@@ -1,29 +1,47 @@
 const PricingScraper = require('./PricingScraper');
-const { commitOffsetsWithRetry } = require('../utils/kafkaUtil');
+const {commitOffsetsWithRetry} = require("../utils/kafkaUtil");
 
 class ScraperPool {
-    constructor(poolSize = 20, config) {
+    constructor(poolSize = 20,
+                proxyAuth,
+                proxyServer,
+                consumer,
+                handleFailedScrape,
+                handleSuccessfulScrape) {
         this.poolSize = poolSize;
-        this.config = config;
+        this.proxyAuth = proxyAuth;
+        this.proxyServer = proxyServer;
+        this.consumer = consumer;
+        this.handleFailedScrape = handleFailedScrape;
+        this.handleSuccessfulScrape = handleSuccessfulScrape;
+
         this.scrapers = [];
         this.availableScrapers = [];
-        this.consumer = config.consumer;
         this.processingPromises = new Set();
     }
 
     async initialize() {
         for (let i = 0; i < this.poolSize; i++) {
-            const scraper = new PricingScraper({...this.config, instanceId: `Pricing-Scraper-${i}`});
-            await scraper.init();
-            this.scrapers.push(scraper);
-            this.availableScrapers.push(scraper);
+            await this.createScraper(i);
         }
         console.log(`Initialized pool of ${this.poolSize} scrapers`);
 
-        await this.setupKafkaConsumer();
+        await this.runKafkaConsumer();
     }
 
-    async setupKafkaConsumer() {
+    async createScraper(index) {
+        const scraper = new PricingScraper({
+            proxyAuth: this.proxyAuth,
+            proxyServer: this.proxyServer,
+            instanceId: `Pricing-Scraper-${index}`
+        });
+
+        await scraper.init();
+        this.scrapers.push(scraper);
+        this.availableScrapers.push(scraper);
+    }
+
+    async runKafkaConsumer() {
         await this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
                 await this.handleMessage(topic, partition, message);
@@ -48,20 +66,21 @@ class ScraperPool {
         const messageData = JSON.parse(message.value.toString());
         const { startDate, endDate, country, vehicleId, jobId } = messageData;
 
-        const processingPromise = this.scrapeVehicle(scraper, startDate, endDate, country, vehicleId, jobId)
+        const processingPromise = this.scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId)
             .then(async (result) => {
-                if (result[0].success) {
-                    await this.config.handleSuccessfulScrape(result[0]);
-                    await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset, this.config.instanceId);
+                if (result.success) {
+                    await this.handleSuccessfulScrape(result);
                 } else {
-                    await this.config.handleFailedScrape({ getId: () => vehicleId }, result[0].error, jobId);
+                    await this.handleFailedScrape({ getId: () => vehicleId }, result.error, jobId);
                 }
             })
             .catch(async (error) => {
                 console.error(`Error processing vehicle ${vehicleId}:`, error);
-                await this.config.handleFailedScrape({ getId: () => vehicleId }, error, jobId);
+
+                await this.handleFailedScrape({ getId: () => vehicleId }, error, jobId);
             })
             .finally(() => {
+                commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
                 this.availableScrapers.push(scraper);
                 this.processingPromises.delete(processingPromise);
             });
@@ -69,9 +88,31 @@ class ScraperPool {
         this.processingPromises.add(processingPromise);
     }
 
-    async scrapeVehicle(scraper, startDate, endDate, country, vehicleId, jobId) {
+    async scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId, retryCount = 0) {
         const vehicle = { getId: () => vehicleId };
-        return scraper.scrape(vehicle, jobId, startDate, endDate);
+        try {
+            const result = await scraper.scrape(vehicle, jobId, startDate, endDate);
+            return result[0];
+        } catch (error) {
+            if (retryCount < 2) {  // Allow up to 3 attempts (initial + 2 retries)
+                console.log(`Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
+
+                // Destroy the current scraper instance
+                await scraper.close();
+                const index = this.scrapers.indexOf(scraper);
+                this.scrapers.splice(index, 1);
+
+                // Create a new scraper instance
+                await this.createScraper(index);
+                const newScraper = this.availableScrapers.pop();
+
+                // Retry with the new scraper
+                return this.scrapeVehicleWithRetry(newScraper, startDate, endDate, country, vehicleId, jobId, retryCount + 1);
+            } else {
+                console.log(`All retry attempts failed for vehicle ${vehicleId}.`);
+                return { success: false, error };
+            }
+        }
     }
 
     async close() {

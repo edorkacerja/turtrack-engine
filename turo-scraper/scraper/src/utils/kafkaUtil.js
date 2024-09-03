@@ -10,24 +10,24 @@ const kafka = new Kafka({
 
 let producer;
 
-async function initializeProducer(instanceId) {
+async function initializeProducer() {
     while (true) {
         try {
             producer = kafka.producer();
             await producer.connect();
-            console.log(`[Instance ${instanceId}] Kafka producer connected`);
+            console.log(`Kafka producer connected`);
             return;
         } catch (error) {
-            console.error(`[Instance ${instanceId}] Failed to connect the producer:`, error);
-            console.log(`[Instance ${instanceId}] Retrying in 5 seconds...`);
+            console.error(`Failed to connect the producer:`, error);
+            console.log(`Retrying in 5 seconds...`);
             await new Promise(resolve => setTimeout(resolve, 5000));
         }
     }
 }
 
-async function sendToKafka(topic, message, instanceId, retries = 3) {
+async function sendToKafka(topic, message, retries = 3) {
     if (!producer) {
-        await initializeProducer(instanceId);
+        await initializeProducer();
     }
 
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -38,12 +38,12 @@ async function sendToKafka(topic, message, instanceId, retries = 3) {
             });
             return; // Success, exit the function
         } catch (error) {
-            console.error(`[Instance ${instanceId}] Error sending message to Kafka (attempt ${attempt + 1}/${retries}):`, error);
+            console.error(`Error sending message to Kafka (attempt ${attempt + 1}/${retries}):`, error);
 
             if (error.name === 'KafkaJSConnectionError') {
-                console.log(`[Instance ${instanceId}] Connection error. Reconnecting...`);
+                console.log(`Connection error. Reconnecting...`);
                 await producer.disconnect();
-                await initializeProducer(instanceId);
+                await initializeProducer();
             } else {
                 // For other errors, wait before retrying
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -55,25 +55,25 @@ async function sendToKafka(topic, message, instanceId, retries = 3) {
     }
 }
 
-async function disconnectProducer(instanceId) {
+async function disconnectProducer() {
     if (producer) {
         try {
             await producer.disconnect();
-            console.log(`[Instance ${instanceId}] Kafka producer disconnected`);
+            console.log(`Kafka producer disconnected`);
         } catch (error) {
-            console.error(`[Instance ${instanceId}] Error disconnecting producer:`, error);
+            console.error(`Error disconnecting producer:`, error);
         }
     }
 }
 
-async function commitOffsetsWithRetry(consumer, topic, partition, offset, instanceId, maxRetries = 5) {
+async function commitOffsetsWithRetry(consumer, topic, partition, offset, maxRetries = 5) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             await consumer.commitOffsets([{ topic, partition, offset: offset + 1 }]);
-            console.log(`[Instance ${instanceId}] Successfully committed offset for partition ${partition}`);
+            console.log(`Successfully committed offset for partition ${partition}`);
             return;
         } catch (error) {
-            console.error(`[Instance ${instanceId}] Error committing offset (attempt ${attempt}/${maxRetries}):`, error);
+            console.error(`Error committing offset (attempt ${attempt}/${maxRetries}):`, error);
             if (attempt === maxRetries) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
