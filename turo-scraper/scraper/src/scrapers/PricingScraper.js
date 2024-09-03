@@ -31,7 +31,6 @@ class PricingScraper extends BaseScraper {
     const results = [];
 
       const vehicleId = vehicle.getId();
-      try {
         this.currentRequestTotalBytes = 0;
         const data = await this.fetchFromTuro(vehicleId, startDate, endDate);
         console.log(`[${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
@@ -47,10 +46,6 @@ class PricingScraper extends BaseScraper {
         } else {
           throw new Error("[${this.instanceId}] Invalid response structure");
         }
-      } catch (error) {
-        this.handleScrapingError(vehicle, error);
-        results.push({ success: false, vehicleId, error: error.message });
-      }
 
       await sleep(this.delay);
 
@@ -120,11 +115,6 @@ class PricingScraper extends BaseScraper {
         typeof data.vehicleId === 'string' &&
         typeof data.scrapedBy === 'string'
     );
-  }
-
-  handleScrapingError(vehicle, error) {
-    this.onFailedCallback({ vehicle, error });
-    console.error(`[${this.instanceId}] Failed to scrape vehicle ${vehicle.getId()}: ${error.message}`);
   }
 
   onSuccess(callback) {

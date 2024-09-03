@@ -150,6 +150,42 @@ class BaseScraper {
     return this.running;
   }
 
+  async destroy() {
+    try {
+      console.log(`[Instance ${this.instanceId}] Destroying scraper instance...`);
+
+      // Remove all listeners
+      this.page?.removeAllListeners();
+      this.browser?.removeAllListeners();
+
+      // Close the page if it exists
+      if (this.page) {
+        await this.page.close();
+        this.page = null;
+      }
+
+      // Close the browser if it exists
+      if (this.browser) {
+        await this.browser.close();
+        this.browser = null;
+      }
+
+      // Stop Xvfb if it was started
+      if (!this.headless && this.xvfb) {
+        this.xvfb.stopSync();
+        this.xvfb = null;
+      }
+
+      // // Remove this instance from the static instances map
+      // BaseScraper.instances.delete(this);
+
+      this.running = false;
+      console.log(`[Instance ${this.instanceId}] Scraper instance destroyed successfully.`);
+    } catch (error) {
+      console.error(`[Instance ${this.instanceId}] Error during scraper destruction: ${error.message}`);
+    }
+  }
+
   async close() {
     try {
       if (this.browser) {
@@ -172,6 +208,9 @@ class BaseScraper {
       console.error(`Error closing all browser instances: ${error.message}`);
     }
   }
+
+
+
 }
 
 module.exports = BaseScraper;

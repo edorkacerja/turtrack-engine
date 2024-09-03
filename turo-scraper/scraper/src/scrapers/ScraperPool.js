@@ -1,5 +1,6 @@
 const PricingScraper = require('./PricingScraper');
 const {commitOffsetsWithRetry} = require("../utils/kafkaUtil");
+const {sleep} = require("../utils/utils");
 
 class ScraperPool {
     constructor(poolSize = 20,
@@ -68,11 +69,7 @@ class ScraperPool {
 
         const processingPromise = this.scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId)
             .then(async (result) => {
-                if (result.success) {
                     await this.handleSuccessfulScrape(result);
-                } else {
-                    await this.handleFailedScrape({ getId: () => vehicleId }, result.error, jobId);
-                }
             })
             .catch(async (error) => {
                 console.error(`Error processing vehicle ${vehicleId}:`, error);
@@ -92,15 +89,22 @@ class ScraperPool {
         const vehicle = { getId: () => vehicleId };
         try {
             const result = await scraper.scrape(vehicle, jobId, startDate, endDate);
-            return result[0];
+            if (result[0].success) {
+                return result[0];
+            } else {
+                throw new Error(`[${scraper.instanceId}] Something went wrong with scraping`);
+            }
         } catch (error) {
             if (retryCount < 2) {  // Allow up to 3 attempts (initial + 2 retries)
-                console.log(`Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
+                console.log(`[${scraper.instanceId}] Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
 
                 // Destroy the current scraper instance
-                await scraper.close();
+                await scraper.destroy();
                 const index = this.scrapers.indexOf(scraper);
                 this.scrapers.splice(index, 1);
+
+                // Delay 3 sec
+                await sleep(3000);
 
                 // Create a new scraper instance
                 await this.createScraper(index);
@@ -109,7 +113,7 @@ class ScraperPool {
                 // Retry with the new scraper
                 return this.scrapeVehicleWithRetry(newScraper, startDate, endDate, country, vehicleId, jobId, retryCount + 1);
             } else {
-                console.log(`All retry attempts failed for vehicle ${vehicleId}.`);
+                console.log(`[${scraper.instanceId}] All retry attempts failed for vehicle ${vehicleId}.`);
                 return { success: false, error };
             }
         }

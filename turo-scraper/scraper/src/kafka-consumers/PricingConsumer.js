@@ -16,7 +16,7 @@ const {getJobStatus} = require("../services/job.service");
 
 const proxyAuth = process.env.PROXY_AUTH;
 const proxyServer = process.env.PROXY_SERVER;
-const POOL_SIZE = 3;
+const POOL_SIZE = 8;
 
 const kafka = new Kafka({
     clientId: `${KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY}`,
