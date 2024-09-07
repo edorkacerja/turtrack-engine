@@ -17,15 +17,15 @@ class PricingScraper extends BaseScraper {
     this.currentRequestTotalBytes = 0;
   }
 
-  async recreateBrowserInstance() {
-    console.log(`Recreating browser instance...`);
-    if (this.browser) {
-      await this.browser.close();
-    }
-
-    await this.init();
-    console.log(`Browser instance recreated successfully.`);
-  }
+  // async recreateBrowserInstance() {
+  //   console.log(`Recreating browser instance...`);
+  //   if (this.browser) {
+  //     await this.browser.close();
+  //   }
+  //
+  //   await this.init();
+  //   console.log(`Browser instance recreated successfully.`);
+  // }
 
   async scrape(vehicle, jobId, startDate, endDate) {
     const results = [];

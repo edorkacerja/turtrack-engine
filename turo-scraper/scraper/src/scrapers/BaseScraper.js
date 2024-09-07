@@ -4,7 +4,6 @@ const {getRandomInt, sleep} = require("../utils/utils");
 const {PROXY_AUTH, PROXY_SERVER} = require("../utils/constants");
 
 class BaseScraper {
-  static instances = new Map();
   static type = "base";
 
   bytesToMB(bytes) {
@@ -106,7 +105,6 @@ class BaseScraper {
       console.log(`Sleeping for ${sleepDuration / 1000} seconds`);
       await sleep(sleepDuration);
 
-      BaseScraper.instances.set(this, true);
     } catch (error) {
       console.error(`[Instance ${this.instanceId}] Failed to initialize scraper: ${error.message}`);
       throw error;
@@ -176,9 +174,6 @@ class BaseScraper {
         this.xvfb = null;
       }
 
-      // // Remove this instance from the static instances map
-      // BaseScraper.instances.delete(this);
-
       this.running = false;
       console.log(`[Instance ${this.instanceId}] Scraper instance destroyed successfully.`);
     } catch (error) {
@@ -191,25 +186,12 @@ class BaseScraper {
       if (this.browser) {
         await this.browser.close();
         this.running = false;
-        BaseScraper.instances.delete(this);
         console.log(`[Instance ${this.instanceId}] Scraper closed`);
       }
     } catch (error) {
       console.error(`[Instance ${this.instanceId}] Error closing browser: ${error.message}`);
     }
   }
-
-  static async close() {
-    try {
-      for (const instance of BaseScraper.instances.keys()) {
-        await instance.close();
-      }
-    } catch (error) {
-      console.error(`Error closing all browser instances: ${error.message}`);
-    }
-  }
-
-
 
 }
 

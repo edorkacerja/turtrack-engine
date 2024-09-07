@@ -12,11 +12,10 @@ const {
     KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY,
     KAFKA_CONSUMER_GROUP_ID_DR_AVAILABILITY
 } = require('../utils/constants');
-const {getJobStatus} = require("../services/job.service");
 
 const proxyAuth = process.env.PROXY_AUTH;
 const proxyServer = process.env.PROXY_SERVER;
-const POOL_SIZE = 8;
+const POOL_SIZE = 5;
 
 const kafka = new Kafka({
     clientId: `${KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY}`,
