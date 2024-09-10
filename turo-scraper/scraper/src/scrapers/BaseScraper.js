@@ -67,7 +67,11 @@ class BaseScraper {
       this.requestListener = (request) => {
         if (this.currentRequestTotalBytes >= this.maxDataLimit) {
           request.abort();
-        } else if (request.resourceType() === "image" || request.resourceType() === "media") {
+        } else if (request.resourceType() === "image" || request.resourceType() === "media" ||
+            request.resourceType() === "font" || request.resourceType() === "stylesheet" ||
+            request.resourceType() === "script" || request.resourceType() === "xhr") {
+          request.abort();
+        } else if (request.url().endsWith(".png") || request.url().includes("base64")) {
           request.abort();
         } else {
           request.continue();
@@ -161,8 +165,8 @@ class BaseScraper {
 
       // Remove specific listeners
       if (this.page) {
-        this.page.removeListener("request", this.requestListener);
-        this.page.removeListener("response", this.responseListener);
+        this.page.off("request", this.requestListener);
+        this.page.off("response", this.responseListener);
       }
 
       // Close the page if it exists
