@@ -1,5 +1,5 @@
 const BaseScraper = require("./BaseScraper");
-const { sleep, getRandomInt } = require("../utils/utils");
+const { sleep, getRandomInt, logMemoryUsage } = require("../utils/utils");
 
 class PricingScraper extends BaseScraper {
   static type = "pricing";
@@ -15,43 +15,45 @@ class PricingScraper extends BaseScraper {
     this.onFailedCallback = () => {};
     this.onFinishCallback = () => {};
     this.currentRequestTotalBytes = 0;
+    this.results = [];
+    this.maxResultsBeforeClearing = 1000; // Adjust as needed
   }
 
-  // async recreateBrowserInstance() {
-  //   console.log(`Recreating browser instance...`);
-  //   if (this.browser) {
-  //     await this.browser.close();
-  //   }
-  //
-  //   await this.init();
-  //   console.log(`Browser instance recreated successfully.`);
-  // }
-
   async scrape(vehicle, jobId, startDate, endDate) {
-    const results = [];
+    if (this.results.length >= this.maxResultsBeforeClearing) {
+      this.results = [];
+    }
 
-      const vehicleId = vehicle.getId();
-        this.currentRequestTotalBytes = 0;
-        const data = await this.fetchFromTuro(vehicleId, startDate, endDate);
-        console.log(`[${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
+    const vehicleId = vehicle.getId();
+    this.currentRequestTotalBytes = 0;
 
-        if (this.isValidResponse(data)) {
-          this.onSuccessCallback({
-            id: vehicleId,
-            vehicle,
-            scraped: { ...data, jobId },
-          });
-          results.push({ success: true, vehicleId, scraped: {...data, jobId} });
-          console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
-        } else {
-          throw new Error("[${this.instanceId}] Invalid response structure");
-        }
+    try {
+      const data = await this.fetchFromTuro(vehicleId, startDate, endDate);
+      console.log(`[${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
+
+      if (this.isValidResponse(data)) {
+        const result = { success: true, vehicleId, scraped: {...data, jobId} };
+        this.results.push(result);
+        this.onSuccessCallback({
+          id: vehicleId,
+          vehicle,
+          scraped: { ...data, jobId },
+        });
+        console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
+      } else {
+        throw new Error(`[${this.instanceId}] Invalid response structure`);
+      }
 
       await sleep(this.delay);
 
-
-    this.onFinishCallback(results);
-    return results;
+      this.onFinishCallback(this.results);
+      logMemoryUsage();
+      return this.results;
+    } catch (error) {
+      console.error(`[${this.instanceId}] Error scraping vehicle ${vehicleId}:`, error);
+      this.onFailedCallback(vehicle, error, jobId);
+      throw error;
+    }
   }
 
   async fetchFromTuro(vehicleId, startDate, endDate) {
@@ -127,6 +129,17 @@ class PricingScraper extends BaseScraper {
 
   onFinish(callback) {
     this.onFinishCallback = callback;
+  }
+
+  async destroy() {
+    try {
+      await super.destroy();
+      this.results = [];
+      this.currentRequestTotalBytes = 0;
+      console.log(`[${this.instanceId}] PricingScraper instance destroyed and data cleared`);
+    } catch (error) {
+      console.error(`[${this.instanceId}] Error during PricingScraper destruction:`, error);
+    }
   }
 }
 

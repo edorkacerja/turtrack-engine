@@ -1,18 +1,12 @@
 'use strict';
 
 const { Kafka } = require('kafkajs');
-const ScraperPool = require('../scrapers/ScraperPool');
-const { sendToKafka, commitOffsetsWithRetry} = require('../utils/kafkaUtil');
-const os = require('os');
-const db = require("../config/db");
-const {
-    TO_BE_SCRAPED_TOPIC_DR_AVAILABILITY_,
-    DLQ_TOPIC_DR_AVAILABILITY,
-    SCRAPED_TOPIC_DR_AVAILABILITY,
-    KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY,
-    KAFKA_CONSUMER_GROUP_ID_DR_AVAILABILITY
-} = require('../utils/constants');
-
+const {KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY, KAFKA_CONSUMER_GROUP_ID_DR_AVAILABILITY,
+    TO_BE_SCRAPED_TOPIC_DR_AVAILABILITY_, DLQ_TOPIC_DR_AVAILABILITY, SCRAPED_TOPIC_DR_AVAILABILITY
+} = require("../utils/constants");
+const {logMemoryUsage} = require("../utils/utils");
+const {sendToKafka} = require("../utils/kafkaUtil");
+const ScraperPool = require("../scrapers/ScraperPool");
 const proxyAuth = process.env.PROXY_AUTH;
 const proxyServer = process.env.PROXY_SERVER;
 const POOL_SIZE = 5;
@@ -60,6 +54,17 @@ async function startPricingConsumer() {
             await scraperPool.initialize();
 
             console.log(`Availability scraper consumer is now running and listening for messages`);
+            logMemoryUsage();
+
+            // Periodically force garbage collection
+            setInterval(() => {
+                if (global.gc) {
+                    global.gc();
+                    console.log('Forced garbage collection completed');
+                    logMemoryUsage();
+                }
+            }, 300000); // Run every 5 minutes
+
             break;
         } catch (error) {
             console.error(`Consumer error, attempting to reconnect:`, error);
@@ -143,8 +148,10 @@ async function cleanup() {
         }
     } catch (error) {
         console.error(`Error during shutdown:`, error);
+    } finally {
+        logMemoryUsage();
+        process.exit(0);
     }
-    process.exit(0);
 }
 
 process.on('SIGTERM', cleanup);

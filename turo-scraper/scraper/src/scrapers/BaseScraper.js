@@ -25,6 +25,10 @@ class BaseScraper {
     this.running = true;
     this.currentRequestTotalBytes = 0;
     this.maxDataLimit = 0.01 * 1024 * 1024; // 1KB limit for testing
+
+    // Store references to event listeners
+    this.requestListener = null;
+    this.responseListener = null;
   }
 
   async init() {
@@ -34,12 +38,12 @@ class BaseScraper {
       if (this.proxyServer) args.push(`--proxy-server=${this.proxyServer}`);
 
       if(!this.headless) {
-        const xvfb = new Xvfb({
+        this.xvfb = new Xvfb({
           silent: true,
           xvfb_args: ["-screen", "0", '1280x720x24', "-ac"],
         });
 
-        xvfb.startSync();
+        this.xvfb.startSync();
       }
 
       this.browser = await puppeteer.launch({
@@ -60,7 +64,7 @@ class BaseScraper {
 
       await this.page.setRequestInterception(true);
 
-      this.page.on("request", (request) => {
+      this.requestListener = (request) => {
         if (this.currentRequestTotalBytes >= this.maxDataLimit) {
           request.abort();
         } else if (request.resourceType() === "image" || request.resourceType() === "media") {
@@ -68,9 +72,9 @@ class BaseScraper {
         } else {
           request.continue();
         }
-      });
+      };
 
-      this.page.on('response', async response => {
+      this.responseListener = async (response) => {
         const request = response.request();
         const url = request.url();
 
@@ -97,7 +101,10 @@ class BaseScraper {
         if (!response.ok()) {
           console.error(`[Instance ${this.instanceId}] Failed request to ${url}: ${response.status()} ${response.statusText()}. Data received: ${responseSize} Bytes`);
         }
-      });
+      };
+
+      this.page.on("request", this.requestListener);
+      this.page.on('response', this.responseListener);
 
       await this.logRequestSizes("https://www.turo.com");
 
@@ -152,9 +159,11 @@ class BaseScraper {
     try {
       console.log(`[Instance ${this.instanceId}] Destroying scraper instance...`);
 
-      // Remove all listeners
-      this.page?.removeAllListeners();
-      this.browser?.removeAllListeners();
+      // Remove specific listeners
+      if (this.page) {
+        this.page.removeListener("request", this.requestListener);
+        this.page.removeListener("response", this.responseListener);
+      }
 
       // Close the page if it exists
       if (this.page) {
@@ -192,7 +201,6 @@ class BaseScraper {
       console.error(`[Instance ${this.instanceId}] Error closing browser: ${error.message}`);
     }
   }
-
 }
 
 module.exports = BaseScraper;
