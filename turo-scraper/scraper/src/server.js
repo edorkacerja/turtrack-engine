@@ -6,7 +6,7 @@ const os = require('os');
 const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
-const { startPricingConsumer } = require('./kafka-consumers/PricingConsumer');
+const PricingConsumer = require('./kafka-consumers/PricingConsumer');
 const { startVehicleDetailsConsumer } = require('./kafka-consumers/vehicleDetailsConsumer');
 
 const port = process.env.PORT || 5011;
@@ -18,19 +18,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
-// Add the new endpoint here, before starting the server
 app.get('/container-id', (req, res) => {
   console.log("got this request...");
   console.log(os.hostname());
   res.send(os.hostname());
 });
 
-
 async function startServer() {
   try {
     console.log(`Starting server with scraper type: ${scraperType}`);
-
-
 
     // Initialize Kafka producer
     await initializeProducer();
@@ -38,14 +34,16 @@ async function startServer() {
 
     // Start the appropriate consumer based on SCRAPER_TYPE
     if (scraperType === 'pricing') {
-      await startPricingConsumer().catch(console.error);
+      const pricingConsumer = new PricingConsumer();
+      await pricingConsumer.start().catch(console.error);
       console.log("Pricing consumer started successfully");
 
+      // Set up cleanup handler
+      process.on('SIGTERM', () => pricingConsumer.cleanup());
 
     } else if (scraperType === 'vehicle-details') {
       await startVehicleDetailsConsumer();
       console.log("Vehicle details consumer started successfully");
-
 
     } else if (scraperType === 'search') {
       // Initialize MetadataManager
@@ -53,12 +51,10 @@ async function startServer() {
       MetadataManager.sync(5000);
       console.log("MetadataManager initialized and syncing");
 
-
       console.log("Search scraper started successfully.");
     } else {
       throw new Error(`Unknown SCRAPER_TYPE: ${scraperType}`);
     }
-
 
     // Set up routes
     app.use("/api/v1", routesV1);
@@ -81,3 +77,7 @@ async function startServer() {
 }
 
 startServer();
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(`Unhandled Rejection at:`, promise, 'reason:', reason);
+});
