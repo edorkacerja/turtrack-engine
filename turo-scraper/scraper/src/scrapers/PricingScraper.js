@@ -51,7 +51,7 @@ class PricingScraper extends BaseScraper {
       return this.results;
     } catch (error) {
       console.error(`[${this.instanceId}] Error scraping vehicle ${vehicleId}:`, error);
-      this.onFailedCallback(vehicle, error, jobId);
+      // this.onFailedCallback(vehicle, error, jobId);
       throw error;
     }
   }

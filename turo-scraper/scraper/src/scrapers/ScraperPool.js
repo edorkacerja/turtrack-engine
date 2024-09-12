@@ -88,6 +88,9 @@ class ScraperPool {
 
     async scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId, retryCount = 0) {
         const vehicle = { getId: () => vehicleId };
+        const maxRetries = 4;
+        const baseDelay = 10000; // base delay of 10 seconds
+
         try {
             const result = await scraper.scrape(vehicle, jobId, startDate, endDate);
             if (result[0].success) {
@@ -96,14 +99,18 @@ class ScraperPool {
                 throw new Error(`[${scraper.instanceId}] Something went wrong with scraping`);
             }
         } catch (error) {
-            if (retryCount < 4) {
+            if (retryCount < maxRetries) {
                 console.log(`[${scraper.instanceId}] Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
 
                 await scraper.destroy();
                 const index = this.scrapers.indexOf(scraper);
                 this.scrapers.splice(index, 1);
 
-                await sleep(3000);
+                // Exponential backoff
+                const sleepDuration = baseDelay * Math.pow(2, retryCount); // 10s, 20s, 40s, etc.
+                console.log(`[${scraper.instanceId}] Sleeping for ${sleepDuration / 1000} seconds!`);
+
+                await sleep(sleepDuration);
 
                 await this.createScraper(index);
                 const newScraper = this.availableScrapers.pop();
@@ -111,7 +118,7 @@ class ScraperPool {
                 return this.scrapeVehicleWithRetry(newScraper, startDate, endDate, country, vehicleId, jobId, retryCount + 1);
             } else {
                 console.log(`[${scraper.instanceId}] All retry attempts failed for vehicle ${vehicleId}.`);
-                return { success: false, error };
+                throw error;
             }
         }
     }

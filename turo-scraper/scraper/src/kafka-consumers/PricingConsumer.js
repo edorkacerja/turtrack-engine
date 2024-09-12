@@ -9,7 +9,7 @@ const {sendToKafka} = require("../utils/kafkaUtil");
 const ScraperPool = require("../scrapers/ScraperPool");
 const proxyAuth = process.env.PROXY_AUTH;
 const proxyServer = process.env.PROXY_SERVER;
-const POOL_SIZE = 5;
+const POOL_SIZE = 20;
 
 const kafka = new Kafka({
     clientId: `${KAFKA_CLIENT_ID_PREFIX_DR_AVAILABILITY}`,
