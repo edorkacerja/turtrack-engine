@@ -11,18 +11,18 @@ class PricingScraper extends BaseScraper {
 
     this.instanceId = instanceId || 'unknown';
 
-    this.onSuccessCallback = () => {};
-    this.onFailedCallback = () => {};
-    this.onFinishCallback = () => {};
+    // this.onSuccessCallback = () => {};
+    // this.onFailedCallback = () => {};
+    // this.onFinishCallback = () => {};
     this.currentRequestTotalBytes = 0;
-    this.results = [];
-    this.maxResultsBeforeClearing = 1000; // Adjust as needed
+    // this.results = [];
+    this.maxResultsBeforeClearing = 10; // Adjust as needed
   }
 
   async scrape(vehicle, jobId, startDate, endDate) {
-    if (this.results.length >= this.maxResultsBeforeClearing) {
-      this.results = [];
-    }
+    // if (this.results.length >= this.maxResultsBeforeClearing) {
+    //   this.results = [];
+    // }
 
     const vehicleId = vehicle.getId();
     this.currentRequestTotalBytes = 0;
@@ -33,22 +33,25 @@ class PricingScraper extends BaseScraper {
 
       if (this.isValidResponse(data)) {
         const result = { success: true, vehicleId, scraped: {...data, jobId} };
-        this.results.push(result);
-        this.onSuccessCallback({
-          id: vehicleId,
-          vehicle,
-          scraped: { ...data, jobId },
-        });
+        // this.results.push(result);
+        // this.onSuccessCallback({
+        //   id: vehicleId,
+        //   vehicle,
+        //   scraped: { ...data, jobId },
+        // });
         console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
+        await sleep(this.delay);
+        logMemoryUsage();
+
+        return result;
+
       } else {
         throw new Error(`[${this.instanceId}] Invalid response structure`);
       }
 
-      await sleep(this.delay);
 
-      this.onFinishCallback(this.results);
-      logMemoryUsage();
-      return this.results;
+
+      // this.onFinishCallback(this.results);
     } catch (error) {
       console.error(`[${this.instanceId}] Error scraping vehicle ${vehicleId}:`, error);
       // this.onFailedCallback(vehicle, error, jobId);
@@ -134,8 +137,11 @@ class PricingScraper extends BaseScraper {
   async destroy() {
     try {
       await super.destroy();
-      this.results = [];
+      // this.results = [];
       this.currentRequestTotalBytes = 0;
+      // this.onSuccessCallback = null;
+      // this.onFailedCallback = null;
+      // this.onFinishCallback = null;
       console.log(`[${this.instanceId}] PricingScraper instance destroyed and data cleared`);
     } catch (error) {
       console.error(`[${this.instanceId}] Error during PricingScraper destruction:`, error);

@@ -7,8 +7,8 @@ services:
     build:
       context: ./scraper
       dockerfile: Dockerfile
-    volumes:
-      - turo_scraper_data:/usr/src/app/database
+#    volumes:
+#      - turo_scraper_data:/usr/src/app/database
     environment:
       SCRAPER_TYPE: pricing
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
@@ -40,9 +40,9 @@ services:
       retries: 3
       start_period: 30s
 
-volumes:
-  turo_scraper_data:
-    external: true
+#volumes:
+#  turo_scraper_data:
+#    external: true
 
 networks:
   turo_scraper_network:

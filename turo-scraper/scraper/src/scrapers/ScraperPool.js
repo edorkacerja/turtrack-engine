@@ -92,12 +92,8 @@ class ScraperPool {
         const baseDelay = 10000; // base delay of 10 seconds
 
         try {
-            const result = await scraper.scrape(vehicle, jobId, startDate, endDate);
-            if (result[0].success) {
-                return result[0];
-            } else {
-                throw new Error(`[${scraper.instanceId}] Something went wrong with scraping`);
-            }
+            return await scraper.scrape(vehicle, jobId, startDate, endDate);
+
         } catch (error) {
             if (retryCount < maxRetries) {
                 console.log(`[${scraper.instanceId}] Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
