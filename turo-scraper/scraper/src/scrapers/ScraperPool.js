@@ -88,7 +88,7 @@ class ScraperPool {
 
     async scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId, retryCount = 0) {
         const vehicle = { getId: () => vehicleId };
-        const maxRetries = 4;
+        const maxRetries = 5;
         const baseDelay = 10000; // base delay of 10 seconds
 
         try {

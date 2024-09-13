@@ -5,10 +5,8 @@
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon --ignore database/ src/server.js",
-    "start": "node src/server.js",
-    "start:pricing": "node pricingConsumer.js",
-    "start:vehicle-details": "node vehicleDetailsConsumer.js",
+    "dev": "nodemon --ignore --expose-gc database/ src/server.js",
+    "start": "node --expose-gc src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

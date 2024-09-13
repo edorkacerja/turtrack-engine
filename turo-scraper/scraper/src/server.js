@@ -52,6 +52,7 @@ async function startServer() {
       console.log("MetadataManager initialized and syncing");
 
       console.log("Search scraper started successfully.");
+
     } else {
       throw new Error(`Unknown SCRAPER_TYPE: ${scraperType}`);
     }

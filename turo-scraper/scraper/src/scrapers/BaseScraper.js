@@ -118,6 +118,7 @@ class BaseScraper {
 
     } catch (error) {
       console.error(`[Instance ${this.instanceId}] Failed to initialize scraper: ${error.message}`);
+      await this.destroy();
       throw error;
     }
   }
@@ -160,50 +161,88 @@ class BaseScraper {
   }
 
   async destroy() {
-    try {
-      console.log(`[Instance ${this.instanceId}] Destroying scraper instance...`);
+    console.log(`[Instance ${this.instanceId}] Destroying scraper instance...`);
 
+    try {
       // Remove specific listeners
       if (this.page) {
-        this.page.off("request", this.requestListener);
-        this.page.off("response", this.responseListener);
-      }
+        try {
+          // Use removeListener if available, otherwise fall back to off
+          if (typeof this.page.removeListener === 'function') {
+            this.page.removeListener("request", this.requestListener);
+            this.page.removeListener("response", this.responseListener);
+          } else if (typeof this.page.off === 'function') {
+            this.page.off("request", this.requestListener);
+            this.page.off("response", this.responseListener);
+          } else {
+            console.warn(`[Instance ${this.instanceId}] Unable to remove listeners: method not available`);
+          }
 
-      // Close the page if it exists
-      if (this.page) {
-        await this.page.close();
-        this.page = null;
+          await this.page.close().catch(e => console.error(`[Instance ${this.instanceId}] Error closing page: ${e.message}`));
+        } catch (pageError) {
+          console.error(`[Instance ${this.instanceId}] Error during page cleanup: ${pageError.message}`);
+        }
       }
-
-      // Close the browser if it exists
+      // Close all pages
       if (this.browser) {
-        await this.browser.close();
-        this.browser = null;
+        const pages = await this.browser.pages().catch(e => {
+          console.error(`[Instance ${this.instanceId}] Error getting browser pages: ${e.message}`);
+          return [];
+        });
+
+        await Promise.all(pages.map(page =>
+            page.close().catch(e => console.error(`[Instance ${this.instanceId}] Error closing page: ${e.message}`))
+        ));
       }
+
+    } catch (error) {
+      console.error(`[Instance ${this.instanceId}] Error during page cleanup: ${error.message}`);
+    } finally {
+      // Ensure browser is closed even if there were errors during page closure
+      await this.closeBrowserWithFallback();
 
       // Stop Xvfb if it was started
       if (!this.headless && this.xvfb) {
-        this.xvfb.stopSync();
-        this.xvfb = null;
+        try {
+          this.xvfb.stopSync();
+        } catch (error) {
+          console.error(`[Instance ${this.instanceId}] Error stopping Xvfb: ${error.message}`);
+        } finally {
+          this.xvfb = null;
+        }
       }
 
       this.running = false;
-      console.log(`[Instance ${this.instanceId}] Scraper instance destroyed successfully.`);
+      this.page = null;
+      this.browser = null;
+      console.log(`[Instance ${this.instanceId}] Scraper instance destroyed.`);
+    }
+  }
+
+  async closeBrowserWithFallback() {
+    try {
+      console.log(`[Instance ${this.instanceId}] Attempting to close browser...`);
+      if (this.browser) {
+        await this.browser.close();
+        console.log(`[Instance ${this.instanceId}] Browser closed successfully.`);
+      }
     } catch (error) {
-      console.error(`[Instance ${this.instanceId}] Error during scraper destruction: ${error.message}`);
+      console.error(`[Instance ${this.instanceId}] Error during browser.close(): ${error.message}`);
+    } finally {
+      if (this.browser && this.browser.process() != null) {
+        console.log(`[Instance ${this.instanceId}] Forcibly killing the browser process...`);
+        try {
+          this.browser.process().kill('SIGKILL');
+        } catch (killError) {
+          console.error(`[Instance ${this.instanceId}] Error killing browser process: ${killError.message}`);
+        }
+      }
+      this.browser = null;
     }
   }
 
   async close() {
-    try {
-      if (this.browser) {
-        await this.browser.close();
-        this.running = false;
-        console.log(`[Instance ${this.instanceId}] Scraper closed`);
-      }
-    } catch (error) {
-      console.error(`[Instance ${this.instanceId}] Error closing browser: ${error.message}`);
-    }
+    await this.destroy();
   }
 }
 

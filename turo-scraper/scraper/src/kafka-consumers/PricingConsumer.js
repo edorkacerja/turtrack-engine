@@ -16,7 +16,7 @@ class PricingConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.POOL_SIZE = 10;
+        this.POOL_SIZE = 5;
         this.isShuttingDown = false;
 
         this.kafka = new Kafka({
@@ -65,14 +65,14 @@ class PricingConsumer {
                 console.log(`Availability scraper consumer is now running and listening for messages`);
                 logMemoryUsage();
 
-                // Periodically force garbage collection
-                setInterval(() => {
-                    if (global.gc) {
-                        global.gc();
-                        console.log('Forced garbage collection completed');
-                        logMemoryUsage();
-                    }
-                }, 300000); // Run every 5 minutes
+                // // Periodically force garbage collection
+                // setInterval(() => {
+                //     if (global.gc) {
+                //         global.gc();
+                //         console.log('Forced garbage collection completed');
+                //         logMemoryUsage();
+                //     }
+                // }, 300000); // Run every 5 minutes
 
                 break;
             } catch (error) {
