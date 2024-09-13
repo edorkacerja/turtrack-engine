@@ -51,7 +51,9 @@ class BaseScraper {
         args,
       });
 
-      this.page = await this.browser.newPage();
+      const [page] = await this.browser.pages();
+      this.page = page;
+
 
       if (this.proxyAuth?.includes(":")) {
         const [username, password] = this.proxyAuth.split(":");
@@ -130,7 +132,7 @@ class BaseScraper {
 
     try {
       await this.page.goto(url, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'domcontentloaded',
         timeout: 60000, // 60 seconds timeout
       });
     } catch (error) {
@@ -178,7 +180,6 @@ class BaseScraper {
             console.warn(`[Instance ${this.instanceId}] Unable to remove listeners: method not available`);
           }
 
-          await this.page.close().catch(e => console.error(`[Instance ${this.instanceId}] Error closing page: ${e.message}`));
         } catch (pageError) {
           console.error(`[Instance ${this.instanceId}] Error during page cleanup: ${pageError.message}`);
         }

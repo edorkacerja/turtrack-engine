@@ -7,6 +7,7 @@ services:
     build:
       context: ./scraper
       dockerfile: Dockerfile
+    init: true
     environment:
       SCRAPER_TYPE: pricing
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
