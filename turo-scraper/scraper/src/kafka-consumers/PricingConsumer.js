@@ -16,7 +16,7 @@ class PricingConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.POOL_SIZE = 50;
+        this.MAX_POOL_SIZE = 3;
         this.isShuttingDown = false;
 
         this.kafka = new Kafka({
@@ -53,7 +53,7 @@ class PricingConsumer {
 
                 console.log(`Initializing ScraperPool...`);
                 this.scraperPool = new ScraperPool(
-                    this.POOL_SIZE,
+                    this.MAX_POOL_SIZE,
                     this.proxyAuth,
                     this.proxyServer,
                     this.consumer,
