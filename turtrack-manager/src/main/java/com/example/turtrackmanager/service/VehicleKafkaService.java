@@ -63,7 +63,7 @@ public class VehicleKafkaService {
                     String country = rs.getString("country");
                     LocalDate pricingLastUpdated = rs.getObject("pricing_last_updated", LocalDate.class);
 
-                    VehicleKafkaMessage message = new VehicleKafkaMessage();
+                    VehicleKafkaMessage message =VehicleKafkaMessage.builder().build();
                     message.setVehicleId(String.valueOf(id));
                     message.setCountry(country);
                     message.setStartDate(pricingLastUpdated != null && pricingLastUpdated.isAfter(startDate) ?
@@ -98,9 +98,10 @@ public class VehicleKafkaService {
                     Long id = rs.getLong("id");
                     String country = rs.getString("country");
 
-                    VehicleKafkaMessage message = new VehicleKafkaMessage();
-                    message.setVehicleId(String.valueOf(id));
-                    message.setCountry(country);
+                    VehicleKafkaMessage message = VehicleKafkaMessage.builder()
+                            .vehicleId(String.valueOf(id))
+                            .country(country)
+                            .build();
 
                     kafkaTemplate.send(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, String.valueOf(id), message);
 

@@ -1,5 +1,6 @@
-package com.example.turtrackmanager.service.kafka;
+package com.example.turtrackmanager.kafka.producer;
 
+import com.example.turtrackmanager.dto.VehicleKafkaMessage;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,7 @@ import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEH
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class KafkaProducerService {
+public class KafkaProducer {
 
     private final KafkaTemplate<String, DailyRateAndAvailability> dailyRateAndAvailabilityKafkaTemplate;
     private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;

@@ -1,10 +1,9 @@
-package com.example.turtrackmanager.service.kafka;
+package com.example.turtrackmanager.kafka;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -13,9 +12,9 @@ import java.util.concurrent.ExecutionException;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class KafkaAdminService {
+public class KafkaTopicService {
 
-    private final KafkaAdmin kafkaAdmin;
+    private final org.springframework.kafka.core.KafkaAdmin kafkaAdmin;
 
     public void createTopic(String topicName, int numPartitions, short replicationFactor) {
         NewTopic newTopic = new NewTopic(topicName, numPartitions, replicationFactor);

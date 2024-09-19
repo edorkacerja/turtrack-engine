@@ -1,4 +1,4 @@
-package com.example.turtrackmanager.service.kafka;
+package com.example.turtrackmanager.kafka.consumer;
 
 
 import com.example.turtrackmanager.service.DailyRateAndAvailabilityService;
@@ -14,7 +14,7 @@ import static com.example.turtrackmanager.util.Constants.Kafka.*;
 
 @Service
 @RequiredArgsConstructor
-public class KafkaConsumerService {
+public class KafkaConsumer {
 
     private final VehicleSkeletonService vehicleSkeletonService;
     private final VehicleService vehicleService;

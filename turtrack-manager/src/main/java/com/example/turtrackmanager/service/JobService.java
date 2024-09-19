@@ -1,18 +1,25 @@
 package com.example.turtrackmanager.service;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import com.example.turtrackmanager.dto.JobCreationDTO;
-import com.example.turtrackmanager.service.kafka.KafkaAdminService;
+import com.example.turtrackmanager.dto.VehicleKafkaMessage;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC;
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC;
 
 @Service
 @RequiredArgsConstructor
@@ -20,28 +27,23 @@ import java.time.format.DateTimeFormatter;
 public class JobService {
 
     private final JobRepository jobRepository;
-    private final VehicleKafkaService vehicleKafkaService;
-    private final KafkaAdminService kafkaAdminService;
+    private final JdbcTemplate jdbcTemplate;
+    private final KafkaTemplate<String, VehicleKafkaMessage> kafkaTemplate;
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
-//    @Override
     public Page<Job> getAllJobs(Pageable pageable) {
         return jobRepository.findAll(pageable);
     }
 
-
     @Transactional
     public Job createAndStartJob(JobCreationDTO jobCreationDTO) {
-        // Step 1: Create the job with status CREATED and save it to the database
         Job job = createJob(jobCreationDTO);
         job = jobRepository.save(job);
         log.info("Created job: {}", job);
 
         try {
-
-            // Step 4: Start the job and set total items (number of vehicles)
             int totalItems = startJob(job, jobCreationDTO);
             job.setTotalItems(totalItems);
-
             job.setStatus(Job.JobStatus.RUNNING);
             job.setStartedAt(LocalDateTime.now());
         } catch (Exception e) {
@@ -49,7 +51,6 @@ public class JobService {
             job.setStatus(Job.JobStatus.FAILED);
         }
 
-        // Save the updated job status and other details, including totalItems
         return jobRepository.save(job);
     }
 
@@ -65,17 +66,17 @@ public class JobService {
                 .status(Job.JobStatus.CREATED)
                 .createdAt(LocalDateTime.now())
                 .jobType(jobCreationDTO.getJobType())
-                .completedItems(0)  // Initialize to 0
-                .percentCompleted(0.0)  // Initialize to 0.0
+                .completedItems(0)
+                .percentCompleted(0.0)
                 .build();
     }
+
     private int startJob(Job job, JobCreationDTO jobCreationDTO) {
         int totalItems = 0;
 
         switch (job.getJobType()) {
             case DAILY_RATE_AND_AVAILABILITY:
-                totalItems = vehicleKafkaService.feedVehiclesToAvailabilityScraper(
-                        null,
+                totalItems = feedVehiclesToAvailabilityScraper(
                         jobCreationDTO.getNumberOfVehicles(),
                         jobCreationDTO.getStartDate(),
                         jobCreationDTO.getEndDate(),
@@ -83,10 +84,7 @@ public class JobService {
                 );
                 break;
             case VEHICLE_DETAILS:
-                totalItems = vehicleKafkaService.feedVehiclesToDetailsScraper(
-                        null,
-                        jobCreationDTO.getNumberOfVehicles()
-                );
+                totalItems = feedVehiclesToDetailsScraper(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, jobCreationDTO.getNumberOfVehicles());
                 break;
             case SEARCH:
                 // Implement search job logic and set totalItems
@@ -105,11 +103,10 @@ public class JobService {
 
         if (job.getStatus() == Job.JobStatus.STOPPED) {
             job.setStatus(Job.JobStatus.RUNNING);
-//            job.setFinishedAt(LocalDateTime.now());
             log.info("Started job: {}", job);
             return jobRepository.save(job);
         } else {
-            log.warn("Attempted to stop job {} which is already in RUNNING state", jobId);
+            log.warn("Attempted to start job {} which is already in RUNNING state", jobId);
             return job;
         }
     }
@@ -135,12 +132,11 @@ public class JobService {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
 
-        // Update job status to CANCELLED
         job.setStatus(Job.JobStatus.CANCELLED);
         job.setFinishedAt(LocalDateTime.now());
         jobRepository.save(job);
 
-        log.info("Deleted job and associated Kafka topic: {}", job);
+        log.info("Deleted job: {}", job);
     }
 
     private String generateJobTitle(JobCreationDTO jobCreationDTO) {
@@ -149,27 +145,89 @@ public class JobService {
                 LocalDateTime.now().toString());
     }
 
-    private String generateTopicName(Job job) {
-        String formattedDate = job.getCreatedAt().format(DateTimeFormatter.ofPattern("MMM-d"));
-        String dayWithSuffix = addDaySuffix(formattedDate);
-        String formattedDateWithYear = dayWithSuffix + "-" + job.getCreatedAt().getYear();
+    // Methods from VehicleKafkaService
+    public int feedVehiclesToAvailabilityScraper(int numberOfVehicles) {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDate sevenDaysAgo = LocalDate.now().minusDays(7);
 
-        return String.format("%s-%s-job-%d-%s",
-                "TO-BE-SCRAPED",
-                job.getJobType().toString().toLowerCase(),
-                job.getId(),
-                formattedDateWithYear);
+        return feedVehiclesToAvailabilityScraper( numberOfVehicles, sevenDaysAgo, yesterday, null);
     }
 
-    private String addDaySuffix(String formattedDate) {
-        int day = Integer.parseInt(formattedDate.split("-")[1]);
-        String suffix;
-        switch (day % 10) {
-            case 1: suffix = (day == 11) ? "th" : "st"; break;
-            case 2: suffix = (day == 12) ? "th" : "nd"; break;
-            case 3: suffix = (day == 13) ? "th" : "rd"; break;
-            default: suffix = "th"; break;
+    public void feedVehiclesToAvailabilityScraper() {
+        feedVehiclesToAvailabilityScraper(0); // 0 means process all vehicles
+    }
+
+    public void feedVehiclesToAvailabilityScraper(LocalDate startDate, LocalDate endDate) {
+        feedVehiclesToAvailabilityScraper(0, startDate, endDate, null);
+    }
+
+    public int feedVehiclesToAvailabilityScraper(int numberOfVehicles, LocalDate startDate, LocalDate endDate, String jobId) {
+        if(jobId == null) {
+            jobId = "DONT WORRY BE HAPPY";
         }
-        return formattedDate.split("-")[0] + "-" + day + suffix;
+        String finalJobId = jobId;
+
+        String sql = "SELECT id, country, pricing_last_updated FROM vehicle";
+        if (numberOfVehicles > 0) {
+            sql += " LIMIT ?";
+        }
+
+        AtomicInteger processedCount = new AtomicInteger(0);
+
+        jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    Long id = rs.getLong("id");
+                    String country = rs.getString("country");
+                    LocalDate pricingLastUpdated = rs.getObject("pricing_last_updated", LocalDate.class);
+
+                    VehicleKafkaMessage message = VehicleKafkaMessage.builder().build();
+                    message.setVehicleId(String.valueOf(id));
+                    message.setCountry(country);
+                    message.setStartDate(pricingLastUpdated != null && pricingLastUpdated.isAfter(startDate) ?
+                            pricingLastUpdated.format(dateFormatter) :
+                            startDate.format(dateFormatter));
+                    message.setEndDate(endDate.format(dateFormatter));
+                    message.setJobId(finalJobId);
+
+                    kafkaTemplate.send(TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC, String.valueOf(id), message);
+
+                    processedCount.incrementAndGet();
+                    return null;
+                },
+                numberOfVehicles > 0 ? new Object[]{numberOfVehicles} : new Object[]{}
+        );
+
+        return processedCount.get();
+    }
+
+    public int feedVehiclesToDetailsScraper(String topicName, int numberOfVehicles) {
+        String sql = "SELECT id, country FROM vehicle";
+        if (numberOfVehicles > 0) {
+            sql += " LIMIT ?";
+        }
+
+        AtomicInteger processedCount = new AtomicInteger(0);
+
+        jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    Long id = rs.getLong("id");
+                    String country = rs.getString("country");
+
+                    VehicleKafkaMessage message = VehicleKafkaMessage.builder()
+                            .vehicleId(String.valueOf(id))
+                            .country(country)
+                            .build();
+
+                    kafkaTemplate.send(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, String.valueOf(id), message);
+
+                    processedCount.incrementAndGet();
+                    return null;
+                },
+                numberOfVehicles > 0 ? new Object[]{numberOfVehicles} : new Object[]{}
+        );
+
+        return processedCount.get();
     }
 }
