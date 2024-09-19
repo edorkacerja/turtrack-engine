@@ -17,15 +17,16 @@ public class DailyRateAndAvailability {
     @EmbeddedId
     private DailyRateAndAvailabilityId id;
 
-    //    @ManyToOne(fetch = FetchType.LAZY)
-    //    @MapsId("vehicleId")
-    //    @JoinColumn(name = "vehicle_id")
-    //    private Vehicle vehicle;
+    // Uncomment the relationship mapping if required
+    // @ManyToOne(fetch = FetchType.LAZY)
+    // @MapsId("vehicleId")
+    // @JoinColumn(name = "vehicle_id")
+    // private Vehicle vehicle;
 
     @Column(name = "custom_set_price", nullable = false)
     private Boolean customSetPrice;
 
-    @Column(name = "localizedDayOfWeek", nullable = false)
+    @Column(name = "localized_day_of_week", nullable = false)  // Corrected column name
     private String localizedDayOfWeek;
 
     @Column(name = "price", nullable = false)
@@ -43,7 +44,10 @@ public class DailyRateAndAvailability {
     @NoArgsConstructor
     public static class DailyRateAndAvailabilityId implements Serializable {
 
+        @Column(name = "vehicle_id")  // Explicitly mapping to the correct column name
         private Long vehicleId;
+
+        @Column(name = "date")  // Optional, can be left out if the column name matches the field name
         private LocalDate date;
     }
 }
