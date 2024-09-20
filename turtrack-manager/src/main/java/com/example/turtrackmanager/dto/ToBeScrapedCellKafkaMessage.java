@@ -5,8 +5,8 @@ import lombok.Data;
 
 @Data
 @Builder
-public class VehicleKafkaMessage {
-    private String vehicleId;
+public class ToBeScrapedCellKafkaMessage {
+    private String cellId;
     private String country;
     private String startDate;
     private String endDate;

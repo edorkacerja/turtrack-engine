@@ -48,41 +48,41 @@ services:
     labels:
       <<: *common-labels
 
-  kafka-setup:
-    image: confluentinc/cp-kafka:latest
-    depends_on:
-      kafka:
-        condition: service_healthy
-    command:
-      - /bin/sh
-      - -c
-      - |
-        echo "Waiting for Kafka to be ready..."
-        cub kafka-ready -b kafka:29092 1 30
-        echo "Creating topics..."
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic TO-BE-SCRAPED-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic TO-BE-SCRAPED-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-vehicle-skeleton-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-vehicle-details-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-vehicle-skeleton-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic DLQ-dr-availability-topic
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic DLQ-vehicle-details-topic
-        echo "All topics created. Kafka setup completed."
-        sleep infinity
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'SCRAPED-vehicle-details-topic' && kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'DLQ-dr-availability-topic'"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    environment:
-      KAFKA_BROKER_ID: ignored
-      KAFKA_ZOOKEEPER_CONNECT: ignored
-    labels:
-      <<: *common-labels
+#  kafka-setup:
+#    image: confluentinc/cp-kafka:latest
+#    depends_on:
+#      kafka:
+#        condition: service_healthy
+#    command:
+#      - /bin/sh
+#      - -c
+#      - |
+#        echo "Waiting for Kafka to be ready..."
+#        cub kafka-ready -b kafka:29092 1 30
+#        echo "Creating topics..."
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic TO-BE-SCRAPED-dr-availability-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic TO-BE-SCRAPED-vehicle-details-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-vehicle-details-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-dr-availability-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic SCRAPED-vehicle-skeleton-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-dr-availability-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-vehicle-details-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic PROCESSED-vehicle-skeleton-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic DLQ-dr-availability-topic
+#        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic DLQ-vehicle-details-topic
+#        echo "All topics created. Kafka setup completed."
+#        sleep infinity
+#    healthcheck:
+#      test: ["CMD-SHELL", "kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'SCRAPED-vehicle-details-topic' && kafka-topics --list --bootstrap-server kafka:29092 | grep -q 'DLQ-dr-availability-topic'"]
+#      interval: 5s
+#      timeout: 5s
+#      retries: 10
+#      start_period: 10s
+#    environment:
+#      KAFKA_BROKER_ID: ignored
+#      KAFKA_ZOOKEEPER_CONNECT: ignored
+#    labels:
+#      <<: *common-labels
 
   kafka-ui:
     container_name: kafka-ui

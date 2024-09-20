@@ -1,5 +1,6 @@
-package com.example.turtrackmanager.service;
+package com.example.turtrackmanager.service.turtrack;
 
+import com.example.turtrackmanager.dto.ToBeScrapedVehicleKafkaMessage;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
 import com.example.turtrackmanager.repository.manager.JobRepository;
@@ -7,24 +8,29 @@ import com.example.turtrackmanager.repository.turtrack.DailyRateAndAvailabilityR
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.example.turtrackmanager.util.Constants.Kafka.PROCESSED_DR_AVAILABILITY_TOPIC;
+import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class DailyRateAndAvailabilityService {
 
-    private final KafkaTemplate<String, DailyRateAndAvailability> kafkaTemplate;
+    private final KafkaTemplate<String, DailyRateAndAvailability> availabilityKafkaTemplate;
     private final JobRepository jobRepository;
     private final DailyRateAndAvailabilityRepository dailyRateRepository;
+
 
     @Transactional
     public void processFailedVehicle(Map<String, Object> message) {
@@ -186,7 +192,7 @@ public class DailyRateAndAvailabilityService {
             // Save to database
             dailyRateRepository.save(dailyRate);
             // Forward to Kafka
-            kafkaTemplate.send(PROCESSED_DR_AVAILABILITY_TOPIC, dailyRate);
+            availabilityKafkaTemplate.send(PROCESSED_DR_AVAILABILITY_TOPIC, dailyRate);
         } catch (Exception e) {
             log.error("Failed to save or send dailyRate: {}, error: {}", dailyRate, e.getMessage());
         }

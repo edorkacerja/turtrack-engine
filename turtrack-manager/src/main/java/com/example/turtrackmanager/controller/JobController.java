@@ -3,22 +3,23 @@ package com.example.turtrackmanager.controller;
 import com.example.turtrackmanager.dto.JobCreationDTO;
 import com.example.turtrackmanager.dto.JobDTO;
 import com.example.turtrackmanager.model.manager.Job;
-import com.example.turtrackmanager.service.JobService;
+import com.example.turtrackmanager.service.manager.DailyRateAndAvailabilityJobService;
+import com.example.turtrackmanager.service.manager.JobService;
+import com.example.turtrackmanager.service.manager.SearchJobService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Map;
 
-import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
@@ -27,6 +28,8 @@ import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEH
 public class JobController {
 
     private final JobService jobService;
+    private final DailyRateAndAvailabilityJobService availabilityJobService;
+    private final SearchJobService searchJobService;
 
     @GetMapping
     public ResponseEntity<Page<JobDTO>> getAllJobs(
@@ -48,10 +51,36 @@ public class JobController {
         return new Sort.Order(direction, sort[0]);
     }
 
-    @PostMapping("/create")
-    public ResponseEntity<JobDTO> startJob(@RequestBody @Validated JobCreationDTO jobCreationDTO) {
+//    @PostMapping("/create")
+//    public ResponseEntity<JobDTO> startJob(@RequestBody @Validated JobCreationDTO jobCreationDTO) {
+//        log.info("Received request to start job: {}", jobCreationDTO);
+//        Job createdJob = jobService.createAndStartJob(jobCreationDTO);
+//        return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
+//    }
+
+    @PostMapping("/availability/create")
+    public ResponseEntity<JobDTO> createAndStartAvailabilityJob(@RequestBody @Validated JobCreationDTO jobCreationDTO) {
         log.info("Received request to start job: {}", jobCreationDTO);
-        Job createdJob = jobService.createAndStartJob(jobCreationDTO);
+        Job createdJob = availabilityJobService.createAndStartAvailabilityJob(jobCreationDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
+    }
+
+    @PostMapping("/search/create")
+    public ResponseEntity<JobDTO> createAndStartSearchJob(@RequestBody Map<String, Object> searchParams) {
+        log.info("Received request to create SEARCH job with params: {}", searchParams);
+
+        Job job = Job.builder()
+                .title("Search Job")
+                .status(Job.JobStatus.CREATED)
+                .jobType(Job.JobType.SEARCH)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // Store search parameters in the job entity or process them as needed
+        // For simplicity, we'll just log them here
+        log.info("Search parameters: {}", searchParams);
+
+        Job createdJob = searchJobService.createAndStartSearchJob(job, searchParams);
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
     }
 
@@ -85,46 +114,4 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/startAvailabilityScraperJob")
-    public String startAvailabilityScraperJob(
-            @RequestParam(defaultValue = "0") int numberOfVehicles,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "MM/dd/yyyy") LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "MM/dd/yyyy") LocalDate endDate) {
-        try {
-            int processedCount;
-            if (numberOfVehicles <= 0) {
-                if (startDate != null && endDate != null) {
-                    jobService.feedVehiclesToAvailabilityScraper(startDate, endDate);
-                    return String.format("Successfully started availability scraper job for all vehicles from %s to %s.", startDate, endDate);
-                } else {
-                    jobService.feedVehiclesToAvailabilityScraper();
-                    return "Successfully started availability scraper job for all vehicles in the database.";
-                }
-            } else {
-                if (startDate != null && endDate != null) {
-                    processedCount = jobService.feedVehiclesToAvailabilityScraper(numberOfVehicles, startDate, endDate, null);
-                    return String.format("Successfully started availability scraper job for %d vehicles from %s to %s.", processedCount, startDate, endDate);
-                } else {
-                    processedCount = jobService.feedVehiclesToAvailabilityScraper(numberOfVehicles);
-                    return String.format("Successfully started availability scraper job for %d vehicles.", processedCount);
-                }
-            }
-        } catch (Exception e) {
-            return "Error starting availability scraper job: " + e.getMessage();
-        }
-    }
-
-    @PostMapping("/startVehicleDetailsScraperJob")
-    public String startVehicleDetailsScraperJob(@RequestParam(defaultValue = "0") int numberOfVehicles) {
-        try {
-            int processedCount = jobService.feedVehiclesToDetailsScraper(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, numberOfVehicles);
-            if (numberOfVehicles <= 0) {
-                return "Successfully started vehicle details scraper job for all vehicles in the database.";
-            } else {
-                return String.format("Successfully started vehicle details scraper job for %d vehicles.", processedCount);
-            }
-        } catch (Exception e) {
-            return "Error starting vehicle details scraper job: " + e.getMessage();
-        }
-    }
 }

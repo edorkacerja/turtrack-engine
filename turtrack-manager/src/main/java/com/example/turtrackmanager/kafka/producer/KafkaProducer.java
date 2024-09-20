@@ -1,6 +1,5 @@
 package com.example.turtrackmanager.kafka.producer;
 
-import com.example.turtrackmanager.dto.VehicleKafkaMessage;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package com.example.turtrackmanager.service;
+package com.example.turtrackmanager.service.turtrack;
 
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +11,7 @@ import java.util.Map;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class VehicleService {
+public class VehicleDetailsService {
 
     private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;
 

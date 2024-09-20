@@ -1,4 +1,4 @@
-package com.example.turtrackmanager.service;
+package com.example.turtrackmanager.service.turtrack;
 
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import lombok.RequiredArgsConstructor;
@@ -68,7 +68,6 @@ public class VehicleSkeletonService {
         }
         throw new IllegalArgumentException("Cannot convert " + value + " to Double");
     }
-
 
     private Vehicle processVehicleSkeleton(Vehicle vehicle) {
 
