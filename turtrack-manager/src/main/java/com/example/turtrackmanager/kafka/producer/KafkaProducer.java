@@ -1,5 +1,6 @@
 package com.example.turtrackmanager.kafka.producer;
 
+import com.example.turtrackmanager.model.turtrack.Cell;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import lombok.RequiredArgsConstructor;
@@ -9,8 +10,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC;
-import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC;
+import static com.example.turtrackmanager.util.Constants.Kafka.*;
+
+
+// We really might not need this class. but leaving here for now.
+
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +23,7 @@ public class KafkaProducer {
 
     private final KafkaTemplate<String, DailyRateAndAvailability> dailyRateAndAvailabilityKafkaTemplate;
     private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;
+    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
 
     public void sendVehiclesForAvailabilityScraping(List<DailyRateAndAvailability> dailyRateAndAvailabilityDTOS) {
         dailyRateAndAvailabilityDTOS.forEach(dailyRateAndAvailability ->
@@ -32,5 +37,12 @@ public class KafkaProducer {
                 vehicleDetailsKafkaTemplate.send(TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, String.valueOf(vehicle.getId()), vehicle)
         );
         log.info("Sent {} vehicles for details scraping", vehicles.size());
+    }
+
+    public void sendCellsForScraping(List<Cell> cells) {
+        cells.forEach(cell ->
+                searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
+        );
+        log.info("Sent {} cells for scraping", cells.size());
     }
 }

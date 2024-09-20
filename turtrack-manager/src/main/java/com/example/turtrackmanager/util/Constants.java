@@ -7,6 +7,9 @@ public final class Constants {
         // Private constructor to prevent instantiation
     }
 
+    public static final String CALIBRATOR_URL = "http://localhost:5000";
+
+
     public static final class Kafka {
         public static final String TO_BE_SCRAPED_CELLS_TOPIC = "TO-BE-SCRAPED-cells-topic";
         public static final String TO_BE_SCRAPED_DR_AVAILABILITY_TOPIC = "TO-BE-SCRAPED-dr-availability-topic";

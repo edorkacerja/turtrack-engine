@@ -83,6 +83,7 @@ services:
       - turo_scraper_network
       - turtrack_common_network
       - kafka_network
+      - turtrack-manager-network
     ports:
       - "5000:5000"
     healthcheck:

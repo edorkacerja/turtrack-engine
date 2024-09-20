@@ -69,18 +69,12 @@ public class JobController {
     public ResponseEntity<JobDTO> createAndStartSearchJob(@RequestBody Map<String, Object> searchParams) {
         log.info("Received request to create SEARCH job with params: {}", searchParams);
 
-        Job job = Job.builder()
-                .title("Search Job")
-                .status(Job.JobStatus.CREATED)
-                .jobType(Job.JobType.SEARCH)
-                .createdAt(LocalDateTime.now())
-                .build();
 
         // Store search parameters in the job entity or process them as needed
         // For simplicity, we'll just log them here
         log.info("Search parameters: {}", searchParams);
 
-        Job createdJob = searchJobService.createAndStartSearchJob(job, searchParams);
+        Job createdJob = searchJobService.createAndStartSearchJob(searchParams);
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
     }
 

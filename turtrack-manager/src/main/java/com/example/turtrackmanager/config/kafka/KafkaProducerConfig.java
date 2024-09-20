@@ -1,4 +1,5 @@
 package com.example.turtrackmanager.config.kafka;
+import com.example.turtrackmanager.model.turtrack.Cell;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +55,15 @@ public class KafkaProducerConfig {
     }
 
     @Bean
+    public ProducerFactory<String, Cell> cellProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps, new StringSerializer(), new JsonSerializer<>(jsonObjectMapper));
+    }
+
+    @Bean
     public KafkaTemplate<String, Vehicle> vehicleSkeletonKafkaTemplate() {
         return new KafkaTemplate<>(vehicleSkeletonProducerFactory());
     }
@@ -66,5 +76,10 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, DailyRateAndAvailability> dailyRateAndAvailabilityKafkaTemplate() {
         return new KafkaTemplate<>(dailyRateProducerFactory());
+    }
+
+    @Bean
+    public KafkaTemplate<String, Cell> searchKafkaTemplate() {
+        return new KafkaTemplate<>(cellProducerFactory());
     }
 }

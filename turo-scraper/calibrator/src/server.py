@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 app.register_blueprint(calibrator_blueprint, url_prefix='/api/v1/calibrator')
 
-port = os.environ.get('PORT', 5003)
+port = os.environ.get('PORT', 5000)
 
 if __name__ == '__main__':
     from waitress import serve
