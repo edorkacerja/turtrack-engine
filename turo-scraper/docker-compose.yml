@@ -136,7 +136,7 @@ services:
 
 volumes:
   turo_scraper_data:
-    external: true
+#    external: true
 
 networks:
   turo_scraper_network:

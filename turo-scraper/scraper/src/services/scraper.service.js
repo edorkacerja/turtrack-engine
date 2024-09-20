@@ -121,7 +121,7 @@ const searchService = async (dto) => {
     MetadataManager.updateHash();
 
     failedInRow++;
-    if (failedInRow > dto.maxFailedInRow) handleFinish();
+    // if (failedInRow > dto.maxFailedInRow) handleFinish();
   }
 
   function handleFinish() {

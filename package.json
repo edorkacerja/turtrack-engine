@@ -1,5 +1,9 @@
 {
 	"dependencies": {
 		"puppeteer-cluster": "^0.24.0"
+	},
+	"devDependencies": {
+		"puppeteer-extra": "^3.3.6",
+		"puppeteer-extra-plugin-stealth": "^2.11.2"
 	}
 }

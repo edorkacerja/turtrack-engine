@@ -1,9 +1,10 @@
 class BaseScraperRequest {
   constructor(config) {
-    this.proxyServer = config?.proxyServer ?? "https://proxy.packetstream.io:31111";
-    this.proxyAuth = config?.proxyAuth ?? "intellicode:T3yGrF8Nr63U7q8m";
+    this.proxyServer = config?.proxyServer ?? null;
+    this.proxyAuth = config?.proxyAuth ?? null;
     this.headless = config?.headless ?? false;
     this.maxFailedInRow = config?.maxFailedInRow ?? 10;
+    this.delay = config?.delay ?? this.getRandomDelay();
 
     this.compression = {
       compress: config?.compression?.compress ?? false,
@@ -28,8 +29,6 @@ class BaseScraperRequest {
       return Math.random() * (1200 - 1100) + 1100; // Random number between 1100 and 1200 ms
     };
 
-    // Initial delay value
-    this.delay = this.getRandomDelay();
   }
 
   // Method to update delay before each request

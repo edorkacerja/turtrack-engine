@@ -2,6 +2,7 @@ const datefns = require("date-fns");
 const v8 = require('v8');
 
 function sleep(milliseconds) {
+  console.log(`Sleeping for ${milliseconds} milliseconds...`);
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
