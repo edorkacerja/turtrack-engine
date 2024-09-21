@@ -8,6 +8,7 @@ const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
 const PricingConsumer = require('./kafka-consumers/PricingConsumer');
 const { startVehicleDetailsConsumer } = require('./kafka-consumers/vehicleDetailsConsumer');
+const CellsConsumer = require("./kafka-consumers/CellsConsumer");
 
 const port = process.env.PORT || 5011;
 const scraperType = process.env.SCRAPER_TYPE || 'search';
@@ -51,6 +52,8 @@ async function startServer() {
       MetadataManager.sync(5000);
       console.log("MetadataManager initialized and syncing");
 
+      const searchConsumer = new CellsConsumer();
+      await searchConsumer.start().catch(console.error);
       console.log("Search scraper started successfully.");
 
     } else {

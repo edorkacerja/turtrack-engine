@@ -2,7 +2,7 @@ const PricingScraper = require('./PricingScraper');
 const { commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const { sleep, logMemoryUsage } = require("../utils/utils");
 
-class ScraperPool {
+class PricingScraperPool {
     constructor(maxPoolSize = 60,
                 proxyAuth,
                 proxyServer,
@@ -23,7 +23,7 @@ class ScraperPool {
     }
 
     async initialize() {
-        console.log(`Initialized ScraperPool with maximum size of ${this.maxPoolSize} scrapers`);
+        console.log(`Initializing ScraperPool with maximum size of ${this.maxPoolSize} scrapers`);
         logMemoryUsage();
 
         await this.runKafkaConsumer();
@@ -169,4 +169,4 @@ class ScraperPool {
     }
 }
 
-module.exports = ScraperPool;
+module.exports = PricingScraperPool;

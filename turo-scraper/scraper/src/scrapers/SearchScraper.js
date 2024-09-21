@@ -6,6 +6,7 @@ const fetch = require("cross-fetch");
 const utils = require("../utils/utils");
 const cellutil = require("../utils/cellutil");
 const { sleep } = require("../utils/utils");
+const {PROXY_AUTH, PROXY_SERVER} = require("../utils/constants");
 
 class SearchScraper {
   static instances = new Map();
@@ -14,15 +15,15 @@ class SearchScraper {
   constructor(config) {
     const { proxyAuth, proxyServer, delay, headless, divider, recursiveDepth, country, sorts, filters } = config;
 
-    this.proxyAuth = proxyAuth;
-    this.proxyServer = proxyServer;
-    this.delay = delay;
-    this.headless = headless;
-    this.divider = divider;
-    this.recursiveDepth = recursiveDepth;
-    this.country = country;
-    this.filters = filters;
-    this.sorts = sorts;
+    this.proxyAuth = proxyAuth || PROXY_AUTH;
+    this.proxyServer = proxyServer || PROXY_SERVER;
+    this.delay = delay || 1100;
+    this.headless = headless ?? false;
+    this.divider = divider || 2;
+    this.recursiveDepth = recursiveDepth || 10;
+    this.country = country || "US";
+    this.filters = filters || {};
+    this.sorts = sorts || {};
 
     this.browser = null;
     this.page = null;
@@ -205,6 +206,7 @@ class SearchScraper {
             { requestConfig, url }
         );
         console.log(`Received data for cell: ${JSON.stringify(cell)}`);
+        console.log(JSON.stringify(data));
       } catch (e) {
         console.error(`Error fetching data for cell: ${JSON.stringify(cell)}`, e);
 
