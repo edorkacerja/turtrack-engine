@@ -61,6 +61,14 @@ public class KafkaConfig {
     }
 
     @Bean
+    public NewTopic scrapedCellsTopic() {
+        return TopicBuilder.name(SCRAPED_CELLS_TOPIC)
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic scrapedVehicleDetailsTopic() {
         return TopicBuilder.name(SCRAPED_VEHICLE_DETAILS_TOPIC)
                 .partitions(1)

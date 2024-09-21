@@ -29,6 +29,8 @@ class SearchScraperPool {
         // Initialize the pool with a few scrapers
         for (let i = 0; i < Math.min(5, this.maxPoolSize); i++) {
             await this.createScraper();
+
+            await sleep(2000);
         }
 
         await this.runKafkaConsumer();
@@ -37,9 +39,9 @@ class SearchScraperPool {
     async createScraper() {
         const index = this.scrapers.length;
         const scraper = new SearchScraper({
+            instanceId: `Search-Scraper-${index}`,
             proxyAuth: this.proxyAuth,
             proxyServer: this.proxyServer,
-            instanceId: `Search-Scraper-${index}`,
             country: "US", // Set default country, adjust as needed
             delay: 1100,
             headless: false,
@@ -107,7 +109,7 @@ class SearchScraperPool {
                 await this.handleSuccessfulScrape(result);
             })
             .catch(async (error) => {
-                console.error(`Error processing cell ${cell.id}:`, error);
+                console.error(`[${scraper.instanceId}] Error processing cell ${cell.id}:`, error);
                 await this.handleFailedScrape(cell, error, jobId);
             })
             .finally(() => {

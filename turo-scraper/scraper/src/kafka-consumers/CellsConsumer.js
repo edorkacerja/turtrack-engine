@@ -4,7 +4,7 @@ const { Kafka } = require('kafkajs');
 const {
     KAFKA_CLIENT_ID_PREFIX_SEARCH,
     KAFKA_CONSUMER_GROUP_ID_SEARCH,
-    TO_BE_SCRAPED_CELLS_TOPIC
+    TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC
 } = require("../utils/constants");
 const { logMemoryUsage } = require("../utils/utils");
 const { sendToKafka } = require("../utils/kafkaUtil");
@@ -14,7 +14,7 @@ class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 1;
+        this.MAX_POOL_SIZE = 5;
         this.isShuttingDown = false;
 
         this.kafka = new Kafka({
@@ -96,12 +96,12 @@ class CellsConsumer {
 
     async handleSuccessfulScrape(data) {
         // const { vehicleId, scraped } = data;
-        // try {
-        //     await sendToKafka(SCRAPED_TOPIC_DR_AVAILABILITY, scraped);
-        //     console.log(`Scraped data sent for vehicle ${vehicleId}`);
-        // } catch (error) {
-        //     console.error(`Failed to send scraped data for vehicle ${vehicleId}:`, error);
-        // }
+        try {
+            await sendToKafka(SCRAPED_CELLS_TOPIC, data);
+            console.log(`Scraped data sent for cell ${data}`);
+        } catch (error) {
+            console.error(`Failed to send scraped data for vehicle ${data}:`, error);
+        }
     }
 
     async cleanup() {

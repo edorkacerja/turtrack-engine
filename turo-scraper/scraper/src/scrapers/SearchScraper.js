@@ -13,8 +13,9 @@ class SearchScraper {
   static type = "search";
 
   constructor(config) {
-    const { proxyAuth, proxyServer, delay, headless, divider, recursiveDepth, country, sorts, filters } = config;
+    const { instanceId, proxyAuth, proxyServer, delay, headless, divider, recursiveDepth, country, sorts, filters } = config;
 
+    this.instanceId = instanceId || 'unknown';
     this.proxyAuth = proxyAuth || PROXY_AUTH;
     this.proxyServer = proxyServer || PROXY_SERVER;
     this.delay = delay || 1100;
@@ -126,7 +127,7 @@ class SearchScraper {
     for (let cell of cells) {
       if (!this.isRunning()) break;
 
-      console.log(`Scraping cell with id: ${cell.id}`);
+      console.log(`[${this.instanceId}] Scraping cell with id: ${cell.id}`);
       await this.fetch(cell);
       await sleep(this.delay);
     }
@@ -205,14 +206,14 @@ class SearchScraper {
             },
             { requestConfig, url }
         );
-        console.log(`Received data for cell: ${JSON.stringify(cell)}`);
+        console.log(`[${this.instanceId}] Received data for cell: ${JSON.stringify(cell)}`);
         console.log(JSON.stringify(data));
       } catch (e) {
-        console.error(`Error fetching data for cell: ${JSON.stringify(cell)}`, e);
+        console.error(`[${this.instanceId}] Error fetching data for cell: ${JSON.stringify(cell)}`, e);
 
         if (retryCount < maxRetries) {
           const delay = Math.floor(Math.random() * 2000) + 1000; // Random delay between 1-3 seconds
-          console.log(`Retrying fetch for cell: ${JSON.stringify(cell)}. Attempt ${retryCount + 1} of ${maxRetries}. Waiting ${delay}ms.`);
+          console.log(`[${this.instanceId}] Retrying fetch for cell: ${JSON.stringify(cell)}. Attempt ${retryCount + 1} of ${maxRetries}. Waiting ${delay}ms.`);
           await utils.sleep(delay);
           return await recursiveFetch(cell, depth, retryCount + 1);
         }
@@ -222,7 +223,7 @@ class SearchScraper {
       }
 
       if (!data?.vehicles) {
-        console.warn(`No vehicles data for cell: ${JSON.stringify(cell)}`);
+        console.warn(`[${this.instanceId}] No vehicles data for cell: ${JSON.stringify(cell)}`);
         this.onFailedCallback({ optimalCell: cell, baseCell, scraped: null, error: "No vehicles data" });
         return;
       }
