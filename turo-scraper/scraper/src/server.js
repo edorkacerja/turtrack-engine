@@ -55,7 +55,7 @@ async function startServer() {
 
       const searchConsumer = new CellsConsumer();
       await searchConsumer.start().catch(console.error);
-      console.log("Search scraper started successfully.");
+      console.log("Search scraper READY.");
 
     } else {
       throw new Error(`Unknown SCRAPER_TYPE: ${scraperType}`);

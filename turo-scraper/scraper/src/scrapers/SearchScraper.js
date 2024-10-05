@@ -151,147 +151,82 @@ class SearchScraper {
   }
 
   async fetch(cell) {
-    const userAgents = [
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...",
-      "Mozilla/5.0 (X11; Linux x86_64)...",
-    ];
+    if (!this.isRunning()) return;
 
-    const baseCell = cell;
+    await sleep(Math.floor(Math.random() * 100) + 1000);
 
-    const recursiveFetch = async (cell, depth = 0) => {
-      if (!this.isRunning()) return;
-
-      await sleep(Math.floor(Math.random() * 100) + 1000);
-
-      const headers = {
-        accept: "*/*",
-        "accept-language": "en-US,en;q=0.9",
-        "content-type": "application/json",
-      };
-
-      const reqBody = {
-        filters: {
-          location: {
-            country: this.country,
-            type: "boundingbox",
-            bottomLeft: {
-              lat: cell.getBottomLeftLat(),
-              lng: cell.getBottomLeftLng(),
-            },
-            topRight: {
-              lat: cell.getTopRightLat(),
-              lng: cell.getTopRightLng(),
-            },
-          },
-          engines: this.filters.engines,
-          makes: this.filters.makes,
-          models: this.filters.models,
-          tmvTiers: this.filters.tmvTiers,
-          features: this.filters.features,
-          types: this.filters.types,
-        },
-        sorts: {
-          direction: this.sorts.direction,
-          type: this.sorts.type,
-        },
-      };
-
-      const requestConfig = {
-        headers,
-        body: JSON.stringify(reqBody),
-        method: "POST",
-        mode: "cors",
-        credentials: "include",
-      };
-
-      const url = "https://turo.com/api/v2/search";
-
-      let data = null;
-
-      try {
-        data = await this.page.evaluate(
-            async ({ requestConfig, url }) => {
-              const response = await fetch(url, requestConfig);
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-              }
-              return await response.json();
-            },
-            { requestConfig, url }
-        );
-        console.log(
-            `[${this.instanceId}] Success! Received data for cell: ${JSON.stringify(
-                cell
-            )}`
-        );
-      } catch (e) {
-        console.error(
-            `[${this.instanceId}] Error fetching data for cell: ${JSON.stringify(
-                cell
-            )}`,
-            e
-        );
-
-        this.onFailedCallback({
-          optimalCell: cell,
-          baseCell,
-          scraped: null,
-          error: e.message,
-        });
-        this.running = false;
-        throw e;
-        // return;
-      }
-
-      if (!data?.vehicles) {
-        console.warn(
-            `[${this.instanceId}] No vehicles data for cell: ${JSON.stringify(
-                cell
-            )}`
-        );
-        this.onFailedCallback({
-          optimalCell: cell,
-          baseCell,
-          scraped: null,
-          error: "No vehicles data",
-        });
-        // return;
-        this.running = false;
-        throw new Error("Failed Search");
-      }
-
-      const vehiclesLength = data.vehicles.length;
-
-      const isSearchRadiusZero =
-          data?.searchLocation?.appliedRadius?.value === 0;
-      const isDepthExceeded = depth > this.recursiveDepth;
-
-      if (vehiclesLength < 200 || isSearchRadiusZero || isDepthExceeded) {
-        cell.setVehicleCount(vehiclesLength);
-
-        // Call the success callback here
-        this.onSuccessCallback({
-          baseCell,
-          optimalCell: cell,
-          scraped: data,
-        });
-
-        // Add a random delay between successful requests
-        const successDelay = Math.floor(Math.random() * 100) + 1000;
-        await utils.sleep(successDelay);
-
-        return;
-      }
-
-      const cells = cellutil.cellSplit(cell, this.divider, this.divider);
-      for (let minicell of cells) {
-
-        await recursiveFetch(minicell, depth + 1);
-      }
+    const headers = {
+      accept: "*/*",
+      "accept-language": "en-US,en;q=0.9",
+      "content-type": "application/json",
     };
 
-    await recursiveFetch(cell);
+    const reqBody = {
+      filters: {
+        location: {
+          country: this.country,
+          type: "boundingbox",
+          bottomLeft: {
+            lat: cell.getBottomLeftLat(),
+            lng: cell.getBottomLeftLng(),
+          },
+          topRight: {
+            lat: cell.getTopRightLat(),
+            lng: cell.getTopRightLng(),
+          },
+        },
+        engines: this.filters.engines,
+        makes: this.filters.makes,
+        models: this.filters.models,
+        tmvTiers: this.filters.tmvTiers,
+        features: this.filters.features,
+        types: this.filters.types,
+      },
+      sorts: {
+        direction: this.sorts.direction,
+        type: this.sorts.type,
+      },
+    };
+
+    const requestConfig = {
+      headers,
+      body: JSON.stringify(reqBody),
+      method: "POST",
+      mode: "cors",
+      credentials: "include",
+    };
+
+    const url = "https://turo.com/api/v2/search";
+
+    let data = null;
+
+    try {
+      data = await this.page.evaluate(
+          async ({ requestConfig, url }) => {
+            const response = await fetch(url, requestConfig);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+          },
+          { requestConfig, url }
+      );
+      console.log(
+          `[${this.instanceId}] Success! Received data for cell: ${JSON.stringify(
+              cell
+          )}`
+      );
+    } catch (e) {
+      console.error(
+          `[${this.instanceId}] Error fetching data for cell: ${JSON.stringify(
+              cell
+          )}`,
+          e
+      );
+      throw e; // Throw the error to be handled by the caller
+    }
+
+    return data; // Return the fetched data
   }
 
   async destroy() {
