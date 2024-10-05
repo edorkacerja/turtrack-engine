@@ -14,7 +14,7 @@ class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 3;
+        this.MAX_POOL_SIZE = 20;
         this.isShuttingDown = false;
 
         this.kafka = new Kafka({
@@ -55,7 +55,9 @@ class CellsConsumer {
                     this.proxyAuth,
                     this.proxyServer,
                     this.handleFailedScrape.bind(this),
-                    this.handleSuccessfulScrape.bind(this)
+                    this.handleSuccessfulScrape.bind(this),
+                    this.pauseConsumer.bind(this),
+                    this.resumeConsumer.bind(this)
                 );
                 await this.scraperPool.initialize();
                 await this.runKafkaConsumer();
@@ -78,9 +80,19 @@ class CellsConsumer {
     async runKafkaConsumer() {
         await this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
-                await this.scraperPool.handleMessage(topic, partition, message);
+                await this.scraperPool.handleMessage(topic, partition, message, this.consumer);
             },
         });
+    }
+
+    async pauseConsumer() {
+        await this.consumer.pause([{ topic: TO_BE_SCRAPED_CELLS_TOPIC }]);
+        console.log('Consumer paused');
+    }
+
+    async resumeConsumer() {
+        await this.consumer.resume([{ topic: TO_BE_SCRAPED_CELLS_TOPIC }]);
+        console.log('Consumer resumed');
     }
 
     async handleFailedScrape(cell, error, jobId, topic, partition, message) {

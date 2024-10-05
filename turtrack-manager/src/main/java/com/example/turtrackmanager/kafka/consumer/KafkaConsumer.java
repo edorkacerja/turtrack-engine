@@ -20,10 +20,10 @@ public class KafkaConsumer {
     private final VehicleDetailsService vehicleDetailsService;
     private final DailyRateAndAvailabilityService dailyRateAndAvailabilityService;
 
-    @KafkaListener(topics = SCRAPED_VEHICLE_SKELETON_TOPIC, groupId = "turtrack-group")
-    public void consumeVehicleSkeletons(Map<String, Object> message) {
-        System.out.println("Received vehicle skeleton message: " + message);
-        vehicleSkeletonService.processAndForwardVehicleSkeleton(message);
+    @KafkaListener(topics = SCRAPED_CELLS_TOPIC, groupId = "turtrack-group")
+    public void consumeScrapedCells(Map<String, Object> message) {
+        System.out.println("Received scraped cell message: " + message);
+        vehicleSkeletonService.processAndForwardVehicleSkeleton(message); // todo: finish updating this.
     }
 
     @KafkaListener(topics = SCRAPED_VEHICLE_DETAILS_TOPIC, groupId = "turtrack-group")

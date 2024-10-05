@@ -84,13 +84,13 @@ public class KafkaConfig {
                 .build();
     }
 
-    @Bean
-    public NewTopic scrapedVehicleSkeletonTopic() {
-        return TopicBuilder.name(SCRAPED_VEHICLE_SKELETON_TOPIC)
-                .partitions(1)
-                .replicas(1)
-                .build();
-    }
+//    @Bean
+//    public NewTopic scrapedVehicleSkeletonTopic() {
+//        return TopicBuilder.name(SCRAPED_VEHICLE_SKELETON_TOPIC)
+//                .partitions(1)
+//                .replicas(1)
+//                .build();
+//    }
 
     @Bean
     public NewTopic processedDrAvailabilityTopic() {

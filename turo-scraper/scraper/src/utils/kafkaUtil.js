@@ -69,11 +69,11 @@ async function disconnectProducer() {
 async function commitOffsetsWithRetry(consumer, topic, partition, offset, maxRetries = 5) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            await consumer.commitOffsets([{ topic, partition, offset: offset + 1 }]);
-            console.log(`Successfully committed offset for partition ${partition}`);
+            await consumer.commitOffsets([{ topic, partition, offset: offset }]);
+            console.log(`Successfully committed offset ${offset} for partition ${partition}`);
             return;
         } catch (error) {
-            console.error(`Error committing offset (attempt ${attempt}/${maxRetries}):`, error);
+            console.error(`Error committing offset ${offset} (attempt ${attempt}/${maxRetries}):`, error);
             if (attempt === maxRetries) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }

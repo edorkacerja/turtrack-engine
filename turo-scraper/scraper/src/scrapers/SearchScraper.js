@@ -162,6 +162,8 @@ class SearchScraper {
     const recursiveFetch = async (cell, depth = 0) => {
       if (!this.isRunning()) return;
 
+      await sleep(Math.floor(Math.random() * 100) + 1000);
+
       const headers = {
         accept: "*/*",
         "accept-language": "en-US,en;q=0.9",
@@ -276,7 +278,7 @@ class SearchScraper {
         });
 
         // Add a random delay between successful requests
-        const successDelay = Math.floor(Math.random() * 2000) + 1000;
+        const successDelay = Math.floor(Math.random() * 100) + 1000;
         await utils.sleep(successDelay);
 
         return;
@@ -286,7 +288,7 @@ class SearchScraper {
       for (let minicell of cells) {
 
         // Add a small random delay between recursive calls
-        const recursiveDelay = Math.floor(Math.random() * 1000) + 1000;
+        const recursiveDelay = Math.floor(Math.random() * 100) + 1000;
         console.log(`[Instance ${this.instanceId}] Sleeping for ${recursiveDelay} milliseconds due to splitting the cell ${cell.id}`);
         await utils.sleep(recursiveDelay);
 
