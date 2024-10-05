@@ -106,6 +106,13 @@ class SearchScraperPool {
         this.startIdleTimer(scraper);
     }
 
+    stopIdleTimer(scraper) {
+        if (this.idleTimers.has(scraper)) {
+            clearTimeout(this.idleTimers.get(scraper));
+            this.idleTimers.delete(scraper);
+        }
+    }
+
     async destroyScraper(scraper) {
         try {
             await scraper.close();
@@ -152,7 +159,7 @@ class SearchScraperPool {
         }
 
         const scraper = this.availableScrapers.pop();
-        this.resetIdleTimer(scraper);
+        this.stopIdleTimer(scraper); // Stop the idle timer when scraper is taken for processing
 
         const messageData = JSON.parse(message.value.toString());
         const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId } = messageData;
@@ -171,7 +178,7 @@ class SearchScraperPool {
             .finally(async () => {
                 if (this.scrapers.includes(scraper)) {
                     this.availableScrapers.push(scraper);
-                    this.resetIdleTimer(scraper);
+                    this.resetIdleTimer(scraper); // Start the idle timer after processing is done
                 }
                 this.processingPromises.delete(processingPromise);
 

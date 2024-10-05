@@ -20,7 +20,7 @@ class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 5; // 10 scrapers is the optimal. so the scrapers don't fail. 20 min total time
+        this.MAX_POOL_SIZE = 10; // 10 scrapers is the optimal. so the scrapers don't fail. 20 min total time
         this.isShuttingDown = false;
         this.fileManager = new FileManager("search");
 
@@ -36,7 +36,7 @@ class CellsConsumer {
         this.consumer = this.kafka.consumer({
             groupId: KAFKA_CONSUMER_GROUP_ID_SEARCH,
             maxInFlightRequests: 1,
-            sessionTimeout: 60000000,
+            sessionTimeout: 600000,
             heartbeatInterval: 3000,
             retry: {
                 initialRetryTime: 300,
