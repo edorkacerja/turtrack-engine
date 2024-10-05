@@ -6,16 +6,27 @@ const fetch = require("cross-fetch");
 const utils = require("../utils/utils");
 const cellutil = require("../utils/cellutil");
 const { sleep } = require("../utils/utils");
-const {PROXY_AUTH, PROXY_SERVER} = require("../utils/constants");
+const { PROXY_AUTH, PROXY_SERVER } = require("../utils/constants");
 
 class SearchScraper {
   static instances = new Map();
   static type = "search";
 
   constructor(config) {
-    const { instanceId, proxyAuth, proxyServer, delay, headless, divider, recursiveDepth, country, sorts, filters } = config;
+    const {
+      instanceId,
+      proxyAuth,
+      proxyServer,
+      delay,
+      headless,
+      divider,
+      recursiveDepth,
+      country,
+      sorts,
+      filters,
+    } = config;
 
-    this.instanceId = instanceId || 'unknown';
+    this.instanceId = instanceId || "unknown";
     this.proxyAuth = proxyAuth || PROXY_AUTH;
     this.proxyServer = proxyServer || PROXY_SERVER;
     this.delay = delay || 1100;
@@ -34,9 +45,9 @@ class SearchScraper {
     this.scraped = [];
     this.localResourceName = `${country}.base-grid`;
 
-    this.onSuccessCallback = () => { };
-    this.onFailedCallback = () => { };
-    this.onFinishCallback = () => { };
+    this.onSuccessCallback = () => {};
+    this.onFailedCallback = () => {};
+    this.onFinishCallback = () => {};
   }
 
   async init() {
@@ -47,7 +58,7 @@ class SearchScraper {
     if (!this.headless) {
       const xvfb = new Xvfb({
         silent: true,
-        xvfb_args: ["-screen", "0", '1280x720x24', "-ac"],
+        xvfb_args: ["-screen", "0", "1280x720x24", "-ac"],
       });
 
       xvfb.startSync();
@@ -71,9 +82,9 @@ class SearchScraper {
 
     // Set the User Agent at the page level
     const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64)...',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...',
-      'Mozilla/5.0 (X11; Linux x86_64)...'
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...",
+      "Mozilla/5.0 (X11; Linux x86_64)...",
     ];
     const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
     await page.setUserAgent(userAgent);
@@ -81,11 +92,15 @@ class SearchScraper {
     // Set viewport size
     await page.setViewport({ width: 1280, height: 720 });
 
-    // Remove request interception
+    // Enable request interception to block images and media
     await page.setRequestInterception(true);
 
     page.on("request", (request) => {
-      if (request.resourceType() === "image" || request.resourceType() === "media") request.abort();
+      if (
+          request.resourceType() === "image" ||
+          request.resourceType() === "media"
+      )
+        request.abort();
       else request.continue();
     });
 
@@ -137,23 +152,20 @@ class SearchScraper {
 
   async fetch(cell) {
     const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64)...',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...',
-      'Mozilla/5.0 (X11; Linux x86_64)...'
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...",
+      "Mozilla/5.0 (X11; Linux x86_64)...",
     ];
 
     const baseCell = cell;
-    const maxRetries = 3;
 
-    const recursiveFetch = async (cell, depth = 0, retryCount = 0) => {
+    const recursiveFetch = async (cell, depth = 0) => {
       if (!this.isRunning()) return;
 
       const headers = {
         accept: "*/*",
         "accept-language": "en-US,en;q=0.9",
         "content-type": "application/json",
-        // Remove 'User-Agent' from headers
-        // "User-Agent": userAgents[Math.floor(Math.random() * userAgents.length)]
       };
 
       const reqBody = {
@@ -206,36 +218,57 @@ class SearchScraper {
             },
             { requestConfig, url }
         );
-        console.log(`[${this.instanceId}] Received data for cell: ${JSON.stringify(cell)}`);
-        console.log(JSON.stringify(data));
+        console.log(
+            `[${this.instanceId}] Success! Received data for cell: ${JSON.stringify(
+                cell
+            )}`
+        );
       } catch (e) {
-        console.error(`[${this.instanceId}] Error fetching data for cell: ${JSON.stringify(cell)}`, e);
+        console.error(
+            `[${this.instanceId}] Error fetching data for cell: ${JSON.stringify(
+                cell
+            )}`,
+            e
+        );
 
-        if (retryCount < maxRetries) {
-          const delay = Math.floor(Math.random() * 2000) + 1000; // Random delay between 1-3 seconds
-          console.log(`[${this.instanceId}] Retrying fetch for cell: ${JSON.stringify(cell)}. Attempt ${retryCount + 1} of ${maxRetries}. Waiting ${delay}ms.`);
-          await utils.sleep(delay);
-          return await recursiveFetch(cell, depth, retryCount + 1);
-        }
-
-        this.onFailedCallback({ optimalCell: cell, baseCell, scraped: null, error: e.message });
-        return;
+        this.onFailedCallback({
+          optimalCell: cell,
+          baseCell,
+          scraped: null,
+          error: e.message,
+        });
+        this.running = false;
+        throw e;
+        // return;
       }
 
       if (!data?.vehicles) {
-        console.warn(`[${this.instanceId}] No vehicles data for cell: ${JSON.stringify(cell)}`);
-        this.onFailedCallback({ optimalCell: cell, baseCell, scraped: null, error: "No vehicles data" });
-        return;
+        console.warn(
+            `[${this.instanceId}] No vehicles data for cell: ${JSON.stringify(
+                cell
+            )}`
+        );
+        this.onFailedCallback({
+          optimalCell: cell,
+          baseCell,
+          scraped: null,
+          error: "No vehicles data",
+        });
+        // return;
+        this.running = false;
+        throw new Error("Failed Search");
       }
 
       const vehiclesLength = data.vehicles.length;
 
-      const isSearchRadiusZero = data?.searchLocation?.appliedRadius?.value === 0;
+      const isSearchRadiusZero =
+          data?.searchLocation?.appliedRadius?.value === 0;
       const isDepthExceeded = depth > this.recursiveDepth;
 
       if (vehiclesLength < 200 || isSearchRadiusZero || isDepthExceeded) {
         cell.setVehicleCount(vehiclesLength);
 
+        // Call the success callback here
         this.onSuccessCallback({
           baseCell,
           optimalCell: cell,
@@ -251,15 +284,101 @@ class SearchScraper {
 
       const cells = cellutil.cellSplit(cell, this.divider, this.divider);
       for (let minicell of cells) {
-        await recursiveFetch(minicell, depth + 1);
 
         // Add a small random delay between recursive calls
-        const recursiveDelay = Math.floor(Math.random() * 1000) + 500;
+        const recursiveDelay = Math.floor(Math.random() * 1000) + 1000;
+        console.log(`[Instance ${this.instanceId}] Sleeping for ${recursiveDelay} milliseconds due to splitting the cell ${cell.id}`);
         await utils.sleep(recursiveDelay);
+
+        await recursiveFetch(minicell, depth + 1);
       }
     };
 
     await recursiveFetch(cell);
+  }
+
+  async destroy() {
+    console.log(`[Instance ${this.instanceId}] Destroying scraper instance...`);
+
+    try {
+      // Remove specific listeners
+      if (this.page) {
+        try {
+          // Use removeListener if available, otherwise fall back to off
+          if (typeof this.page.removeListener === 'function') {
+            this.page.removeListener("request", this.requestListener);
+            this.page.removeListener("response", this.responseListener);
+          } else if (typeof this.page.off === 'function') {
+            this.page.off("request", this.requestListener);
+            this.page.off("response", this.responseListener);
+          } else {
+            console.warn(`[Instance ${this.instanceId}] Unable to remove listeners: method not available`);
+          }
+
+        } catch (pageError) {
+          console.error(`[Instance ${this.instanceId}] Error during page cleanup: ${pageError.message}`);
+        }
+      }
+      // Close all pages
+      if (this.browser) {
+        const pages = await this.browser.pages().catch(e => {
+          console.error(`[Instance ${this.instanceId}] Error getting browser pages: ${e.message}`);
+          return [];
+        });
+
+        await Promise.all(pages.map(page =>
+            page.close().catch(e => console.error(`[Instance ${this.instanceId}] Error closing page: ${e.message}`))
+        ));
+      }
+
+    } catch (error) {
+      console.error(`[Instance ${this.instanceId}] Error during page cleanup: ${error.message}`);
+    } finally {
+      // Ensure browser is closed even if there were errors during page closure
+      await this.closeBrowserWithFallback();
+
+      // Stop Xvfb if it was started
+      if (!this.headless && this.xvfb) {
+        try {
+          this.xvfb.stopSync();
+        } catch (error) {
+          console.error(`[Instance ${this.instanceId}] Error stopping Xvfb: ${error.message}`);
+        } finally {
+          this.xvfb = null;
+        }
+      }
+
+      this.running = false;
+      this.page = null;
+      this.browser = null;
+      console.log(`[Instance ${this.instanceId}] Scraper instance destroyed.`);
+    }
+  }
+
+  async closeBrowserWithFallback() {
+    try {
+      console.log(`[Instance ${this.instanceId}] Attempting to close browser...`);
+      if (this.browser) {
+        await this.browser.close();
+        console.log(`[Instance ${this.instanceId}] Browser closed successfully.`);
+      }
+    } catch (error) {
+      console.error(`[Instance ${this.instanceId}] Error during browser.close(): ${error.message}`);
+    } finally {
+      if (this.browser && this.browser.process() != null) {
+        console.log(`[Instance ${this.instanceId}] Forcibly killing the browser process...`);
+        try {
+          this.browser.process().kill('SIGKILL');
+        } catch (killError) {
+          console.error(`[Instance ${this.instanceId}] Error killing browser process: ${killError.message}`);
+        }
+      }
+      this.browser = null;
+    }
+  }
+
+  async close() {
+    await this.destroy();
   }
 
   async onSuccess(callfunction) {

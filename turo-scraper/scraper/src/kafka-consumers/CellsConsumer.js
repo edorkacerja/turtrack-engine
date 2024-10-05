@@ -4,17 +4,17 @@ const { Kafka } = require('kafkajs');
 const {
     KAFKA_CLIENT_ID_PREFIX_SEARCH,
     KAFKA_CONSUMER_GROUP_ID_SEARCH,
-    TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC
+    TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC, DLQ_TOPIC_DR_AVAILABILITY, DLQ_CELLS_TOPIC
 } = require("../utils/constants");
 const { logMemoryUsage } = require("../utils/utils");
-const { sendToKafka } = require("../utils/kafkaUtil");
+const { sendToKafka, commitOffsetsWithRetry} = require("../utils/kafkaUtil");
 const SearchScraperPool = require("../scrapers/SearchScraperPool");
 
 class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 5;
+        this.MAX_POOL_SIZE = 3;
         this.isShuttingDown = false;
 
         this.kafka = new Kafka({
@@ -54,15 +54,14 @@ class CellsConsumer {
                     this.MAX_POOL_SIZE,
                     this.proxyAuth,
                     this.proxyServer,
-                    this.consumer,
                     this.handleFailedScrape.bind(this),
                     this.handleSuccessfulScrape.bind(this)
                 );
                 await this.scraperPool.initialize();
+                await this.runKafkaConsumer();
 
                 console.log(`Availability scraper consumer is now running and listening for messages`);
                 logMemoryUsage();
-
 
                 break;
             } catch (error) {
@@ -76,26 +75,35 @@ class CellsConsumer {
         }
     }
 
-    async handleFailedScrape(vehicle, error, jobId) {
-        console.error(`Scraping failed for vehicle ${vehicle.getId()}`);
+    async runKafkaConsumer() {
+        await this.consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+                await this.scraperPool.handleMessage(topic, partition, message);
+            },
+        });
+    }
 
-        // const dlqMessage = {
-        //     vehicleId: vehicle.getId(),
-        //     error: error ? (error.message || String(error)) : 'Unknown error',
-        //     timestamp: new Date().toISOString(),
-        //     jobId
-        // };
-        //
-        // try {
-        //     await sendToKafka(DLQ_TOPIC_DR_AVAILABILITY, dlqMessage);
-        //     console.log(`Failed vehicle ${vehicle.getId()} sent to DLQ`);
-        // } catch (dlqError) {
-        //     console.error(`Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
-        // }
+    async handleFailedScrape(cell, error, jobId, topic, partition, message) {
+        console.error(`Scraping failed for cell ${cell.getId()}`);
+
+        const dlqMessage = {
+            cellId: cell.getId(),
+            error: error ? (error.message || String(error)) : 'Unknown error',
+            timestamp: new Date().toISOString(),
+            jobId
+        };
+
+        await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
+
+        try {
+            await sendToKafka(DLQ_CELLS_TOPIC, dlqMessage);
+            console.log(`Failed cell ${cell.getId()} sent to DLQ`);
+        } catch (dlqError) {
+            console.error(`Failed to send to DLQ for cell ${cell.getId()}:`, dlqError);
+        }
     }
 
     async handleSuccessfulScrape(data) {
-        // const { vehicleId, scraped } = data;
         try {
             await sendToKafka(SCRAPED_CELLS_TOPIC, data);
             console.log(`Scraped data sent for cell ${data}`);

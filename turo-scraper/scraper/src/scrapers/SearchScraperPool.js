@@ -1,4 +1,3 @@
-const { commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const { sleep, logMemoryUsage } = require("../utils/utils");
 const SearchScraper = require("./SearchScraper");
 const Cell = require("../models/Cell");
@@ -7,13 +6,11 @@ class SearchScraperPool {
     constructor(maxPoolSize = 60,
                 proxyAuth,
                 proxyServer,
-                consumer,
                 handleFailedScrape,
                 handleSuccessfulScrape) {
         this.maxPoolSize = maxPoolSize;
         this.proxyAuth = proxyAuth;
         this.proxyServer = proxyServer;
-        this.consumer = consumer;
         this.handleFailedScrape = handleFailedScrape;
         this.handleSuccessfulScrape = handleSuccessfulScrape;
 
@@ -24,7 +21,7 @@ class SearchScraperPool {
 
     async initialize() {
         console.log(`Initializing ScraperPool with maximum size of ${this.maxPoolSize} scrapers`);
-        logMemoryUsage();
+        // logMemoryUsage();
 
         // Initialize the pool with a few scrapers
         for (let i = 0; i < Math.min(5, this.maxPoolSize); i++) {
@@ -33,7 +30,6 @@ class SearchScraperPool {
             await sleep(2000);
         }
 
-        await this.runKafkaConsumer();
     }
 
     async createScraper() {
@@ -61,6 +57,9 @@ class SearchScraperPool {
             },
         });
 
+
+        scraper.onSuccess(this.handleSuccessfulScrape);
+
         await scraper.init();
         this.scrapers.push(scraper);
         this.availableScrapers.push(scraper);
@@ -69,13 +68,23 @@ class SearchScraperPool {
         return scraper;
     }
 
-    async runKafkaConsumer() {
-        await this.consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
-                await this.handleMessage(topic, partition, message);
-            },
-        });
+    async destroyScraper(scraper) {
+        try {
+            await scraper.close();
+            const index = this.scrapers.indexOf(scraper);
+            if (index !== -1) {
+                this.scrapers.splice(index, 1);
+            }
+            const availableIndex = this.availableScrapers.indexOf(scraper);
+            if (availableIndex !== -1) {
+                this.availableScrapers.splice(availableIndex, 1);
+            }
+            console.log(`Destroyed scraper: ${scraper.instanceId}. Total scrapers: ${this.scrapers.length}`);
+        } catch (error) {
+            console.error(`Error destroying scraper ${scraper.instanceId}:`, error);
+        }
     }
+
 
     async handleMessage(topic, partition, message) {
         if (this.availableScrapers.length === 0) {
@@ -105,18 +114,18 @@ class SearchScraperPool {
         cell.setCountry("US");
 
         const processingPromise = this.scrapeCellWithRetry(scraper, cell, jobId)
-            .then(async (result) => {
-                await this.handleSuccessfulScrape(result);
-            })
             .catch(async (error) => {
                 console.error(`[${scraper.instanceId}] Error processing cell ${cell.id}:`, error);
-                await this.handleFailedScrape(cell, error, jobId);
+                await this.handleFailedScrape(cell, error, jobId, topic, partition, message);
             })
             .finally(() => {
-                commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
-                this.availableScrapers.push(scraper);
+
+                // Return the scraper to the available pool only if it's still in the scrapers array
+                if (this.scrapers.includes(scraper)) {
+                    this.availableScrapers.push(scraper);
+                }
                 this.processingPromises.delete(processingPromise);
-                logMemoryUsage();
+                // logMemoryUsage();
             });
 
         this.processingPromises.add(processingPromise);
@@ -124,23 +133,24 @@ class SearchScraperPool {
 
     async scrapeCellWithRetry(scraper, cell, jobId, retryCount = 0) {
         const maxRetries = 3;
-        const baseDelay = 5000; // base delay of 5 seconds
 
         try {
-            return await scraper.scrape([cell]);
+            await scraper.scrape([cell]);
         } catch (error) {
-            if (retryCount < maxRetries) {
-                console.log(`[${scraper.instanceId}] Attempt ${retryCount + 1} failed for cell ${cell.id}. Retrying...`);
+            console.log(`[${scraper.instanceId}] Scrape failed for cell ${cell.id}. Destroying scraper and creating a new one.`);
+            await this.destroyScraper(scraper);
 
-                // Exponential backoff
-                const sleepDuration = baseDelay * Math.pow(2, retryCount);
-                console.log(`Sleeping for ${sleepDuration / 1000} seconds before retry!`);
-
-                await sleep(sleepDuration);
-
-                return this.scrapeCellWithRetry(scraper, cell, jobId, retryCount + 1);
+            if (this.scrapers.length < this.maxPoolSize) {
+                const newScraper = await this.createScraper();
+                if (retryCount < maxRetries) {
+                    console.log(`Retrying scrape for cell ${cell.id} with new scraper ${newScraper.instanceId}. Retry attempt ${retryCount + 1}.`);
+                    return this.scrapeCellWithRetry(newScraper, cell, jobId, retryCount + 1);
+                } else {
+                    console.log(`All retry attempts failed for cell ${cell.id}.`);
+                    throw error;
+                }
             } else {
-                console.log(`[${scraper.instanceId}] All retry attempts failed for cell ${cell.id}.`);
+                console.log(`Max pool size reached. Cannot create new scraper for cell ${cell.id}.`);
                 throw error;
             }
         }
@@ -153,7 +163,7 @@ class SearchScraperPool {
         }
         this.scrapers = [];
         this.availableScrapers = [];
-        logMemoryUsage();
+        // logMemoryUsage();
     }
 }
 
