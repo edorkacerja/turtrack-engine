@@ -14,7 +14,7 @@ class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 20;
+        this.MAX_POOL_SIZE = 10; // 10 scrapers is the optimal. so the scrapers don't fail. 20 min total time
         this.isShuttingDown = false;
 
         this.kafka = new Kafka({

@@ -287,11 +287,6 @@ class SearchScraper {
       const cells = cellutil.cellSplit(cell, this.divider, this.divider);
       for (let minicell of cells) {
 
-        // Add a small random delay between recursive calls
-        const recursiveDelay = Math.floor(Math.random() * 100) + 1000;
-        console.log(`[Instance ${this.instanceId}] Sleeping for ${recursiveDelay} milliseconds due to splitting the cell ${cell.id}`);
-        await utils.sleep(recursiveDelay);
-
         await recursiveFetch(minicell, depth + 1);
       }
     };

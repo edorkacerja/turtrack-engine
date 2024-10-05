@@ -48,9 +48,10 @@ async function startServer() {
 
     } else if (scraperType === 'search') {
       // Initialize MetadataManager
-      await MetadataManager.init();
-      MetadataManager.sync(5000);
-      console.log("MetadataManager initialized and syncing");
+      // todo: do the metadata as well. so we can still have the plotter in place.
+      // await MetadataManager.init();
+      // MetadataManager.sync(5000);
+      // console.log("MetadataManager initialized and syncing");
 
       const searchConsumer = new CellsConsumer();
       await searchConsumer.start().catch(console.error);
