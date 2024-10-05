@@ -40,17 +40,6 @@ const MetadataManager = {
 
     vehicles.set(vehicle.getId(), vehicle);
 
-    // Send to Kafka
-    try {
-      await kafkaUtil.sendToKafka('SCRAPED-vehicle-skeleton-topic', {
-        id: vehicle.getId(),
-        country: vehicle.getCountry(),
-        cellId: vehicle.getCellId(),
-        status: vehicle.getStatus()
-      });
-    } catch (error) {
-      console.error('Error sending vehicle to Kafka:', error);
-    }
   },
 
   addOptimalCell(cell) {
