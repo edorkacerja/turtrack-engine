@@ -9,6 +9,12 @@ const {
 const { logMemoryUsage } = require("../utils/utils");
 const { sendToKafka, commitOffsetsWithRetry} = require("../utils/kafkaUtil");
 const SearchScraperPool = require("../scrapers/SearchScraperPool");
+const dateutil = require("../utils/dateutil");
+const BaseCell = require("../models/BaseCell");
+const OptimalCell = require("../models/OptimalCell");
+const MetadataManager = require("../managers/MetadataManager");
+const Vehicle = require("../models/Vehicle");
+const FileManager = require("../managers/FileManager");
 
 class CellsConsumer {
     constructor() {
@@ -16,6 +22,7 @@ class CellsConsumer {
         this.proxyServer = process.env.PROXY_SERVER;
         this.MAX_POOL_SIZE = 10; // 10 scrapers is the optimal. so the scrapers don't fail. 20 min total time
         this.isShuttingDown = false;
+        this.fileManager = new FileManager("search");
 
         this.kafka = new Kafka({
             clientId: `${KAFKA_CLIENT_ID_PREFIX_SEARCH}`,
@@ -119,6 +126,41 @@ class CellsConsumer {
         try {
             await sendToKafka(SCRAPED_CELLS_TOPIC, data);
             console.log(`Scraped data sent for cell ${data}`);
+
+
+
+            // Metadata shit....
+
+
+            let { baseCell, optimalCell, scraped } = data;
+
+            optimalCell.setSearchLastUpdated(dateutil.now());
+            baseCell.setSearchLastUpdated(dateutil.now());
+
+            // make sure to change the class name to the correct one
+            baseCell = new BaseCell(baseCell);
+            optimalCell = new OptimalCell(optimalCell);
+
+            MetadataManager.addOptimalCell(optimalCell);
+            MetadataManager.addBaseCell(baseCell);
+
+            const vehicles = scraped.vehicles;
+
+            for (let vehicle of vehicles) {
+                const vehicleObj = new Vehicle()
+                    .setId(vehicle.id)
+                    .setCountry(dto.country)
+                    .setCellId(optimalCell.getId())
+                    .setSearchLastUpdated(dateutil.now());
+
+                console.log(`Adding vehicle ${vehicle.id} to metadata.`);
+                await MetadataManager.addVehicle(vehicleObj);
+            }
+
+            await MetadataManager.updateHash();
+            await this.fileManager.write(optimalCell.getId(), scraped);
+
+
         } catch (error) {
             console.error(`Failed to send scraped data for vehicle ${data}:`, error);
         }

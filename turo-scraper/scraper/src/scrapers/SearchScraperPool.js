@@ -134,12 +134,13 @@ class SearchScraperPool {
         this.resetIdleTimer(scraper);
 
         const messageData = JSON.parse(message.value.toString());
-        const { id, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId } = messageData;
+        const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId } = messageData;
         const cell = new Cell();
         cell.setId(id);
         cell.setBottomLeft(bottomLeftLat, bottomLeftLng);
         cell.setTopRight(topRightLat, topRightLng);
         cell.setCountry("US");
+        cell.setCellSize(cellSize);
 
         const processingPromise = this.scrapeCellWithRetry(scraper, cell, jobId, consumer, topic, partition, message)
             .catch(async (error) => {
