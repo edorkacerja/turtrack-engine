@@ -54,7 +54,7 @@ class CellsConsumer {
             try {
                 console.log(`Connecting to Kafka and subscribing to ${TO_BE_SCRAPED_CELLS_TOPIC}`);
                 await this.consumer.connect();
-                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC });
+                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC, fromBeginning: true  });
 
                 console.log(`Initializing Search ScraperPool...`);
                 this.scraperPool = new SearchScraperPool(
