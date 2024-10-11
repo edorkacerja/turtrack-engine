@@ -1,6 +1,7 @@
 package com.example.turtrackmanager.kafka.consumer;
 
 
+import com.example.turtrackmanager.service.manager.CellService;
 import com.example.turtrackmanager.service.turtrack.DailyRateAndAvailabilityService;
 import com.example.turtrackmanager.service.turtrack.VehicleDetailsService;
 import com.example.turtrackmanager.service.turtrack.VehicleSkeletonService;
@@ -19,11 +20,12 @@ public class KafkaConsumer {
     private final VehicleSkeletonService vehicleSkeletonService;
     private final VehicleDetailsService vehicleDetailsService;
     private final DailyRateAndAvailabilityService dailyRateAndAvailabilityService;
+    private final CellService cellService;
 
     @KafkaListener(topics = SCRAPED_CELLS_TOPIC, groupId = "turtrack-group")
     public void consumeScrapedCells(Map<String, Object> message) {
         System.out.println("Received scraped cell message: " + message);
-        vehicleSkeletonService.processAndForwardVehicleSkeleton(message); // todo: finish updating this.
+        cellService.processCell(message); // todo: finish updating this.
     }
 
     @KafkaListener(topics = SCRAPED_VEHICLE_DETAILS_TOPIC, groupId = "turtrack-group")
