@@ -3,6 +3,8 @@ const SearchScraper = require("./SearchScraper");
 const Cell = require("../models/Cell");
 const { commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const cellutil = require("../utils/cellutil");
+const JobService = require("../services/JobService");
+
 
 class SearchScraperPool {
     constructor(
@@ -162,7 +164,7 @@ class SearchScraperPool {
         this.stopIdleTimer(scraper); // Stop the idle timer when scraper is taken for processing
 
         const messageData = JSON.parse(message.value.toString());
-        const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId } = messageData;
+        const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId, updateOptimalCell } = messageData;
         const cell = new Cell();
         cell.setId(id);
         cell.setBottomLeft(bottomLeftLat, bottomLeftLng);
@@ -170,7 +172,7 @@ class SearchScraperPool {
         cell.setCountry("US");
         cell.setCellSize(cellSize);
 
-        const processingPromise = this.recursiveFetch(scraper, cell, 0, jobId, consumer, topic, partition, message)
+        const processingPromise = this.recursiveFetch(scraper, cell, 0, jobId, consumer, topic, partition, message, updateOptimalCell)
             .catch(async (error) => {
                 console.error(`[${scraper.instanceId}] Error processing cell ${cell.id}:`, error);
                 await this.handleFailedScrape(cell, error, jobId, topic, partition, message);
@@ -191,7 +193,7 @@ class SearchScraperPool {
         this.processingPromises.add(processingPromise);
     }
 
-    async recursiveFetch(scraper, cell, depth, jobId, consumer, topic, partition, message, baseCell = null) {
+    async recursiveFetch(scraper, cell, depth, jobId, consumer, topic, partition, message, baseCell = null, updateOptimalCell = false) {
         if (!baseCell) baseCell = cell;
 
         if (depth > this.recursiveDepth) {
@@ -219,10 +221,15 @@ class SearchScraperPool {
                         baseCell,
                         optimalCell: cell,
                         scraped: data,
+                        jobId: jobId,
+                        updateOptimalCell: updateOptimalCell
                     });
                     await commitOffsetsWithRetry(consumer, topic, partition, message.offset);
                     return;
                 }
+
+                // Update total cells by 3 because the cell split function returns 4 cells
+                await JobService.incrementJobTotalItems(jobId, 3);
 
                 const cells = cellutil.cellSplit(cell, this.divider, this.divider);
                 for (let minicell of cells) {

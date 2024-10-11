@@ -120,11 +120,13 @@ services:
       SCRAPER_TYPE: search
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       PORT: 5003
+      TURTRACK_MANAGER_API_BASE_URL: http://host.docker.internal:9999
     deploy:
       replicas: 1
     networks:
       - turo_scraper_network
       - turtrack_common_network
+      - turtrack-manager-network
       - kafka_network
     ports:
       - "5003:5003"

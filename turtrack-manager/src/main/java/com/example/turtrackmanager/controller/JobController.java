@@ -78,6 +78,19 @@ public class JobController {
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
     }
 
+
+    @GetMapping("/{jobId}")
+    public ResponseEntity<JobDTO> getJob(@PathVariable Long jobId) {
+        Job job = jobService.getJob(jobId);
+        return ResponseEntity.ok(JobDTO.toDTO(job));
+    }
+
+    @PostMapping("/{jobId}/incrementTotalItems")
+    public ResponseEntity<JobDTO> incrementTotalItems(@PathVariable Long jobId, @RequestParam(defaultValue = "3") Integer increment) {
+        Job job = jobService.incrementTotalItems(jobId, increment);
+        return ResponseEntity.ok(JobDTO.toDTO(job));
+    }
+
     @GetMapping("/{jobId}/status")
     public ResponseEntity<Job.JobStatus> getJobStatus(@PathVariable Long jobId) {
         log.info("Received request to get status for job id: {}", jobId);

@@ -6,6 +6,7 @@ const {
     KAFKA_CONSUMER_GROUP_ID_SEARCH,
     TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC, DLQ_TOPIC_DR_AVAILABILITY, DLQ_CELLS_TOPIC
 } = require("../utils/constants");
+const JobService = require("../services/JobService");
 const { logMemoryUsage } = require("../utils/utils");
 const { sendToKafka, commitOffsetsWithRetry} = require("../utils/kafkaUtil");
 const SearchScraperPool = require("../scrapers/SearchScraperPool");
@@ -87,9 +88,30 @@ class CellsConsumer {
     async runKafkaConsumer() {
         await this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
-                await this.scraperPool.handleMessage(topic, partition, message, this.consumer);
+                const jobId = this.extractJobId(message);
+
+                    const isJobRunning = await JobService.isJobRunning(jobId);
+
+                    if (isJobRunning) {
+                        // If the job is running, handle the message
+                        await this.scraperPool.handleMessage(topic, partition, message, this.consumer);
+                    } else {
+                        // If the job is not running, log and skip the message
+                        console.log(`Job ${jobId} is not running. Skipping message.`);
+                        await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
+                    }
             },
         });
+    }
+
+    extractJobId(message) {
+        try {
+            const messageValue = JSON.parse(message.value.toString());
+            return messageValue.jobId;
+        } catch (error) {
+            console.error('Error extracting jobId from message:', error);
+            return null;
+        }
     }
 
     async pauseConsumer() {

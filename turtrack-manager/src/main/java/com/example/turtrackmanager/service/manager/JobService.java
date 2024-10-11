@@ -3,8 +3,10 @@ package com.example.turtrackmanager.service.manager;
 import com.example.turtrackmanager.dto.JobCreationDTO;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.repository.manager.JobRepository;
-import lombok.RequiredArgsConstructor;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -13,11 +15,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class JobService {
 
     private final JobRepository jobRepository;
+    private final EntityManager entityManager;
+
+    public JobService(JobRepository jobRepository,
+                      @Qualifier("managerEntityManagerFactory") EntityManager entityManager) {
+        this.jobRepository = jobRepository;
+        this.entityManager = entityManager;
+    }
+
 
     public Page<Job> getAllJobs(Pageable pageable) {
         return jobRepository.findAll(pageable);
@@ -89,4 +98,50 @@ public class JobService {
                 LocalDateTime.now().toString());
     }
 
+    public Job getJob(Long jobId) {
+        return jobRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
+    }
+
+    @Transactional("managerTransactionManager")
+    public void incrementCompletedItems(Long jobId, Integer increment) {
+        Job job = entityManager.find(Job.class, jobId, LockModeType.PESSIMISTIC_WRITE);
+
+        if (job == null) {
+            throw new RuntimeException("Job not found with id: " + jobId);
+        }
+
+        int newCompletedItems = job.getCompletedItems() + increment;
+        job.setCompletedItems(newCompletedItems);
+
+        // Recalculate percentage completed
+        if (newCompletedItems > 0) {
+            double percentCompleted = newCompletedItems / (double) job.getTotalItems() * 100;
+            job.setPercentCompleted(Math.min(percentCompleted, 100.0));
+        }
+
+        log.info("Incremented completed items for job {}: new total = {}", jobId, newCompletedItems);
+    }
+
+
+    @Transactional("managerTransactionManager")
+    public Job incrementTotalItems(Long jobId, Integer increment) {
+        Job job = entityManager.find(Job.class, jobId, LockModeType.PESSIMISTIC_WRITE);
+
+        if (job == null) {
+            throw new RuntimeException("Job not found with id: " + jobId);
+        }
+
+        int newTotalItems = job.getTotalItems() + increment;
+        job.setTotalItems(newTotalItems);
+
+        // Recalculate percentage completed
+        if (newTotalItems > 0) {
+            double percentCompleted = (double) job.getCompletedItems() / newTotalItems * 100;
+            job.setPercentCompleted(Math.min(percentCompleted, 100.0));
+        }
+
+        log.info("Incremented total items for job {}: new total = {}", jobId, newTotalItems);
+        return job; // No need to call save() as the entity is managed and changes will be persisted
+    }
 }

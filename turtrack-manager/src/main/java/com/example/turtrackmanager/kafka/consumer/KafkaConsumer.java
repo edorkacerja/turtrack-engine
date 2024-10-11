@@ -25,7 +25,7 @@ public class KafkaConsumer {
     @KafkaListener(topics = SCRAPED_CELLS_TOPIC, groupId = "turtrack-group")
     public void consumeScrapedCells(Map<String, Object> message) {
         System.out.println("Received scraped cell message: " + message);
-        cellService.processCell(message); // todo: finish updating this.
+        cellService.processCell(message);
     }
 
     @KafkaListener(topics = SCRAPED_VEHICLE_DETAILS_TOPIC, groupId = "turtrack-group")

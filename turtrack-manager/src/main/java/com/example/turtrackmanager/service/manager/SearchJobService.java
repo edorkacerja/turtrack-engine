@@ -1,12 +1,11 @@
 package com.example.turtrackmanager.service.manager;
 
-import com.example.turtrackmanager.kafka.producer.KafkaProducer;
+import com.example.turtrackmanager.dto.ToBeScrapedCellKafkaMessage;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.manager.OptimalCell;
 import com.example.turtrackmanager.model.turtrack.Cell;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import com.example.turtrackmanager.repository.manager.OptimalCellRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -31,8 +30,8 @@ import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_CEL
 public class SearchJobService {
     private final JobRepository jobRepository;
     private final RestTemplate restTemplate;
-    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
-    private final KafkaTemplate<String, OptimalCell> optimalCellSearchKafkaTemplate;
+//    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
+    private final KafkaTemplate<String, ToBeScrapedCellKafkaMessage> optimalCellSearchKafkaTemplate;
     private final OptimalCellRepository optimalCellRepository;
 
 
@@ -72,7 +71,11 @@ public class SearchJobService {
             int totalCountOfCellsToBeScraped = limit == 0 ? -1 : limit - startAt;
 
             boolean fromOptimalCells = (boolean) searchParams.get("fromOptimalCells");
+            boolean updateOptimalCells = (boolean) searchParams.get("updateOptimalCells");
             int cellSize = (int) searchParams.get("cell_size");
+
+            String startDate = (String) searchParams.get("startDate");
+            String endDate = (String) searchParams.get("endDate");
 
             if (fromOptimalCells) {
                 List<OptimalCell> cells = optimalCellRepository.findByCellSize(cellSize);
@@ -90,9 +93,22 @@ public class SearchJobService {
                 List<OptimalCell> sortedCells = cellStream.collect(Collectors.toList());
 
                 // Send cells to Kafka
-                sortedCells.forEach(cell ->
-                        optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
-                );
+                sortedCells.forEach(cell -> {
+                    ToBeScrapedCellKafkaMessage kafkaMessage = ToBeScrapedCellKafkaMessage.builder()
+                            .id(cell.getId().toString())
+                            .country(cell.getCountry())
+                            .startDate(startDate)
+                            .endDate(endDate)
+                            .jobId(job.getId().toString())
+                            .topRightLat(cell.getTopRightLat())
+                            .topRightLng(cell.getTopRightLng())
+                            .bottomLeftLat(cell.getBottomLeftLat())
+                            .bottomLeftLng(cell.getBottomLeftLng())
+                            .updateOptimalCell(updateOptimalCells)
+                            .build();
+
+                    optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, kafkaMessage.getId(), kafkaMessage);
+                });
 
                 log.info("Sent {} cells to Kafka.", sortedCells.size());
 
@@ -116,9 +132,22 @@ public class SearchJobService {
                 List<Cell> cellsToProcess = cellStream.collect(Collectors.toList());
 
                 // Send cells to Kafka
-                cellsToProcess.forEach(cell ->
-                        searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
-                );
+                cellsToProcess.forEach(cell -> {
+                    ToBeScrapedCellKafkaMessage kafkaMessage = ToBeScrapedCellKafkaMessage.builder()
+                            .id(cell.getId().toString())
+                            .country(cell.getCountry())
+                            .startDate(startDate)
+                            .endDate(endDate)
+                            .jobId(job.getId().toString())
+                            .topRightLat(cell.getTopRightLat())
+                            .topRightLng(cell.getTopRightLng())
+                            .bottomLeftLat(cell.getBottomLeftLat())
+                            .bottomLeftLng(cell.getBottomLeftLng())
+                            .updateOptimalCell(updateOptimalCells)
+                            .build();
+
+                    optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, kafkaMessage.getId(), kafkaMessage);
+                });
 
                 log.info("Sent {} cells to Kafka.", cellsToProcess.size());
 

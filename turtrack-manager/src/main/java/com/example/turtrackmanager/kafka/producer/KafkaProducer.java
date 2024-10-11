@@ -23,7 +23,7 @@ public class KafkaProducer {
 
     private final KafkaTemplate<String, DailyRateAndAvailability> dailyRateAndAvailabilityKafkaTemplate;
     private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;
-    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
+//    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
 
     public void sendVehiclesForAvailabilityScraping(List<DailyRateAndAvailability> dailyRateAndAvailabilityDTOS) {
         dailyRateAndAvailabilityDTOS.forEach(dailyRateAndAvailability ->
@@ -39,10 +39,10 @@ public class KafkaProducer {
         log.info("Sent {} vehicles for details scraping", vehicles.size());
     }
 
-    public void sendCellsForScraping(List<Cell> cells) {
-        cells.forEach(cell ->
-                searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
-        );
-        log.info("Sent {} cells for scraping", cells.size());
-    }
+//    public void sendCellsForScraping(List<Cell> cells) {
+//        cells.forEach(cell ->
+//                searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
+//        );
+//        log.info("Sent {} cells for scraping", cells.size());
+//    }
 }
