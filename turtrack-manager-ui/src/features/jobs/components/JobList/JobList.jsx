@@ -23,15 +23,12 @@ import ProgressBar from "@ramonak/react-progress-bar";
 import {useTraceRender, useTraceUpdate} from "../../utils/hooksUtil.js";
 
 const JobList = React.memo(() => {
-
-    useTraceRender('JobList');  // Add this line at the beginning of your component
+    useTraceRender('JobList');
 
     const dispatch = useDispatch();
     const { jobs, currentPage, itemsPerPage, totalElements, sortBy, sortDirection } = useSelector(
         state => ({
             jobs: state.jobs.jobs,
-            // status: state.jobs.status,
-            // error: state.jobs.error,
             currentPage: state.jobs.currentPage,
             itemsPerPage: state.jobs.itemsPerPage,
             totalElements: state.jobs.totalElements,
@@ -43,8 +40,6 @@ const JobList = React.memo(() => {
 
     useTraceUpdate({
         jobs,
-        // status,
-        // error,
         currentPage,
         itemsPerPage,
         totalElements,
@@ -52,21 +47,24 @@ const JobList = React.memo(() => {
         sortDirection
     });
     const intervalRef = useRef(null);
-
     const lastFetchRef = useRef(Date.now());
 
     const fetchJobsData = useCallback(() => {
         const now = Date.now();
-        if (now - lastFetchRef.current > 1000) {  // 1 second threshold
+        if (now - lastFetchRef.current > 1000) {
             lastFetchRef.current = now;
             dispatch(fetchJobs());
         }
     }, [dispatch]);
 
     useEffect(() => {
+        // Set initial sorting to 'createdAt' in descending order
+        if (sortBy !== 'createdAt' || sortDirection !== 'desc') {
+            dispatch(setSorting({ sortBy: 'createdAt', sortDirection: 'desc' }));
+        }
+
         fetchJobsData();
 
-        // Set up interval to fetch jobs every second
         intervalRef.current = setInterval(fetchJobsData, 100);
 
         return () => {
@@ -74,7 +72,7 @@ const JobList = React.memo(() => {
                 clearInterval(intervalRef.current);
             }
         };
-    }, [fetchJobsData]);
+    }, [fetchJobsData, dispatch, sortBy, sortDirection]);
 
     const handleChangePage = useCallback((event, newPage) => {
         dispatch(setCurrentPage(newPage));
@@ -93,7 +91,7 @@ const JobList = React.memo(() => {
 
     const handleJobAction = useCallback((jobId, action) => {
         dispatch(updateJobStatus({ jobId, status: action }))
-            .then(() => dispatch(fetchJobs()));  // Re-fetch jobs after status update
+            .then(() => dispatch(fetchJobs()));
     }, [dispatch]);
 
     const renderActionButtons = useCallback((job) => {
@@ -124,7 +122,9 @@ const JobList = React.memo(() => {
     }, [handleJobAction]);
 
     const renderProgress = useCallback(({ totalItems, completedItems, failedItems = 0, percentCompleted, isRunning }) => {
-        if (!totalItems || !percentCompleted) return <Typography variant="body2" color="text.secondary">Progress not available</Typography>;
+        if (totalItems == null || percentCompleted == null) {
+            return <Typography variant="body2" color="text.secondary">Progress not available</Typography>;
+        }
 
         return (
             <Box sx={{ width: '100%', mt: 1 }}>
@@ -171,9 +171,6 @@ const JobList = React.memo(() => {
             </Box>
         );
     }, []);
-
-    // if (status === 'loading') return <LinearProgress />;
-    // if (status === 'failed') return <Typography color="error">Error: {error}</Typography>;
 
     return (
         <Paper>

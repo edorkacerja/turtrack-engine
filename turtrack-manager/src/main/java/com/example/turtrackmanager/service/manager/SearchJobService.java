@@ -19,6 +19,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.example.turtrackmanager.util.Constants.CALIBRATOR_URL;
 import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_CELLS_TOPIC;
@@ -64,49 +66,69 @@ public class SearchJobService {
     public Job startJob(Job job, Map<String, Object> searchParams) {
         log.info("Starting job: {}", job);
 
-        List<Cell> baseCells = new ArrayList<>();
-        List<OptimalCell> optimalCells = new ArrayList<>();
-
-        boolean fromOptimalCells = (boolean)searchParams.get("fromOptimalCells");
-
-
-
         try {
+            int startAt = (int) searchParams.get("startAt");
+            int limit = (int) searchParams.get("limit");
+            int totalCountOfCellsToBeScraped = limit == 0 ? -1 : limit - startAt;
 
-            if(fromOptimalCells) {
+            boolean fromOptimalCells = (boolean) searchParams.get("fromOptimalCells");
+            int cellSize = (int) searchParams.get("cell_size");
 
-                optimalCells = optimalCellRepository.findAll();
+            if (fromOptimalCells) {
+                List<OptimalCell> cells = optimalCellRepository.findByCellSize(cellSize);
+
+                Stream<OptimalCell> cellStream = cells.stream()
+                        .sorted(Comparator
+                                .comparingDouble(OptimalCell::getBottomLeftLng)
+                                .thenComparingDouble(OptimalCell::getBottomLeftLat))
+                        .skip(startAt);
+
+                if (limit != 0) {
+                    cellStream = cellStream.limit(totalCountOfCellsToBeScraped);
+                }
+
+                List<OptimalCell> sortedCells = cellStream.collect(Collectors.toList());
 
                 // Send cells to Kafka
-                optimalCells.forEach(cell ->
+                sortedCells.forEach(cell ->
                         optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
                 );
 
-                log.info("Sent {} cells to Kafka.", optimalCells.size());
+                log.info("Sent {} cells to Kafka.", sortedCells.size());
 
                 job.setStatus(Job.JobStatus.RUNNING);
                 job.setStartedAt(LocalDateTime.now());
-                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), optimalCells.size());
-
-
+                job.setTotalItems(sortedCells.size());
+                job.setCompletedItems(0);
+                job.setFailedItems(0);
+                job.setPercentCompleted(0.0);
+                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), sortedCells.size());
 
             } else {
+                List<Cell> baseCells = callCalibratorEndpoint(searchParams);
 
-                // Call calibrator endpoint
-                baseCells = callCalibratorEndpoint(searchParams);
+                Stream<Cell> cellStream = baseCells.stream().skip(startAt);
+
+                if (limit != 0) {
+                    cellStream = cellStream.limit(totalCountOfCellsToBeScraped);
+                }
+
+                List<Cell> cellsToProcess = cellStream.collect(Collectors.toList());
 
                 // Send cells to Kafka
-                baseCells.forEach(cell ->
+                cellsToProcess.forEach(cell ->
                         searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
                 );
 
-                log.info("Sent {} cells to Kafka.", baseCells.size());
+                log.info("Sent {} cells to Kafka.", cellsToProcess.size());
 
                 job.setStatus(Job.JobStatus.RUNNING);
                 job.setStartedAt(LocalDateTime.now());
-                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), baseCells.size());
-
-
+                job.setTotalItems(cellsToProcess.size());
+                job.setCompletedItems(0);
+                job.setFailedItems(0);
+                job.setPercentCompleted(0.0);
+                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), cellsToProcess.size());
             }
 
         } catch (Exception e) {

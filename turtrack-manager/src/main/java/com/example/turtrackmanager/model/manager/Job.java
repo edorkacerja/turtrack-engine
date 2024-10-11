@@ -40,20 +40,26 @@ public class Job {
     @Enumerated(EnumType.STRING)
     private JobType jobType;
 
-//    @Column(name = "kafka_topic_title", nullable = true)
-//    private String kafkaTopicTitle;
-
     @Column(name = "percent_completed")
-    private Double percentCompleted = 0.0;
+    private Double percentCompleted;
 
     @Column(name = "total_items")
     private Integer totalItems;
 
-    @Column(name = "completed_items")
-    private Integer completedItems = 0;
+    @Column(name = "completed_items", nullable = false, columnDefinition = "INT DEFAULT 0")
+    private Integer completedItems;
 
-    @Column(name = "failed_items")
-    private Integer failedItems = 0;
+    @Column(name = "failed_items", nullable = false, columnDefinition = "INT DEFAULT 0")
+    private Integer failedItems;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (status == null) status = JobStatus.CREATED;
+        if (percentCompleted == null) percentCompleted = 0.0;
+        if (completedItems == null) completedItems = 0;
+        if (failedItems == null) failedItems = 0;
+    }
 
     public enum JobStatus {
         CREATED, RUNNING, STOPPED, CANCELLED, FINISHED, FAILED
