@@ -35,7 +35,7 @@ public class CellService {
 
             Optional<OptimalCell> baseCell = optimalCellRepository.findById(baseId);
 
-            if (!baseCellId.equals(optimalCellId)) {
+            if (baseCellId.equals(optimalCellId)) {
 
                 if (baseCell.isEmpty()) {
                     OptimalCell optimalCellToSave = OptimalCell.builder()

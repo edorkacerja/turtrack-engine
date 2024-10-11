@@ -2,8 +2,10 @@ package com.example.turtrackmanager.service.manager;
 
 import com.example.turtrackmanager.kafka.producer.KafkaProducer;
 import com.example.turtrackmanager.model.manager.Job;
+import com.example.turtrackmanager.model.manager.OptimalCell;
 import com.example.turtrackmanager.model.turtrack.Cell;
 import com.example.turtrackmanager.repository.manager.JobRepository;
+import com.example.turtrackmanager.repository.manager.OptimalCellRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +30,13 @@ public class SearchJobService {
     private final JobRepository jobRepository;
     private final RestTemplate restTemplate;
     private final KafkaTemplate<String, Cell> searchKafkaTemplate;
+    private final KafkaTemplate<String, OptimalCell> optimalCellSearchKafkaTemplate;
+    private final OptimalCellRepository optimalCellRepository;
 
 
     @Transactional
     public Job createAndStartSearchJob(Map<String, Object> searchParams) {
+
         Job job = Job.builder()
                 .title("Search Job")
                 .status(Job.JobStatus.CREATED)
@@ -56,24 +61,54 @@ public class SearchJobService {
     }
 
     @Transactional
-    public Job startJob(Job job, Map<String, Object> params) {
+    public Job startJob(Job job, Map<String, Object> searchParams) {
         log.info("Starting job: {}", job);
 
+        List<Cell> baseCells = new ArrayList<>();
+        List<OptimalCell> optimalCells = new ArrayList<>();
+
+        boolean fromOptimalCells = (boolean)searchParams.get("fromOptimalCells");
+
+
+
         try {
-            // Call calibrator endpoint
-            List<Cell> cells = callCalibratorEndpoint(params);
 
-            // Send cells to Kafka
-            cells.forEach(cell ->
-                    searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
-            );
+            if(fromOptimalCells) {
 
-            log.info("Sent {} cells to Kafka.", cells.size());
+                optimalCells = optimalCellRepository.findAll();
+
+                // Send cells to Kafka
+                optimalCells.forEach(cell ->
+                        optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
+                );
+
+                log.info("Sent {} cells to Kafka.", optimalCells.size());
+
+                job.setStatus(Job.JobStatus.RUNNING);
+                job.setStartedAt(LocalDateTime.now());
+                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), optimalCells.size());
 
 
-            job.setStatus(Job.JobStatus.RUNNING);
-            job.setStartedAt(LocalDateTime.now());
-            log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), cells.size());
+
+            } else {
+
+                // Call calibrator endpoint
+                baseCells = callCalibratorEndpoint(searchParams);
+
+                // Send cells to Kafka
+                baseCells.forEach(cell ->
+                        searchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, String.valueOf(cell.getId()), cell)
+                );
+
+                log.info("Sent {} cells to Kafka.", baseCells.size());
+
+                job.setStatus(Job.JobStatus.RUNNING);
+                job.setStartedAt(LocalDateTime.now());
+                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), baseCells.size());
+
+
+            }
+
         } catch (Exception e) {
             log.error("Failed to start job: {}", job.getId(), e);
             job.setStatus(Job.JobStatus.FAILED);
@@ -81,6 +116,7 @@ public class SearchJobService {
 
         return jobRepository.save(job);
     }
+
 
     private List<Cell> callCalibratorEndpoint(Map<String, Object> params) {
         HttpHeaders headers = new HttpHeaders();

@@ -1,5 +1,6 @@
 package com.example.turtrackmanager.model.manager;
 
+import com.example.turtrackmanager.model.turtrack.Cell;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
