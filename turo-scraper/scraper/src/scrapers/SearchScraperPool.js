@@ -172,7 +172,7 @@ class SearchScraperPool {
         cell.setCountry("US");
         cell.setCellSize(cellSize);
 
-        const processingPromise = this.recursiveFetch(scraper, cell, 0, jobId, consumer, topic, partition, message, updateOptimalCell)
+        const processingPromise = this.recursiveFetch(scraper, cell, 0, jobId, consumer, topic, partition, message, null, updateOptimalCell)
             .catch(async (error) => {
                 console.error(`[${scraper.instanceId}] Error processing cell ${cell.id}:`, error);
                 await this.handleFailedScrape(cell, error, jobId, topic, partition, message);
@@ -193,7 +193,7 @@ class SearchScraperPool {
         this.processingPromises.add(processingPromise);
     }
 
-    async recursiveFetch(scraper, cell, depth, jobId, consumer, topic, partition, message, baseCell = null, updateOptimalCell = false) {
+    async recursiveFetch(scraper, cell, depth, jobId, consumer, topic, partition, message, baseCell, updateOptimalCell = false) {
         if (!baseCell) baseCell = cell;
 
         if (depth > this.recursiveDepth) {
@@ -211,7 +211,7 @@ class SearchScraperPool {
 
                 if (!isJobRunning) {
                     await commitOffsetsWithRetry(consumer, topic, partition, message.offset);
-                    // await this.destroyScraper(scraper);
+                    if(scraper?.running) await this.destroyScraper(scraper);
                     break;
                 }
 
@@ -242,7 +242,7 @@ class SearchScraperPool {
 
                 const cells = cellutil.cellSplit(cell, this.divider, this.divider);
                 for (let minicell of cells) {
-                    await this.recursiveFetch(scraper, minicell, depth + 1, jobId, consumer, topic, partition, message, baseCell);
+                    await this.recursiveFetch(scraper, minicell, depth + 1, jobId, consumer, topic, partition, message, baseCell, updateOptimalCell);
                 }
                 return;
             } catch (error) {

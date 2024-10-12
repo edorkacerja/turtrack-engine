@@ -4,11 +4,11 @@ const { Kafka } = require('kafkajs');
 const {
     KAFKA_CLIENT_ID_PREFIX_SEARCH,
     KAFKA_CONSUMER_GROUP_ID_SEARCH,
-    TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC, DLQ_TOPIC_DR_AVAILABILITY, DLQ_CELLS_TOPIC
+    TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC, DLQ_CELLS_TOPIC
 } = require("../utils/constants");
 const JobService = require("../services/JobService");
 const { logMemoryUsage } = require("../utils/utils");
-const { sendToKafka, commitOffsetsWithRetry} = require("../utils/kafkaUtil");
+const { sendToKafka, commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const SearchScraperPool = require("../scrapers/SearchScraperPool");
 const dateutil = require("../utils/dateutil");
 const BaseCell = require("../models/BaseCell");
@@ -21,9 +21,10 @@ class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 10; // 10 scrapers is the optimal. so the scrapers don't fail. 20 min total time
+        this.MAX_POOL_SIZE = 10; // Optimal scrapers
         this.isShuttingDown = false;
         this.fileManager = new FileManager("search");
+        this.totalMessagesReceived = 0;
 
         this.kafka = new Kafka({
             clientId: `${KAFKA_CLIENT_ID_PREFIX_SEARCH}`,
@@ -56,7 +57,7 @@ class CellsConsumer {
             try {
                 console.log(`Connecting to Kafka and subscribing to ${TO_BE_SCRAPED_CELLS_TOPIC}`);
                 await this.consumer.connect();
-                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC, fromBeginning: true  });
+                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC });
 
                 console.log(`Initializing Search ScraperPool...`);
                 this.scraperPool = new SearchScraperPool(
@@ -69,15 +70,15 @@ class CellsConsumer {
                     this.resumeConsumer.bind(this)
                 );
                 await this.scraperPool.initialize();
-                await this.runKafkaConsumer();
 
+                await this.runKafkaConsumer();
                 console.log(`Availability scraper consumer is now running and listening for messages`);
                 logMemoryUsage();
 
                 break;
             } catch (error) {
                 console.error(`Consumer error, attempting to reconnect:`, error);
-                await this.consumer.disconnect().catch(() => {});
+                await this.consumer.disconnect().catch(() => { });
                 if (this.scraperPool) {
                     await this.scraperPool.close();
                 }
@@ -87,20 +88,27 @@ class CellsConsumer {
     }
 
     async runKafkaConsumer() {
+        // Dynamically import p-limit
+        const pLimit = (await import('p-limit')).default;
+        const limit = pLimit(this.MAX_POOL_SIZE); // Limit to 10 concurrent async tasks
+
         await this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
-                const jobId = this.extractJobId(message);
+                this.totalMessagesReceived++;
+                console.log(`Received message from ${topic}#${partition}`);
+                console.log(`Total messages received: ${this.totalMessagesReceived}`);
 
+                limit(async () => {
+                    const jobId = this.extractJobId(message);
                     const isJobRunning = await JobService.isJobRunning(jobId);
 
                     if (isJobRunning) {
-                        // If the job is running, handle the message
                         await this.scraperPool.handleMessage(topic, partition, message, this.consumer);
                     } else {
-                        // If the job is not running, log and skip the message
                         console.log(`Job ${jobId} is not running. Skipping message.`);
                         await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
                     }
+                });
             },
         });
     }
@@ -150,17 +158,11 @@ class CellsConsumer {
             await sendToKafka(SCRAPED_CELLS_TOPIC, data);
             console.log(`Scraped data sent for cell ${data}`);
 
-
-
-            // Metadata shit....
-
-
             let { baseCell, optimalCell, scraped } = data;
 
             optimalCell.setSearchLastUpdated(dateutil.now());
             baseCell.setSearchLastUpdated(dateutil.now());
 
-            // make sure to change the class name to the correct one
             baseCell = new BaseCell(baseCell);
             optimalCell = new OptimalCell(optimalCell);
 
@@ -182,7 +184,6 @@ class CellsConsumer {
 
             await MetadataManager.updateHash();
             await this.fileManager.write(optimalCell.getId(), scraped);
-
 
         } catch (error) {
             console.error(`Failed to send scraped data for vehicle ${data}:`, error);
