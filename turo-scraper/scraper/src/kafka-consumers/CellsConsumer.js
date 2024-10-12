@@ -57,7 +57,7 @@ class CellsConsumer {
             try {
                 console.log(`Connecting to Kafka and subscribing to ${TO_BE_SCRAPED_CELLS_TOPIC}`);
                 await this.consumer.connect();
-                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC });
+                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC, fromBeginning: true });
 
                 console.log(`Initializing Search ScraperPool...`);
                 this.scraperPool = new SearchScraperPool(
@@ -66,8 +66,8 @@ class CellsConsumer {
                     this.proxyServer,
                     this.handleFailedScrape.bind(this),
                     this.handleSuccessfulScrape.bind(this),
-                    this.pauseConsumer.bind(this),
-                    this.resumeConsumer.bind(this)
+                    // this.pauseConsumer.bind(this),
+                    // this.resumeConsumer.bind(this)
                 );
                 await this.scraperPool.initialize();
 
@@ -92,13 +92,20 @@ class CellsConsumer {
         const pLimit = (await import('p-limit')).default;
         const limit = pLimit(this.MAX_POOL_SIZE); // Limit to 10 concurrent async tasks
 
+        let activeTasksCount = 0;
+        let totalTasksProcessed = 0;
+
         await this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
                 this.totalMessagesReceived++;
                 console.log(`Received message from ${topic}#${partition}`);
                 console.log(`Total messages received: ${this.totalMessagesReceived}`);
 
+
                 limit(async () => {
+                    activeTasksCount++;
+
+                    console.log(`Starting limited task. Active tasks: ${activeTasksCount}`);
                     const jobId = this.extractJobId(message);
                     const isJobRunning = await JobService.isJobRunning(jobId);
 
@@ -108,6 +115,13 @@ class CellsConsumer {
                         console.log(`Job ${jobId} is not running. Skipping message.`);
                         await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
                     }
+
+                    activeTasksCount--;
+                    totalTasksProcessed++;
+                    console.log(`Task completed. Active tasks: ${activeTasksCount}, Total processed: ${totalTasksProcessed}`);
+                }).catch(error => {
+                    console.error('Error in limited task:', error);
+                    activeTasksCount--;
                 });
             },
         });
