@@ -206,6 +206,15 @@ class SearchScraperPool {
 
         while (retryCount < maxRetries) {
             try {
+
+                const isJobRunning = await JobService.isJobRunning(jobId);
+
+                if (!isJobRunning) {
+                    await commitOffsetsWithRetry(consumer, topic, partition, message.offset);
+                    // await this.destroyScraper(scraper);
+                    break;
+                }
+
                 const data = await scraper.fetch(cell);
 
                 if (!data?.vehicles) {

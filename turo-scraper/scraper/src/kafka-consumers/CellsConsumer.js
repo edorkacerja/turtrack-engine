@@ -44,7 +44,8 @@ class CellsConsumer {
                 retries: 10
             },
             readUncommitted: true,
-            autoCommit: false
+            autoCommit: false,
+            maxBytesPerPartition: 3000
         });
 
         this.scraperPool = null;

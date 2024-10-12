@@ -104,25 +104,38 @@ public class JobService {
     }
 
     @Transactional("managerTransactionManager")
-    public void incrementCompletedItems(Long jobId, Integer increment) {
+    public void incrementCompletedItems(Long jobId, Integer completedIncrement) {
         Job job = entityManager.find(Job.class, jobId, LockModeType.PESSIMISTIC_WRITE);
 
         if (job == null) {
             throw new RuntimeException("Job not found with id: " + jobId);
         }
 
-        int newCompletedItems = job.getCompletedItems() + increment;
+        int newCompletedItems = job.getCompletedItems() + completedIncrement;
+        int failedItems = job.getFailedItems();
         job.setCompletedItems(newCompletedItems);
+        job.setFailedItems(failedItems);
+
+        int totalProcessedItems = newCompletedItems + failedItems;
+        int totalItems = job.getTotalItems();
 
         // Recalculate percentage completed
-        if (newCompletedItems > 0) {
-            double percentCompleted = newCompletedItems / (double) job.getTotalItems() * 100;
+        if (totalProcessedItems > 0) {
+            double percentCompleted = totalProcessedItems / (double) totalItems * 100;
             job.setPercentCompleted(Math.min(percentCompleted, 100.0));
         }
 
-        log.info("Incremented completed items for job {}: new total = {}", jobId, newCompletedItems);
-    }
+        // Check if job is completed
+        if (totalProcessedItems >= totalItems) {
+            job.setStatus(Job.JobStatus.FINISHED);
+        }
 
+        // Save the changes
+        entityManager.merge(job);
+
+        log.info("Updated job {}: completed = {}, failed = {}, total = {}, status = {}",
+                jobId, newCompletedItems, failedItems, totalItems, job.getStatus());
+    }
 
     @Transactional("managerTransactionManager")
     public Job incrementTotalItems(Long jobId, Integer increment) {
