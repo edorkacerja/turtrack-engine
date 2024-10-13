@@ -10,6 +10,7 @@ public class ToBeScrapedCellKafkaMessage {
     private String country;
     private Integer cellSize;
     private String status;
+    private Integer recursiveDepth;
     private Double topRightLat;
     private Double topRightLng;
     private Double bottomLeftLng;

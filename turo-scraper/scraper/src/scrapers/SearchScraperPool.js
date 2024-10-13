@@ -21,16 +21,139 @@ class SearchScraperPool {
 
         this.scrapers = new Map();
         this.availableScrapers = new Set();
-        this.processingPromises = new Set();
         this.idleTimers = new Map();
 
         this.divider = 2;
-        this.recursiveDepth = 10;
         this.mutex = new Mutex();
     }
 
     async initialize() {
         console.log(`Initializing ScraperPool with maximum size of ${this.maxPoolSize} scrapers`);
+    }
+
+    async handleMessage(message, channel) {
+        console.log(`[handleMessage] Received message from RabbitMQ.`);
+
+        const messageData = JSON.parse(message.content.toString());
+        const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId, updateOptimalCell, recursiveDepth } = messageData;
+        console.log(`[handleMessage] Processing cell ${id} for job ${jobId}.`);
+
+        const cell = new Cell();
+        cell.setId(id);
+        cell.setBottomLeft(bottomLeftLat, bottomLeftLng);
+        cell.setTopRight(topRightLat, topRightLng);
+        cell.setCountry("US");
+        cell.setCellSize(cellSize);
+
+        const cancellationToken = { isCanceled: false };
+
+        try {
+            await this.recursiveFetch(cell, 0, jobId, channel, recursiveDepth, null, updateOptimalCell, cancellationToken);
+            console.log(`[handleMessage] Finished processing cell ${cell.id}.`);
+        } catch (error) {
+            console.error(`[handleMessage] Error processing cell ${cell.id}:`, error);
+            await this.handleFailedScrape(cell, error, jobId, message);
+        }
+    }
+
+    async recursiveFetch(cell, depth, jobId, channel, recursiveDepth, baseCell, updateOptimalCell = false, cancellationToken) {
+        if (cancellationToken.isCanceled) {
+            console.log(`[recursiveFetch] Job ${jobId} has been canceled. Stopping recursion for cell ${cell.id}.`);
+            return;
+        }
+
+        if (!baseCell) baseCell = cell;
+
+        console.log(`[recursiveFetch] Starting recursive fetch for cell ${cell.id} at depth ${depth}.`);
+
+        if (depth > recursiveDepth) {
+            console.log(`[recursiveFetch] Max depth (${recursiveDepth}) reached for cell ${cell.id}.`);
+            return;
+        }
+
+        const maxRetries = 10;
+        let retryCount = 0;
+
+        while (retryCount < maxRetries) {
+            let scraper;
+            try {
+                if (cancellationToken.isCanceled) {
+                    console.log(`[recursiveFetch] Job ${jobId} has been canceled during retry loop. Stopping recursion for cell ${cell.id}.`);
+                    return;
+                }
+
+                console.log(`[recursiveFetch] Checking if job ${jobId} is running.`);
+                const isJobRunning = await JobService.isJobRunning(jobId);
+
+                if (!isJobRunning) {
+                    console.log(`[recursiveFetch] Job ${jobId} is no longer running. Setting cancellation token.`);
+                    cancellationToken.isCanceled = true;
+                    return;
+                }
+
+                scraper = await this.acquireScraper();
+                console.log(`[recursiveFetch] Acquired scraper ${scraper.instanceId} for cell ${cell.id}.`);
+
+                console.log(`[recursiveFetch] Fetching data for cell ${cell.id}.`);
+                const data = await scraper.fetch(cell);
+
+                await this.releaseScraper(scraper);
+                scraper = null;
+                console.log(`[recursiveFetch] Released scraper after fetching data for cell ${cell.id}.`);
+
+                if (!data?.vehicles) {
+                    throw new Error("No vehicles data");
+                }
+
+                const vehiclesLength = data.vehicles.length;
+                const isSearchRadiusZero = data?.searchLocation?.appliedRadius?.value === 0;
+
+                console.log(`[recursiveFetch] Fetched ${vehiclesLength} vehicles for cell ${cell.id}.`);
+
+                if (vehiclesLength < 200 || isSearchRadiusZero || depth >= recursiveDepth) {
+                    console.log(`[recursiveFetch] Optimal cell found or max depth reached for cell ${cell.id}.`);
+                    cell.setVehicleCount(vehiclesLength);
+                    await this.handleSuccessfulScrape({
+                        baseCell,
+                        optimalCell: cell,
+                        scraped: data,
+                        jobId: jobId,
+                        updateOptimalCell: updateOptimalCell
+                    });
+                    return;
+                }
+
+                console.log(`[recursiveFetch] Splitting cell ${cell.id} into smaller cells.`);
+                await JobService.incrementJobTotalItems(jobId, 3);
+
+                const cells = cellutil.cellSplit(cell, this.divider, this.divider);
+                for (let minicell of cells) {
+                    console.log(`[recursiveFetch] Recursively fetching minicell ${minicell.id}.`);
+                    await this.recursiveFetch(minicell, depth + 1, jobId, channel, recursiveDepth, baseCell, updateOptimalCell, cancellationToken);
+                    if (cancellationToken.isCanceled) {
+                        console.log(`[recursiveFetch] Cancellation detected during recursion. Stopping recursion for minicell ${minicell.id}.`);
+                        return;
+                    }
+                }
+                return;
+            } catch (error) {
+                console.error(`[recursiveFetch] Error fetching data for cell ${cell.id}:`, error);
+                retryCount++;
+
+                if (scraper) {
+                    await this.destroyScraper(scraper.instanceId);
+                    scraper = null;
+                }
+
+                if (retryCount < maxRetries) {
+                    console.log(`[recursiveFetch] Retrying fetch (${retryCount}/${maxRetries}) after error.`);
+                    await sleep(1100);
+                } else {
+                    console.error(`[recursiveFetch] Max retries reached for cell ${cell.id}. Throwing error.`);
+                    throw error;
+                }
+            }
+        }
     }
 
     async createScraper(retryCount = 0, scraperId) {
@@ -199,131 +322,6 @@ class SearchScraperPool {
             }
         } catch (error) {
             console.error(`[destroyScraper] Error destroying scraper ${scraperId}:`, error);
-        }
-    }
-
-    async handleMessage(message, channel) {
-        console.log(`[handleMessage] Received message from RabbitMQ.`);
-
-        const messageData = JSON.parse(message.content.toString());
-        const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId, updateOptimalCell } = messageData;
-        console.log(`[handleMessage] Processing cell ${id} for job ${jobId}.`);
-
-        const cell = new Cell();
-        cell.setId(id);
-        cell.setBottomLeft(bottomLeftLat, bottomLeftLng);
-        cell.setTopRight(topRightLat, topRightLng);
-        cell.setCountry("US");
-        cell.setCellSize(cellSize);
-
-        const cancellationToken = { isCanceled: false };
-
-        try {
-            await this.recursiveFetch(cell, 0, jobId, channel, message, null, updateOptimalCell, cancellationToken);
-            console.log(`[handleMessage] Finished processing cell ${cell.id}.`);
-        } catch (error) {
-            console.error(`[handleMessage] Error processing cell ${cell.id}:`, error);
-            await this.handleFailedScrape(cell, error, jobId, message);
-        }
-    }
-
-    async recursiveFetch(cell, depth, jobId, channel, message, baseCell, updateOptimalCell = false, cancellationToken) {
-        if (cancellationToken.isCanceled) {
-            console.log(`[recursiveFetch] Job ${jobId} has been canceled. Stopping recursion for cell ${cell.id}.`);
-            return;
-        }
-
-        if (!baseCell) baseCell = cell;
-
-        console.log(`[recursiveFetch] Starting recursive fetch for cell ${cell.id} at depth ${depth}.`);
-
-        if (depth > this.recursiveDepth) {
-            console.log(`[recursiveFetch] Max depth (${this.recursiveDepth}) reached for cell ${cell.id}.`);
-            return;
-        }
-
-        const maxRetries = 10;
-        let retryCount = 0;
-
-        while (retryCount < maxRetries) {
-            let scraper;
-            try {
-                if (cancellationToken.isCanceled) {
-                    console.log(`[recursiveFetch] Job ${jobId} has been canceled during retry loop. Stopping recursion for cell ${cell.id}.`);
-                    return;
-                }
-
-                console.log(`[recursiveFetch] Checking if job ${jobId} is running.`);
-                const isJobRunning = await JobService.isJobRunning(jobId);
-
-                if (!isJobRunning) {
-                    console.log(`[recursiveFetch] Job ${jobId} is no longer running. Setting cancellation token.`);
-                    cancellationToken.isCanceled = true;
-                    return;
-                }
-
-                scraper = await this.acquireScraper();
-                console.log(`[recursiveFetch] Acquired scraper ${scraper.instanceId} for cell ${cell.id}.`);
-
-                console.log(`[recursiveFetch] Fetching data for cell ${cell.id}.`);
-                const data = await scraper.fetch(cell);
-
-                await this.releaseScraper(scraper);
-                scraper = null;
-                console.log(`[recursiveFetch] Released scraper after fetching data for cell ${cell.id}.`);
-
-                if (!data?.vehicles) {
-                    throw new Error("No vehicles data");
-                }
-
-                const vehiclesLength = data.vehicles.length;
-                const isSearchRadiusZero = data?.searchLocation?.appliedRadius?.value === 0;
-
-                console.log(`[recursiveFetch] Fetched ${vehiclesLength} vehicles for cell ${cell.id}.`);
-
-                if (vehiclesLength < 200 || isSearchRadiusZero || depth >= this.recursiveDepth) {
-                    console.log(`[recursiveFetch] Optimal cell found or max depth reached for cell ${cell.id}.`);
-                    cell.setVehicleCount(vehiclesLength);
-                    await this.handleSuccessfulScrape({
-                        baseCell,
-                        optimalCell: cell,
-                        scraped: data,
-                        jobId: jobId,
-                        updateOptimalCell: updateOptimalCell
-                    });
-                    return;
-                }
-
-                console.log(`[recursiveFetch] Splitting cell ${cell.id} into smaller cells.`);
-                await JobService.incrementJobTotalItems(jobId, 3);
-
-                const cells = cellutil.cellSplit(cell, this.divider, this.divider);
-                for (let minicell of cells) {
-                    console.log(`[recursiveFetch] Recursively fetching minicell ${minicell.id}.`);
-                    await this.recursiveFetch(minicell, depth + 1, jobId, channel, message, baseCell, updateOptimalCell, cancellationToken);
-                    if (cancellationToken.isCanceled) {
-                        console.log(`[recursiveFetch] Cancellation detected during recursion. Stopping recursion for minicell ${minicell.id}.`);
-                        return;
-                    }
-                }
-                return;
-            } catch (error) {
-                console.error(`[recursiveFetch] Error fetching data for cell ${cell.id}:`, error);
-                retryCount++;
-
-                if (scraper) {
-                    await this.destroyScraper(scraper.instanceId);
-                    scraper = null;
-                }
-
-                if (retryCount < maxRetries) {
-                    console.log(`[recursiveFetch] Retrying fetch (${retryCount}/${maxRetries}) after error.`);
-                    await sleep(1100);
-                } else {
-                    console.error(`[recursiveFetch] Max retries reached for cell ${cell.id}. Throwing error.`);
-                    throw error;
-                }
-            }
         }
     }
 

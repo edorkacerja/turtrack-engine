@@ -23,7 +23,6 @@ class CellsConsumer {
         this.MAX_POOL_SIZE = 10;
         this.isShuttingDown = false;
         this.fileManager = new FileManager("search");
-        this.totalMessagesReceived = 0;
 
         this.connection = null;
         this.channel = null;
@@ -78,10 +77,7 @@ class CellsConsumer {
 
             const jobId = this.extractJobId(message);
             const isJobRunning = await JobService.isJobRunning(jobId);
-
-            this.totalMessagesReceived++;
             console.log(`Received message from ${TO_BE_SCRAPED_CELLS_QUEUE} JobID: ${jobId}`);
-            console.log(`Total messages received: ${this.totalMessagesReceived}`);
 
             if (isJobRunning) {
                 console.log(`Processing message for job ${jobId}`);

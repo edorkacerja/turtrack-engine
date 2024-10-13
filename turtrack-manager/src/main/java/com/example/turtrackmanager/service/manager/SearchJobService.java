@@ -76,6 +76,7 @@ public class SearchJobService {
             boolean fromOptimalCells = (boolean) searchParams.get("fromOptimalCells");
             boolean updateOptimalCells = (boolean) searchParams.get("updateOptimalCells");
             int cellSize = (int) searchParams.get("cell_size");
+            int recursiveDepth = (int) searchParams.get("recursiveDepth");
 
             String startDate = (String) searchParams.get("startDate");
             String endDate = (String) searchParams.get("endDate");
@@ -101,6 +102,7 @@ public class SearchJobService {
                             .id(cell.getId().toString())
                             .country(cell.getCountry())
                             .cellSize(cell.getCellSize())
+                            .recursiveDepth(recursiveDepth)
                             .startDate(startDate)
                             .endDate(endDate)
                             .jobId(job.getId().toString())
@@ -147,6 +149,7 @@ public class SearchJobService {
                             .id(cell.getId().toString())
                             .country(cell.getCountry())
                             .cellSize(cell.getCellSize())
+                            .recursiveDepth(recursiveDepth)
                             .startDate(startDate)
                             .endDate(endDate)
                             .jobId(job.getId().toString())
