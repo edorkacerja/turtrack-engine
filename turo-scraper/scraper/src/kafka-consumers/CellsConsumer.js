@@ -51,11 +51,9 @@ class CellsConsumer {
                     this.handleFailedScrape.bind(this),
                     this.handleSuccessfulScrape.bind(this)
                 );
-                await this.scraperPool.initialize();
 
                 await this.runRabbitMQConsumer();
-                console.log(`Availability scraper consumer is now running and listening for messages`);
-                logMemoryUsage();
+                console.log(`Search Consumer is now running and listening for messages from the queue`);
 
                 break;
             } catch (error) {
@@ -79,25 +77,21 @@ class CellsConsumer {
             const isJobRunning = await JobService.isJobRunning(jobId);
             console.log(`Received message from ${TO_BE_SCRAPED_CELLS_QUEUE} JobID: ${jobId}`);
 
-            if (isJobRunning) {
-                console.log(`Processing message for job ${jobId}`);
-                await this.processMessage(message);
-            } else {
+            if (!isJobRunning) {
                 console.log(`Job ${jobId} is not running. Acknowledging message.`);
                 this.channel.ack(message);
+                return;
             }
-        }, { noAck: false });
-    }
 
-    async processMessage(message) {
-        try {
-            await this.scraperPool.handleMessage(message, this.channel);
-            console.log(`Finished processing message`);
-            this.channel.ack(message);
-        } catch (error) {
-            console.error(`Error processing message:`, error);
-            this.channel.ack(message);
-        }
+            try {
+                await this.scraperPool.handleMessage(message, this.channel);
+                console.log(`Finished processing message for job ${jobId}`);
+            } catch (error) {
+                console.error(`Error processing message for job ${jobId}:`, error);
+            } finally {
+                this.channel.ack(message);
+            }
+            }, { noAck: false });
     }
 
     extractJobId(message) {
@@ -130,13 +124,12 @@ class CellsConsumer {
 
     async handleSuccessfulScrape(data) {
         try {
-            await this.channel.sendToQueue(SCRAPED_CELLS_QUEUE, Buffer.from(JSON.stringify(data)));
-            console.log(`Scraped data sent for cell ${data.baseCell.getId()}`);
-
             let { baseCell, optimalCell, scraped } = data;
+            const now = dateutil.now();
 
-            optimalCell.setSearchLastUpdated(dateutil.now());
-            baseCell.setSearchLastUpdated(dateutil.now());
+            // Update cells
+            optimalCell.setSearchLastUpdated(now);
+            baseCell.setSearchLastUpdated(now);
 
             baseCell = new BaseCell(baseCell);
             optimalCell = new OptimalCell(optimalCell);
@@ -144,27 +137,48 @@ class CellsConsumer {
             MetadataManager.addOptimalCell(optimalCell);
             MetadataManager.addBaseCell(baseCell);
 
-            const vehicles = scraped.vehicles;
+            // Prepare data to send to queue
+            const queueData = {
+                ...data,
+                scraped: {
+                    vehicles: []
+                }
+            };
 
-            for (let vehicle of vehicles) {
-                const vehicleObj = new Vehicle()
-                    .setId(vehicle.id)
-                    .setCountry(baseCell.country)
-                    .setCellId(optimalCell.getId())
-                    .setSearchLastUpdated(dateutil.now());
+            // Check if there are any vehicles
+            if (scraped.vehicles && scraped.vehicles.length > 0) {
+                for (let vehicle of scraped.vehicles) {
+                    const vehicleObj = new Vehicle()
+                        .setId(vehicle.id)
+                        .setCountry(baseCell.country)
+                        .setCellId(optimalCell.getId())
+                        .setSearchLastUpdated(now);
 
-                console.log(`Adding vehicle ${vehicle.id} to metadata.`);
-                await MetadataManager.addVehicle(vehicleObj);
+                    // Add simplified vehicle data to queue data
+                    queueData.scraped.vehicles.push({
+                        id: vehicle.id,
+                        country: baseCell.country,
+                        cellId: optimalCell.getId(),
+                        searchLastUpdated: now
+                    });
+
+                    console.log(`Adding vehicle ${vehicle.id} to metadata.`);
+                    await MetadataManager.addVehicle(vehicleObj);
+                }
             }
+
+            // Send data to queue
+            await this.channel.sendToQueue(SCRAPED_CELLS_QUEUE, Buffer.from(JSON.stringify(queueData)));
+            console.log(`Scraped data sent for cell ${baseCell.getId()}`);
 
             await MetadataManager.updateHash();
             await this.fileManager.write(optimalCell.getId(), scraped);
 
         } catch (error) {
-            console.error(`Failed to send scraped data for cell ${data.baseCell.getId()}:`, error);
+            console.error(`Failed to handle scraped data for cell ${data.baseCell.getId()}:`, error);
         }
-    }
 
+    }
     async cleanup() {
         if (this.isShuttingDown) return;
         this.isShuttingDown = true;
@@ -177,7 +191,6 @@ class CellsConsumer {
         } catch (error) {
             console.error(`Error during shutdown:`, error);
         } finally {
-            logMemoryUsage();
             process.exit(0);
         }
     }

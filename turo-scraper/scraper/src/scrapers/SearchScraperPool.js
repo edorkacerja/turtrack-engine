@@ -27,22 +27,18 @@ class SearchScraperPool {
         this.mutex = new Mutex();
     }
 
-    async initialize() {
-        console.log(`Initializing ScraperPool with maximum size of ${this.maxPoolSize} scrapers`);
-    }
 
     async handleMessage(message, channel) {
-        console.log(`[handleMessage] Received message from RabbitMQ.`);
 
         const messageData = JSON.parse(message.content.toString());
-        const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId, updateOptimalCell, recursiveDepth } = messageData;
+        const { id, country, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId, updateOptimalCell, recursiveDepth } = messageData;
         console.log(`[handleMessage] Processing cell ${id} for job ${jobId}.`);
 
         const cell = new Cell();
         cell.setId(id);
         cell.setBottomLeft(bottomLeftLat, bottomLeftLng);
         cell.setTopRight(topRightLat, topRightLng);
-        cell.setCountry("US");
+        cell.setCountry(country);
         cell.setCellSize(cellSize);
 
         const cancellationToken = { isCanceled: false };
@@ -108,10 +104,7 @@ class SearchScraperPool {
                 const vehiclesLength = data.vehicles.length;
                 const isSearchRadiusZero = data?.searchLocation?.appliedRadius?.value === 0;
 
-                console.log(`[recursiveFetch] Fetched ${vehiclesLength} vehicles for cell ${cell.id}.`);
-
                 if (vehiclesLength < 200 || isSearchRadiusZero || depth >= recursiveDepth) {
-                    console.log(`[recursiveFetch] Optimal cell found or max depth reached for cell ${cell.id}.`);
                     cell.setVehicleCount(vehiclesLength);
                     await this.handleSuccessfulScrape({
                         baseCell,
@@ -123,7 +116,6 @@ class SearchScraperPool {
                     return;
                 }
 
-                console.log(`[recursiveFetch] Splitting cell ${cell.id} into smaller cells.`);
                 await JobService.incrementJobTotalItems(jobId, 3);
 
                 const cells = cellutil.cellSplit(cell, this.divider, this.divider);
@@ -131,7 +123,7 @@ class SearchScraperPool {
                     console.log(`[recursiveFetch] Recursively fetching minicell ${minicell.id}.`);
                     await this.recursiveFetch(minicell, depth + 1, jobId, channel, recursiveDepth, baseCell, updateOptimalCell, cancellationToken);
                     if (cancellationToken.isCanceled) {
-                        console.log(`[recursiveFetch] Cancellation detected during recursion. Stopping recursion for minicell ${minicell.id}.`);
+                        console.warn(`[recursiveFetch] Cancellation detected during recursion. Stopping recursion for minicell ${minicell.id}.`);
                         return;
                     }
                 }
@@ -249,7 +241,7 @@ class SearchScraperPool {
                     throw error;
                 }
             } else {
-                console.log(`[acquireScraper] All scrapers are busy. Waiting for an available scraper...`);
+                console.warn(`[acquireScraper] All scrapers are busy. Waiting for an available scraper...`);
                 await sleep(10000);
             }
         }
@@ -259,7 +251,7 @@ class SearchScraperPool {
         await this.mutex.runExclusive(() => {
             if (this.scrapers.has(scraper.instanceId)) {
                 this.availableScrapers.add(scraper.instanceId);
-                this.resetIdleTimer(scraper);
+                this.startIdleTimer(scraper);
                 console.log(`[releaseScraper] Scraper ${scraper.instanceId} released back to pool.`);
             } else {
                 console.warn(`[releaseScraper] Scraper ${scraper.instanceId} not found in scrapers map during release.`);
@@ -282,11 +274,6 @@ class SearchScraperPool {
         this.idleTimers.set(scraper.instanceId, timer);
     }
 
-    resetIdleTimer(scraper) {
-        console.log(`[resetIdleTimer] Resetting idle timer for scraper ${scraper.instanceId}.`);
-        this.startIdleTimer(scraper);
-    }
-
     stopIdleTimer(scraper) {
         console.log(`[stopIdleTimer] Stopping idle timer for scraper ${scraper.instanceId}.`);
         if (this.idleTimers.has(scraper.instanceId)) {
@@ -296,33 +283,53 @@ class SearchScraperPool {
         }
     }
 
-    async destroyScraper(scraperId) {
-        try {
-            console.log(`[destroyScraper] Attempting to destroy scraper ${scraperId}.`);
-            let scraper;
-            await this.mutex.runExclusive(() => {
-                console.log(`[destroyScraper] Acquired mutex to remove scraper ${scraperId} from pool.`);
-                scraper = this.scrapers.get(scraperId);
-                if (!scraper) {
-                    console.warn(`[destroyScraper] Scraper ${scraperId} not found in scrapers map.`);
-                    return;
-                }
-                this.scrapers.delete(scraperId);
-                this.availableScrapers.delete(scraperId);
-                if (this.idleTimers.has(scraperId)) {
-                    clearTimeout(this.idleTimers.get(scraperId));
-                    this.idleTimers.delete(scraperId);
-                }
-                console.log(`[destroyScraper] Scraper ${scraperId} removed from pool.`);
-            });
+    async destroyScraper(scraperId, maxRetries = 3) {
+        console.log(`Attempting to destroy scraper ${scraperId}`);
 
-            if (scraper) {
-                await scraper.close();
-                console.log(`[destroyScraper] Destroyed scraper: ${scraper.instanceId}. Total scrapers: ${this.scrapers.size}`);
+        let retries = 0;
+
+        while (retries < maxRetries) {
+            try {
+                let scraper;
+
+                // Critical section: remove scraper from pool
+                await this.mutex.runExclusive(() => {
+                    scraper = this.scrapers.get(scraperId);
+                    if (scraper) {
+                        this.scrapers.delete(scraperId);
+                        this.availableScrapers.delete(scraperId);
+                        if (this.idleTimers.has(scraperId)) {
+                            clearTimeout(this.idleTimers.get(scraperId));
+                            this.idleTimers.delete(scraperId);
+                        }
+                        console.log(`Scraper ${scraperId} removed from pool`);
+                    }
+                });
+
+                // Close the scraper outside the mutex
+                if (scraper) {
+                    await scraper.close();
+                    console.log(`Scraper ${scraperId} closed successfully`);
+                } else {
+                    console.warn(`Scraper ${scraperId} not found in pool`);
+                }
+
+                // If we've made it here, everything succeeded
+                console.log(`Scraper ${scraperId} destroyed successfully`);
+                break;
+
+            } catch (error) {
+                console.error(`Error destroying scraper ${scraperId} (Attempt ${retries + 1}):`, error);
+                retries++;
+                if (retries >= maxRetries) {
+                    console.error(`Failed to destroy scraper ${scraperId} after ${maxRetries} attempts`);
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between retries
             }
-        } catch (error) {
-            console.error(`[destroyScraper] Error destroying scraper ${scraperId}:`, error);
         }
+
+        console.log(`Total scrapers remaining: ${this.scrapers.size}`);
     }
 
     async close() {
