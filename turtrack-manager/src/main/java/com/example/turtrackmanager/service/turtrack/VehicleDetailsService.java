@@ -15,7 +15,6 @@ public class VehicleDetailsService {
 
     private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;
 
-
     public void processAndForwardVehicle(Map<String, Object> message) {
         Vehicle vehicle = extractVehicle(message);
         Vehicle cleanedVehicle = cleanVehicle(vehicle);
@@ -79,7 +78,6 @@ public class VehicleDetailsService {
         }
         throw new IllegalArgumentException("Cannot convert " + value + " to Double");
     }
-
 
     private Vehicle cleanVehicle(Vehicle vehicle) {
         // Here you can implement any additional cleaning or transformation logic

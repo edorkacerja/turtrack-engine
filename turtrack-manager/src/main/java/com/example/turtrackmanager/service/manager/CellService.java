@@ -1,17 +1,20 @@
 package com.example.turtrackmanager.service.manager;
 
-import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.manager.OptimalCell;
+import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import com.example.turtrackmanager.repository.manager.OptimalCellRepository;
-import com.example.turtrackmanager.service.manager.JobService;
+import com.example.turtrackmanager.service.turtrack.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.example.turtrackmanager.util.DateTimeUtil.convertStringToDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -21,67 +24,100 @@ public class CellService {
     private final JobService jobService;
     private final JobRepository jobRepository;
     private final OptimalCellRepository optimalCellRepository;
+    private final VehicleService vehicleService;
 
-    public void processCell(Map<String, Object> message) {
-        if (message.containsKey("baseCell") && message.containsKey("optimalCell")) {
+    @Transactional
+    public void processCell(Map<String, Object> message) throws Exception {
+        try {
+            if (!message.containsKey("baseCell") || !message.containsKey("optimalCell")) {
+                throw new IllegalArgumentException("Message must contain both 'baseCell' and 'optimalCell'");
+            }
 
             Map<String, Object> baseCellObj = (Map<String, Object>) message.get("baseCell");
             Map<String, Object> optimalCellObj = (Map<String, Object>) message.get("optimalCell");
-            Boolean updateOptimalCell = (Boolean) message.get("updateOptimalCell");
-            Long jobId = Long.parseLong((String) message.get("jobId"));
+            Boolean updateOptimalCell = (Boolean) message.getOrDefault("updateOptimalCell", false);
+            Long jobId = Long.parseLong(String.valueOf(message.get("jobId")));
+
             jobService.incrementCompletedItems(jobId, 1);
 
             String baseCellId = (String) baseCellObj.get("id");
             String optimalCellId = (String) optimalCellObj.get("id");
 
-            // Parse baseId
             UUID baseId = parseOrGenerateUUID(baseCellId);
-            // Parse optimalId
             UUID optimalId = parseOrGenerateUUID(optimalCellId);
 
-            Optional<OptimalCell> baseCell = optimalCellRepository.findById(baseId);
-
-            // Check if the updateOptimalCell flag is true
             if (Boolean.TRUE.equals(updateOptimalCell)) {
+                updateOptimalCell(baseCellId, optimalCellId, baseId, optimalId, optimalCellObj);
+            }
 
-                if (baseCellId.equals(optimalCellId)) {
+            processScrapedVehicles(message);
 
-                    if (baseCell.isEmpty()) {
-                        OptimalCell optimalCellToSave = OptimalCell.builder()
-                                .id(baseId) // Use baseId (parsed or generated)
-                                .country((String) optimalCellObj.get("country"))
-                                .cellSize((Integer) optimalCellObj.get("cellSize"))
-                                .topRightLat((Double) optimalCellObj.get("topRightLat"))
-                                .topRightLng((Double) optimalCellObj.get("topRightLng"))
-                                .bottomLeftLat((Double) optimalCellObj.get("bottomLeftLat"))
-                                .bottomLeftLng((Double) optimalCellObj.get("bottomLeftLng"))
-                                .build();
-                        optimalCellRepository.save(optimalCellToSave);
-                    }
+        } catch (Exception e) {
+            log.error("Error processing cell: ", e);
+            throw new RuntimeException("Failed to process cell", e);
+        }
+    }
 
-                } else {
+    private void updateOptimalCell(String baseCellId, String optimalCellId, UUID baseId, UUID optimalId, Map<String, Object> optimalCellObj) {
+        if (baseCellId.equals(optimalCellId)) {
+            saveOptimalCell(baseId, optimalCellObj);
+        } else {
+            optimalCellRepository.findById(baseId).ifPresent(optimalCellRepository::delete);
+            saveOptimalCell(optimalId, optimalCellObj);
+        }
+    }
 
-                    baseCell.ifPresent(optimalCellRepository::delete);
+    private void saveOptimalCell(UUID id, Map<String, Object> cellObj) {
+        OptimalCell optimalCellToSave = OptimalCell.builder()
+                .id(id)
+                .country((String) cellObj.get("country"))
+                .cellSize((Integer) cellObj.get("cellSize"))
+                .topRightLat((Double) cellObj.get("topRightLat"))
+                .topRightLng((Double) cellObj.get("topRightLng"))
+                .bottomLeftLat((Double) cellObj.get("bottomLeftLat"))
+                .bottomLeftLng((Double) cellObj.get("bottomLeftLng"))
+                .build();
+        optimalCellRepository.save(optimalCellToSave);
+    }
 
-                    OptimalCell optimalCellToSave = OptimalCell.builder()
-                            .id(optimalId) // Use optimalId (parsed or generated)
-                            .country((String) optimalCellObj.get("country"))
-                            .cellSize((Integer) optimalCellObj.get("cellSize"))
-                            .topRightLat((Double) optimalCellObj.get("topRightLat"))
-                            .topRightLng((Double) optimalCellObj.get("topRightLng"))
-                            .bottomLeftLat((Double) optimalCellObj.get("bottomLeftLat"))
-                            .bottomLeftLng((Double) optimalCellObj.get("bottomLeftLng"))
-                            .build();
+    private void processScrapedVehicles(Map<String, Object> message) {
+        if (message.containsKey("scraped") && message.get("scraped") instanceof Map) {
+            Map<String, Object> scraped = (Map<String, Object>) message.get("scraped");
 
-                    optimalCellRepository.save(optimalCellToSave);
+            if (scraped.containsKey("vehicles") && scraped.get("vehicles") instanceof List) {
+                List<Object> vehicles = (List<Object>) scraped.get("vehicles");
+
+                List<Vehicle> scrapedVehicles = vehicles.stream()
+                        .filter(v -> v instanceof Map)
+                        .map(v -> (Map<String, Object>) v)
+                        .map(this::buildVehicle)
+                        .collect(Collectors.toList());
+
+                if (!scrapedVehicles.isEmpty()) {
+                    List<Vehicle> savedVehicles = vehicleService.saveAllVehicles(scrapedVehicles);
+                    log.info("Saved {} vehicles", savedVehicles.size());
                 }
-            } else {
-
-                // Skip updating the optimal cells in the database
             }
         }
     }
 
+    private Vehicle buildVehicle(Map<String, Object> vehicleMap) {
+        try {
+            Long id = Long.parseLong(String.valueOf(vehicleMap.get("id")));
+            LocalDateTime searchLastUpdated = convertStringToDateTime((String) vehicleMap.get("searchLastUpdated"));
+
+            return Vehicle.builder()
+                    .id(id)
+                    .searchLastUpdated(searchLastUpdated)
+                    .build();
+        } catch (NumberFormatException e) {
+            log.error("Error parsing vehicle ID: ", e);
+            throw new IllegalArgumentException("Invalid vehicle ID format", e);
+        } catch (Exception e) {
+            log.error("Error building vehicle: ", e);
+            throw new IllegalArgumentException("Error building vehicle", e);
+        }
+    }
 
     private UUID parseOrGenerateUUID(Object idObj) {
         if (idObj instanceof String) {
