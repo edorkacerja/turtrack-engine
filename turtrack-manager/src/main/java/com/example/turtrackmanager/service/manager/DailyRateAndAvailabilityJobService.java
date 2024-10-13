@@ -25,7 +25,7 @@ import static com.example.turtrackmanager.util.Constants.RabbitMQ.TO_BE_SCRAPED_
 @RequiredArgsConstructor
 public class DailyRateAndAvailabilityJobService {
 
-    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
     private final RabbitMQProducer rabbitMQProducer;
     private final JobService jobService;
     private final JobRepository jobRepository;

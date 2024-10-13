@@ -52,10 +52,6 @@ class PricingScraperPool {
         } catch (error) {
             console.error(`[handleMessage] Error processing vehicle ${vehicleId}:`, error);
             await this.handleFailedScrape({ id: vehicleId }, error, jobId);
-        } finally {
-            if (scraper) {
-                await this.releaseScraper(scraper);
-            }
         }
     }
 
@@ -87,12 +83,19 @@ class PricingScraperPool {
                     throw error;
                 }
 
-                await this.destroyScraper(scraper.instanceId);
+                if (scraper) {
+                    await this.destroyScraper(scraper.instanceId);
+                    scraper = null;
+                }
                 scraper = await this.acquireScraper();
                 console.log(`[fetchWithRetry] Acquired new scraper ${scraper.instanceId} for retry.`);
 
                 console.log(`[fetchWithRetry] Retrying fetch (${retryCount}/${maxRetries}) after error.`);
                 await sleep(1100);
+            } finally {
+                if(scraper) {
+                    await this.releaseScraper(scraper);
+                }
             }
         }
     }
