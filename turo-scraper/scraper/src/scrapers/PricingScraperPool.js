@@ -1,171 +1,257 @@
-const PricingScraper = require('./PricingScraper');
-const { commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const { sleep, logMemoryUsage } = require("../utils/utils");
+const PricingScraper = require("./PricingScraper");
+const JobService = require("../services/JobService");
+const { Mutex } = require('async-mutex');
 
 class PricingScraperPool {
-    constructor(maxPoolSize = 60,
-                proxyAuth,
-                proxyServer,
-                consumer,
-                handleFailedScrape,
-                handleSuccessfulScrape) {
+    constructor(
+        maxPoolSize = 3,
+        proxyAuth,
+        proxyServer,
+        handleFailedScrape,
+        handleSuccessfulScrape,
+    ) {
         this.maxPoolSize = maxPoolSize;
         this.proxyAuth = proxyAuth;
         this.proxyServer = proxyServer;
-        this.consumer = consumer;
         this.handleFailedScrape = handleFailedScrape;
         this.handleSuccessfulScrape = handleSuccessfulScrape;
 
-        this.scrapers = [];
-        this.availableScrapers = [];
-        this.processingPromises = new Set();
+        this.scrapers = new Map();
+        this.availableScrapers = new Set();
         this.idleTimers = new Map();
+
+        this.mutex = new Mutex();
     }
 
-    async initialize() {
-        console.log(`Initializing ScraperPool with maximum size of ${this.maxPoolSize} scrapers`);
-        logMemoryUsage();
+    async handleMessage(message, channel) {
+        const messageData = JSON.parse(message.content.toString());
+        const { vehicleId, jobId } = messageData;
+        console.log(`[handleMessage] Processing vehicle ${vehicleId} for job ${jobId}.`);
 
-        await this.runKafkaConsumer();
+        let scraper;
+        try {
+            console.log(`[handleMessage] Checking if job ${jobId} is running.`);
+            const isJobRunning = await JobService.isJobRunning(jobId);
+
+            if (!isJobRunning) {
+                console.log(`[handleMessage] Job ${jobId} is no longer running. Acknowledging message.`);
+                // channel.ack(message);
+                return;
+            }
+
+            scraper = await this.acquireScraper();
+            console.log(`[handleMessage] Acquired scraper ${scraper.instanceId} for vehicle ${vehicleId}.`);
+
+            console.log(`[handleMessage] Fetching data for vehicle ${vehicleId}.`);
+            const data = await scraper.fetchFromTuro(vehicleId);
+
+            console.log(`[handleMessage] Processing successful scrape for vehicle ${vehicleId}.`);
+            await this.handleSuccessfulScrape({
+                vehicleId,
+                scraped: data,
+                jobId: jobId
+            });
+
+            console.log(`[handleMessage] Finished processing vehicle ${vehicleId}.`);
+        } catch (error) {
+            console.error(`[handleMessage] Error processing vehicle ${vehicleId}:`, error);
+            await this.handleFailedScrape({ id: vehicleId }, error, jobId);
+            if (scraper) {
+                await this.destroyScraper(scraper.instanceId);
+                scraper = null;
+            }
+        } finally {
+            if (scraper) {
+                await this.releaseScraper(scraper);
+            }
+            // channel.ack(message);
+        }
     }
 
-    async createScraper() {
-        const index = this.scrapers.length;
-        const scraper = new PricingScraper({
-            proxyAuth: this.proxyAuth,
-            proxyServer: this.proxyServer,
-            instanceId: `Pricing-Scraper-${index}`
+    async createScraper(retryCount = 0, scraperId) {
+        const maxRetries = 3;
+
+        try {
+            const instanceId = scraperId ? scraperId : `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+            console.log(`[createScraper] Attempting to create scraper with ID: ${instanceId}`);
+
+            const scraper = new PricingScraper({
+                instanceId: instanceId,
+                proxyAuth: this.proxyAuth,
+                proxyServer: this.proxyServer,
+                country: "US",
+                delay: 1100,
+                headless: false,
+            });
+
+            console.log(`[createScraper] Initializing scraper ${instanceId}...`);
+            await scraper.init();
+            console.log(`[createScraper] Scraper ${instanceId} initialized successfully.`);
+
+            await this.mutex.runExclusive(() => {
+                console.log(`[createScraper] Acquired mutex to add scraper ${instanceId} to pool.`);
+                this.scrapers.set(instanceId, scraper);
+                this.availableScrapers.add(instanceId);
+                console.log(`[createScraper] Scraper ${instanceId} added to pool.`);
+            });
+
+            console.log(`Created new scraper: ${scraper.instanceId}. Total scrapers: ${this.scrapers.size}`);
+            this.startIdleTimer(scraper);
+        } catch (error) {
+            console.error(`[createScraper] Error creating scraper (attempt ${retryCount + 1}):`, error);
+
+            if (retryCount < maxRetries) {
+                console.log(`[createScraper] Retrying scraper creation in 10 seconds...`);
+                await sleep(10000);
+                return this.createScraper(retryCount + 1, scraperId);
+            } else {
+                console.error(`[createScraper] Failed to create scraper after ${maxRetries} attempts`);
+                throw new Error(`Failed to create scraper after ${maxRetries} attempts`);
+            }
+        }
+    }
+
+    async acquireScraper() {
+        while (true) {
+            let scraper = null;
+            let scraperId = null;
+
+            await this.mutex.runExclusive(async () => {
+                console.log(`[acquireScraper] Acquired mutex to check for available scrapers.`);
+                if (this.availableScrapers.size > 0) {
+                    const iterator = this.availableScrapers.values();
+                    let availableScraperId = iterator.next().value;
+                    this.availableScrapers.delete(availableScraperId);
+                    scraper = this.scrapers.get(availableScraperId);
+                    this.stopIdleTimer(scraper);
+                    console.log(`[acquireScraper] Assigned available scraper ${availableScraperId} to requester.`);
+                } else if (this.scrapers.size < this.maxPoolSize) {
+                    scraperId = `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                    this.scrapers.set(scraperId, null);
+                    console.log(`[acquireScraper] Pool size (${this.scrapers.size}) is less than max (${this.maxPoolSize}). Will create a new scraper.`);
+                } else {
+                    console.log(`[acquireScraper] No available scrapers and pool size has reached max (${this.maxPoolSize}).`);
+                }
+            });
+
+            if (scraper) {
+                console.log(`[acquireScraper] Returning scraper ${scraper.instanceId} to requester.`);
+                return scraper;
+            }
+
+            if (scraperId !== null) {
+                try {
+                    console.log(`[acquireScraper] Creating a new scraper...`);
+                    await this.createScraper(0, scraperId);
+                    await sleep(1000);
+                } catch (error) {
+                    console.error(`[acquireScraper] Error while creating new scraper:`, error);
+                    throw error;
+                }
+            } else {
+                console.warn(`[acquireScraper] All scrapers are busy. Waiting for an available scraper...`);
+                await sleep(10000);
+            }
+        }
+    }
+
+    async releaseScraper(scraper) {
+        await this.mutex.runExclusive(() => {
+            if (this.scrapers.has(scraper.instanceId)) {
+                this.availableScrapers.add(scraper.instanceId);
+                this.startIdleTimer(scraper);
+                console.log(`[releaseScraper] Scraper ${scraper.instanceId} released back to pool.`);
+            } else {
+                console.warn(`[releaseScraper] Scraper ${scraper.instanceId} not found in scrapers map during release.`);
+            }
         });
-
-        await scraper.init();
-        this.scrapers.push(scraper);
-        this.availableScrapers.push(scraper);
-        this.startIdleTimer(scraper);
-
-        console.log(`Created new scraper: ${scraper.instanceId}`);
-        return scraper;
     }
 
     startIdleTimer(scraper) {
-        const timer = setTimeout(() => this.destroyIdleScraper(scraper), 30000); // 30 seconds
-        this.idleTimers.set(scraper, timer);
-    }
-
-    resetIdleTimer(scraper) {
-        const existingTimer = this.idleTimers.get(scraper);
-        if (existingTimer) {
-            clearTimeout(existingTimer);
-        }
-        this.startIdleTimer(scraper);
-    }
-
-    async destroyIdleScraper(scraper) {
-        console.log(`Destroying idle scraper: ${scraper.instanceId}`);
-        const index = this.scrapers.indexOf(scraper);
-        if (index > -1) {
-            this.scrapers.splice(index, 1);
-        }
-        const availableIndex = this.availableScrapers.indexOf(scraper);
-        if (availableIndex > -1) {
-            this.availableScrapers.splice(availableIndex, 1);
-        }
-        this.idleTimers.delete(scraper);
-        await scraper.destroy();
-    }
-
-    async runKafkaConsumer() {
-        await this.consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
-                await this.handleMessage(topic, partition, message);
-            },
-        });
-    }
-
-    async handleMessage(topic, partition, message) {
-        if (this.scrapers.length === 0) {
-            console.log('Initializing pool to maximum size due to incoming messages');
-            for (let i = 0; i < this.maxPoolSize; i++) {
-                await this.createScraper();
-            }
+        console.log(`[startIdleTimer] Starting idle timer for scraper ${scraper.instanceId}.`);
+        if (this.idleTimers.has(scraper.instanceId)) {
+            clearTimeout(this.idleTimers.get(scraper.instanceId));
+            console.log(`[startIdleTimer] Cleared existing idle timer for scraper ${scraper.instanceId}.`);
         }
 
-        if (this.availableScrapers.length === 0) {
-            // Wait for a scraper to become available
-            await new Promise(resolve => {
-                const checkInterval = setInterval(() => {
-                    if (this.availableScrapers.length > 0) {
-                        clearInterval(checkInterval);
-                        resolve();
+        const timer = setTimeout(() => {
+            console.log(`[startIdleTimer] Scraper ${scraper.instanceId} has been idle for 3 mins. Destroying...`);
+            this.destroyScraper(scraper.instanceId);
+        }, 180000);
+
+        this.idleTimers.set(scraper.instanceId, timer);
+    }
+
+    stopIdleTimer(scraper) {
+        console.log(`[stopIdleTimer] Stopping idle timer for scraper ${scraper.instanceId}.`);
+        if (this.idleTimers.has(scraper.instanceId)) {
+            clearTimeout(this.idleTimers.get(scraper.instanceId));
+            this.idleTimers.delete(scraper.instanceId);
+            console.log(`[stopIdleTimer] Idle timer stopped and removed for scraper ${scraper.instanceId}.`);
+        }
+    }
+
+    async destroyScraper(scraperId, maxRetries = 3) {
+        console.log(`Attempting to destroy scraper ${scraperId}`);
+
+        let retries = 0;
+
+        while (retries < maxRetries) {
+            try {
+                let scraper;
+
+                // Critical section: remove scraper from pool
+                await this.mutex.runExclusive(() => {
+                    scraper = this.scrapers.get(scraperId);
+                    if (scraper) {
+                        this.scrapers.delete(scraperId);
+                        this.availableScrapers.delete(scraperId);
+                        if (this.idleTimers.has(scraperId)) {
+                            clearTimeout(this.idleTimers.get(scraperId));
+                            this.idleTimers.delete(scraperId);
+                        }
+                        console.log(`Scraper ${scraperId} removed from pool`);
                     }
-                }, 100);
-            });
-        }
+                });
 
-        const scraper = this.availableScrapers.pop();
-        this.resetIdleTimer(scraper);
+                // Close the scraper outside the mutex
+                if (scraper) {
+                    await scraper.close();
+                    console.log(`Scraper ${scraperId} closed successfully`);
+                } else {
+                    console.warn(`Scraper ${scraperId} not found in pool`);
+                }
 
-        const messageData = JSON.parse(message.value.toString());
-        const { startDate, endDate, country, vehicleId, jobId } = messageData;
+                // If we've made it here, everything succeeded
+                console.log(`Scraper ${scraperId} destroyed successfully`);
+                break;
 
-        const processingPromise = this.scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId)
-            .then(async (result) => {
-                await this.handleSuccessfulScrape(result);
-            })
-            .catch(async (error) => {
-                console.error(`Error processing vehicle ${vehicleId}:`, error);
-                await this.handleFailedScrape({ getId: () => vehicleId }, error, jobId);
-            })
-            .finally(() => {
-                commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
-                this.availableScrapers.push(scraper);
-                this.resetIdleTimer(scraper);
-                this.processingPromises.delete(processingPromise);
-                logMemoryUsage();
-            });
-
-        this.processingPromises.add(processingPromise);
-    }
-
-    async scrapeVehicleWithRetry(scraper, startDate, endDate, country, vehicleId, jobId, retryCount = 0) {
-        const vehicle = { getId: () => vehicleId };
-        const maxRetries = 5;
-        const baseDelay = 10000; // base delay of 10 seconds
-
-        try {
-            return await scraper.scrape(vehicle, jobId, startDate, endDate);
-
-        } catch (error) {
-            if (retryCount < maxRetries) {
-                console.log(`[${scraper.instanceId}] Attempt ${retryCount + 1} failed for vehicle ${vehicleId}. Retrying...`);
-
-                await this.destroyIdleScraper(scraper);
-
-                // Exponential backoff
-                const sleepDuration = baseDelay * Math.pow(2, retryCount); // 10s, 20s, 40s, etc.
-                console.log(`Sleeping for ${sleepDuration / 1000} seconds before retry!`);
-
-                await sleep(sleepDuration);
-
-                const newScraper = await this.createScraper();
-
-                return this.scrapeVehicleWithRetry(newScraper, startDate, endDate, country, vehicleId, jobId, retryCount + 1);
-            } else {
-                console.log(`[${scraper.instanceId}] All retry attempts failed for vehicle ${vehicleId}.`);
-                throw error;
+            } catch (error) {
+                console.error(`Error destroying scraper ${scraperId} (Attempt ${retries + 1}):`, error);
+                retries++;
+                if (retries >= maxRetries) {
+                    console.error(`Failed to destroy scraper ${scraperId} after ${maxRetries} attempts`);
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between retries
             }
         }
+
+        console.log(`Total scrapers remaining: ${this.scrapers.size}`);
     }
 
     async close() {
-        await Promise.all(Array.from(this.processingPromises));
-        for (const scraper of this.scrapers) {
-            clearTimeout(this.idleTimers.get(scraper));
+        console.log(`[close] Closing ScraperPool and all scrapers.`);
+        for (const scraper of this.scrapers.values()) {
             await scraper.close();
+            console.log(`[close] Closed scraper ${scraper.instanceId}.`);
         }
-        this.scrapers = [];
-        this.availableScrapers = [];
+        this.scrapers.clear();
+        this.availableScrapers.clear();
+        this.idleTimers.forEach(timer => clearTimeout(timer));
         this.idleTimers.clear();
-        logMemoryUsage();
+        console.log(`[close] ScraperPool closed.`);
     }
 }
 

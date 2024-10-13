@@ -3,41 +3,43 @@ version: '3.8'
 name: turo-scrapers
 
 services:
-#  pricing-scraper:
-#    build:
-#      context: ./scraper
-#      dockerfile: Dockerfile
-#    init: true
-#    environment:
-#      SCRAPER_TYPE: pricing
-#      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-#      DELAY_MILLIS: 2000
-#      DB_HOST: turtrack-manager-db
-#      DB_PORT: 5432
-#      DB_NAME: turtrack_manager_db
-#      DB_USER: turtrack_user
-#      DB_PASSWORD: turtrack_password
-#      PROXY_AUTH: intellicode:T3yGrF8Nr63U7q8m
-#      PROXY_SERVER: https://proxy.packetstream.io:31111
-#    deploy:
-#      replicas: 1
-#      update_config:
-#        parallelism: 2
-#        order: stop-first
-#    networks:
-#      - turo_scraper_network
-#      - turtrack_common_network
-#      - kafka_network
-#      - turtrack-manager-network
-#    ports:
-#      - "5011"
-##      - "9229:9229"
-#    healthcheck:
-#      test: ["CMD", "node", "/usr/src/app/healthcheck.js"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 30s
+  pricing-scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    init: true
+    environment:
+      SCRAPER_TYPE: pricing
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      DELAY_MILLIS: 2000
+      DB_HOST: turtrack-manager-db
+      DB_PORT: 5432
+      DB_NAME: turtrack_manager_db
+      DB_USER: turtrack_user
+      DB_PASSWORD: turtrack_password
+      PROXY_AUTH: intellicode:T3yGrF8Nr63U7q8m
+      PROXY_SERVER: https://proxy.packetstream.io:31111
+      TURTRACK_MANAGER_API_BASE_URL: http://host.docker.internal:9999
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        order: stop-first
+    networks:
+      - turo_scraper_network
+      - turtrack_common_network
+      - kafka_network
+      - turtrack-manager-network
+    ports:
+      - "5011"
+      - "9229:9229"
+    healthcheck:
+      test: ["CMD", "node", "/usr/src/app/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 #  details-scraper:
 #    build:
@@ -131,7 +133,7 @@ services:
       - kafka_network
     ports:
       - "5003:5003"
-      - "9229:9229"
+#      - "9229:9229"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s
