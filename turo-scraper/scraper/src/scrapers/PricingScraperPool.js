@@ -43,6 +43,7 @@ class PricingScraperPool {
 
             console.log(`[handleMessage] Processing successful scrape for vehicle ${vehicleId}.`);
             await this.handleSuccessfulScrape({
+                success: true,
                 vehicleId,
                 scraped: data,
                 jobId: jobId
@@ -66,7 +67,8 @@ class PricingScraperPool {
                     throw new Error("Job is no longer running");
                 }
 
-                scraper = await this.acquireScraper();
+                if (!scraper) scraper = await this.acquireScraper();
+
                 console.log(`[handleMessage] Acquired scraper ${scraper.instanceId} for vehicle ${vehicleId}.`);
 
                 const data = await scraper.scrape(vehicleId, jobId, startDate, endDate);
@@ -87,8 +89,6 @@ class PricingScraperPool {
                     await this.destroyScraper(scraper.instanceId);
                     scraper = null;
                 }
-                scraper = await this.acquireScraper();
-                console.log(`[fetchWithRetry] Acquired new scraper ${scraper.instanceId} for retry.`);
 
                 console.log(`[fetchWithRetry] Retrying fetch (${retryCount}/${maxRetries}) after error.`);
                 await sleep(1100);
@@ -118,7 +118,6 @@ class PricingScraperPool {
 
             console.log(`[createScraper] Initializing scraper ${instanceId}...`);
             await scraper.init();
-            console.log(`[createScraper] Scraper ${instanceId} initialized successfully.`);
 
             await this.mutex.runExclusive(() => {
                 console.log(`[createScraper] Acquired mutex to add scraper ${instanceId} to pool.`);
@@ -155,7 +154,6 @@ class PricingScraperPool {
                     let availableScraperId = iterator.next().value;
                     this.availableScrapers.delete(availableScraperId);
                     scraper = this.scrapers.get(availableScraperId);
-                    this.stopIdleTimer(scraper);
                     console.log(`[acquireScraper] Assigned available scraper ${availableScraperId} to requester.`);
                 } else if (this.scrapers.size < this.maxPoolSize) {
                     scraperId = `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -168,6 +166,7 @@ class PricingScraperPool {
 
             if (scraper) {
                 console.log(`[acquireScraper] Returning scraper ${scraper.instanceId} to requester.`);
+                this.stopIdleTimer(scraper);
                 return scraper;
             }
 
@@ -184,8 +183,6 @@ class PricingScraperPool {
                 console.warn(`[acquireScraper] All scrapers are busy. Waiting for an available scraper...`);
                 await sleep(10000);
             }
-            await sleep(2000);
-
         }
     }
 

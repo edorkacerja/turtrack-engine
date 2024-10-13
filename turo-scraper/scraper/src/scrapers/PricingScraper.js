@@ -22,11 +22,10 @@ class PricingScraper extends BaseScraper {
       console.log(`[${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
 
       if (this.isValidResponse(data)) {
-        const result = { success: true, vehicleId, scraped: {...data, jobId} };
         console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
         await sleep(this.delay);
         logMemoryUsage();
-        return result;
+        return data;
       } else {
         throw new Error(`[${this.instanceId}] Invalid response structure`);
       }
@@ -72,12 +71,7 @@ class PricingScraper extends BaseScraper {
       );
 
       this.updateTotalBytes(data);
-
-      return {
-        ...data,
-        vehicleId,
-        scrapedBy: this.instanceId
-      };
+      return data;
     } catch (error) {
       console.error(`[${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);
       throw error;
@@ -94,9 +88,7 @@ class PricingScraper extends BaseScraper {
         data &&
         typeof data === 'object' &&
         Array.isArray(data.dailyPricingResponses) &&
-        typeof data.calendarCurrencyHeader === 'string' &&
-        typeof data.vehicleId === 'string' &&
-        typeof data.scrapedBy === 'string'
+        typeof data.calendarCurrencyHeader === 'string'
     );
   }
 

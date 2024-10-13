@@ -123,7 +123,16 @@ public class DailyRateAndAvailabilityService {
     }
 
     private List<DailyRateAndAvailability> extractDailyRates(Map<String, Object> message, Long vehicleId) {
-        Object responsesObj = message.get("dailyPricingResponses");
+
+        Object scraped = message.get("scraped");
+        if (!(scraped instanceof Map)) {
+            throw new IllegalArgumentException("dailyPricingResponses is missing or not a map");
+        }
+
+        Map<?,?> scraped1 = (Map<?,?>) scraped;
+        Object responsesObj = scraped1.get("dailyPricingResponses");
+
+//        Object responsesObj = message.get("dailyPricingResponses");
         if (!(responsesObj instanceof List)) {
             throw new IllegalArgumentException("dailyPricingResponses is missing or not a list");
         }
@@ -192,7 +201,7 @@ public class DailyRateAndAvailabilityService {
             // Save to database
             dailyRateRepository.save(dailyRate);
             // Forward to Kafka
-            availabilityKafkaTemplate.send(PROCESSED_DR_AVAILABILITY_TOPIC, dailyRate);
+//            availabilityKafkaTemplate.send(PROCESSED_DR_AVAILABILITY_TOPIC, dailyRate);
         } catch (Exception e) {
             log.error("Failed to save or send dailyRate: {}, error: {}", dailyRate, e.getMessage());
         }

@@ -111,7 +111,7 @@ class PricingConsumer {
     async handleSuccessfulScrape(data) {
         const { vehicleId, scraped } = data;
         try {
-            await this.channel.sendToQueue(SCRAPED_DR_AVAILABILITY_QUEUE, Buffer.from(JSON.stringify(scraped)));
+            await this.channel.sendToQueue(SCRAPED_DR_AVAILABILITY_QUEUE, Buffer.from(JSON.stringify(data)));
             console.log(`Scraped data sent for vehicle ${vehicleId}`);
         } catch (error) {
             console.error(`Failed to send scraped data for vehicle ${vehicleId}:`, error);
