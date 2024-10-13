@@ -16,7 +16,20 @@ services:
       - turtrack-manager-network
       - turtrack_common_network
 
-
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: turtrack-rabbitmq
+    ports:
+      - "5672:5672"  # AMQP protocol port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - turtrack-manager-network
+      - turtrack_common_network
 
 #  turtrack-manager:
 #    build:
@@ -28,6 +41,7 @@ services:
 #      - "9999:9999"
 #    depends_on:
 #      - turtrack-manager-db
+#      - rabbitmq
 #    environment:
 #      SERVER_PORT: 9999
 #      SPRING_DATASOURCE_TURTRACK_URL: jdbc:postgresql://timescaledb-turtrack:5432/turo
@@ -36,15 +50,14 @@ services:
 #      SPRING_DATASOURCE_MANAGER_URL: jdbc:postgresql://turtrack-manager-db:5432/turtrack_manager_db
 #      SPRING_DATASOURCE_MANAGER_USERNAME: turtrack_user
 #      SPRING_DATASOURCE_MANAGER_PASSWORD: turtrack_password
-#      SPRING_KAFKA_BOOTSTRAP-SERVERS: localhost:9092
-#    networks:
-#      - turtrack-manager-network
-#      - turtrack_common_network
-
+#      SPRING_RABBITMQ_HOST: rabbitmq
+#      SPRING_RABBITMQ_PORT: 5672
+#      SPRING_RABBITMQ_USERNAME: guest
+#      SPRING_RABBITMQ_PASSWORD: guest
 
 volumes:
   turtrack-manager-db-data:
-
+  rabbitmq_data:
 
 networks:
   turtrack-manager-network:

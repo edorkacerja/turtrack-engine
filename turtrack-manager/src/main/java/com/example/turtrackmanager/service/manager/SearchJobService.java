@@ -8,6 +8,7 @@ import com.example.turtrackmanager.repository.manager.JobRepository;
 import com.example.turtrackmanager.repository.manager.OptimalCellRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,6 +24,7 @@ import java.util.stream.Stream;
 
 import static com.example.turtrackmanager.util.Constants.CALIBRATOR_URL;
 import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_CELLS_TOPIC;
+import static com.example.turtrackmanager.util.Constants.RabbitMQ.TO_BE_SCRAPED_CELLS_QUEUE;
 
 @Service
 @Slf4j
@@ -31,8 +33,9 @@ public class SearchJobService {
     private final JobRepository jobRepository;
     private final RestTemplate restTemplate;
 //    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
-    private final KafkaTemplate<String, ToBeScrapedCellKafkaMessage> optimalCellSearchKafkaTemplate;
+//    private final KafkaTemplate<String, ToBeScrapedCellKafkaMessage> optimalCellSearchKafkaTemplate;
     private final OptimalCellRepository optimalCellRepository;
+    private final RabbitMQSender rabbitMQSender;
 
 
     @Transactional
@@ -108,10 +111,16 @@ public class SearchJobService {
                             .updateOptimalCell(updateOptimalCells)
                             .build();
 
-                    optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, kafkaMessage.getId(), kafkaMessage);
+                    try {
+                        rabbitMQSender.sendToBeScrapedCells(kafkaMessage);
+                        log.debug("Successfully sent message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage);
+                    } catch (Exception e) {
+                        log.error("Failed to send message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage, e);
+                    }
+
                 });
 
-                log.info("Sent {} cells to Kafka.", sortedCells.size());
+                log.info("Sent {} cells to Rabbit.", sortedCells.size());
 
                 job.setStatus(Job.JobStatus.RUNNING);
                 job.setStartedAt(LocalDateTime.now());
@@ -148,7 +157,12 @@ public class SearchJobService {
                             .updateOptimalCell(updateOptimalCells)
                             .build();
 
-                    optimalCellSearchKafkaTemplate.send(TO_BE_SCRAPED_CELLS_TOPIC, kafkaMessage.getId(), kafkaMessage);
+                    try {
+                        rabbitMQSender.sendToBeScrapedCells(kafkaMessage);
+                        log.debug("Successfully sent message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage);
+                    } catch (Exception e) {
+                        log.error("Failed to send message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage, e);
+                    }
                 });
 
                 log.info("Sent {} cells to Kafka.", cellsToProcess.size());
