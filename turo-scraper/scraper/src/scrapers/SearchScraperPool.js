@@ -216,18 +216,23 @@ class SearchScraperPool {
         cell.setCountry("US");
         cell.setCellSize(cellSize);
 
+        const cancellationToken = { isCanceled: false };
+
         try {
-            await this.recursiveFetch(cell, 0, jobId, channel, message, null, updateOptimalCell);
+            await this.recursiveFetch(cell, 0, jobId, channel, message, null, updateOptimalCell, cancellationToken);
             console.log(`[handleMessage] Finished processing cell ${cell.id}.`);
-            channel.ack(message);
         } catch (error) {
             console.error(`[handleMessage] Error processing cell ${cell.id}:`, error);
             await this.handleFailedScrape(cell, error, jobId, message);
-            channel.nack(message, false, false);
         }
     }
 
-    async recursiveFetch(cell, depth, jobId, channel, message, baseCell, updateOptimalCell = false) {
+    async recursiveFetch(cell, depth, jobId, channel, message, baseCell, updateOptimalCell = false, cancellationToken) {
+        if (cancellationToken.isCanceled) {
+            console.log(`[recursiveFetch] Job ${jobId} has been canceled. Stopping recursion for cell ${cell.id}.`);
+            return;
+        }
+
         if (!baseCell) baseCell = cell;
 
         console.log(`[recursiveFetch] Starting recursive fetch for cell ${cell.id} at depth ${depth}.`);
@@ -243,12 +248,17 @@ class SearchScraperPool {
         while (retryCount < maxRetries) {
             let scraper;
             try {
+                if (cancellationToken.isCanceled) {
+                    console.log(`[recursiveFetch] Job ${jobId} has been canceled during retry loop. Stopping recursion for cell ${cell.id}.`);
+                    return;
+                }
+
                 console.log(`[recursiveFetch] Checking if job ${jobId} is running.`);
                 const isJobRunning = await JobService.isJobRunning(jobId);
 
                 if (!isJobRunning) {
-                    console.log(`[recursiveFetch] Job ${jobId} is no longer running. Acknowledging message.`);
-                    channel.ack(message);
+                    console.log(`[recursiveFetch] Job ${jobId} is no longer running. Setting cancellation token.`);
+                    cancellationToken.isCanceled = true;
                     return;
                 }
 
@@ -290,7 +300,11 @@ class SearchScraperPool {
                 const cells = cellutil.cellSplit(cell, this.divider, this.divider);
                 for (let minicell of cells) {
                     console.log(`[recursiveFetch] Recursively fetching minicell ${minicell.id}.`);
-                    await this.recursiveFetch(minicell, depth + 1, jobId, channel, message, baseCell, updateOptimalCell);
+                    await this.recursiveFetch(minicell, depth + 1, jobId, channel, message, baseCell, updateOptimalCell, cancellationToken);
+                    if (cancellationToken.isCanceled) {
+                        console.log(`[recursiveFetch] Cancellation detected during recursion. Stopping recursion for minicell ${minicell.id}.`);
+                        return;
+                    }
                 }
                 return;
             } catch (error) {

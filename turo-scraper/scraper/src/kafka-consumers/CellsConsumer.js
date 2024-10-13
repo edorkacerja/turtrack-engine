@@ -76,18 +76,18 @@ class CellsConsumer {
                 return;
             }
 
-            this.totalMessagesReceived++;
-            console.log(`Received message from ${TO_BE_SCRAPED_CELLS_QUEUE}`);
-            console.log(`Total messages received: ${this.totalMessagesReceived}`);
-
             const jobId = this.extractJobId(message);
             const isJobRunning = await JobService.isJobRunning(jobId);
+
+            this.totalMessagesReceived++;
+            console.log(`Received message from ${TO_BE_SCRAPED_CELLS_QUEUE} JobID: ${jobId}`);
+            console.log(`Total messages received: ${this.totalMessagesReceived}`);
 
             if (isJobRunning) {
                 console.log(`Processing message for job ${jobId}`);
                 await this.processMessage(message);
             } else {
-                console.log(`Job ${jobId} is not running. Skipping message.`);
+                console.log(`Job ${jobId} is not running. Acknowledging message.`);
                 this.channel.ack(message);
             }
         }, { noAck: false });
@@ -97,10 +97,10 @@ class CellsConsumer {
         try {
             await this.scraperPool.handleMessage(message, this.channel);
             console.log(`Finished processing message`);
+            this.channel.ack(message);
         } catch (error) {
             console.error(`Error processing message:`, error);
-            // Handle the error (e.g., send to DLQ, retry, etc.)
-            await this.handleFailedScrape(null, error, this.extractJobId(message), message);
+            this.channel.ack(message);
         }
     }
 
@@ -123,8 +123,6 @@ class CellsConsumer {
             timestamp: new Date().toISOString(),
             jobId
         };
-
-        this.channel.ack(message);
 
         try {
             await this.channel.sendToQueue(DLQ_CELLS_QUEUE, Buffer.from(JSON.stringify(dlqMessage)));
