@@ -13,9 +13,8 @@ class PricingScraper extends BaseScraper {
     this.currentRequestTotalBytes = 0;
   }
 
-  async scrape(vehicle, jobId, startDate, endDate) {
+  async scrape(vehicleId, jobId, startDate, endDate) {
 
-    const vehicleId = vehicle.getId();
     this.currentRequestTotalBytes = 0;
 
     try {

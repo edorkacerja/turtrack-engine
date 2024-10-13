@@ -26,25 +26,20 @@ class PricingScraperPool {
 
     async handleMessage(message, channel) {
         const messageData = JSON.parse(message.content.toString());
-        const { vehicleId, jobId } = messageData;
+        const { vehicleId, country, jobId, startDate, endDate } = messageData;
         console.log(`[handleMessage] Processing vehicle ${vehicleId} for job ${jobId}.`);
 
-        let scraper;
         try {
             console.log(`[handleMessage] Checking if job ${jobId} is running.`);
             const isJobRunning = await JobService.isJobRunning(jobId);
 
             if (!isJobRunning) {
                 console.log(`[handleMessage] Job ${jobId} is no longer running. Acknowledging message.`);
-                // channel.ack(message);
                 return;
             }
 
-            scraper = await this.acquireScraper();
-            console.log(`[handleMessage] Acquired scraper ${scraper.instanceId} for vehicle ${vehicleId}.`);
-
             console.log(`[handleMessage] Fetching data for vehicle ${vehicleId}.`);
-            const data = await scraper.fetchFromTuro(vehicleId);
+            const data = await this.fetchWithRetry(vehicleId, jobId, startDate, endDate);
 
             console.log(`[handleMessage] Processing successful scrape for vehicle ${vehicleId}.`);
             await this.handleSuccessfulScrape({
@@ -57,15 +52,48 @@ class PricingScraperPool {
         } catch (error) {
             console.error(`[handleMessage] Error processing vehicle ${vehicleId}:`, error);
             await this.handleFailedScrape({ id: vehicleId }, error, jobId);
-            if (scraper) {
-                await this.destroyScraper(scraper.instanceId);
-                scraper = null;
-            }
         } finally {
             if (scraper) {
                 await this.releaseScraper(scraper);
             }
-            // channel.ack(message);
+        }
+    }
+
+    async fetchWithRetry( vehicleId, jobId, startDate, endDate, maxRetries = 10) {
+        let scraper;
+        let retryCount = 0;
+        while (retryCount < maxRetries) {
+            try {
+                const isJobRunning = await JobService.isJobRunning(jobId);
+                if (!isJobRunning) {
+                    console.log(`[fetchWithRetry] Job ${jobId} is no longer running. Stopping retry attempts.`);
+                    throw new Error("Job is no longer running");
+                }
+
+                scraper = await this.acquireScraper();
+                console.log(`[handleMessage] Acquired scraper ${scraper.instanceId} for vehicle ${vehicleId}.`);
+
+                const data = await scraper.scrape(vehicleId, jobId, startDate, endDate);
+                if (!data) {
+                    throw new Error("No data returned from fetchFromTuro");
+                }
+                return data;
+            } catch (error) {
+                console.error(`[fetchWithRetry] Error fetching data for vehicle ${vehicleId} (Attempt ${retryCount + 1}):`, error);
+                retryCount++;
+
+                if (retryCount >= maxRetries) {
+                    console.error(`[fetchWithRetry] Max retries reached for vehicle ${vehicleId}. Throwing error.`);
+                    throw error;
+                }
+
+                await this.destroyScraper(scraper.instanceId);
+                scraper = await this.acquireScraper();
+                console.log(`[fetchWithRetry] Acquired new scraper ${scraper.instanceId} for retry.`);
+
+                console.log(`[fetchWithRetry] Retrying fetch (${retryCount}/${maxRetries}) after error.`);
+                await sleep(1100);
+            }
         }
     }
 
@@ -80,7 +108,7 @@ class PricingScraperPool {
                 instanceId: instanceId,
                 proxyAuth: this.proxyAuth,
                 proxyServer: this.proxyServer,
-                country: "US",
+                // country: "US",
                 delay: 1100,
                 headless: false,
             });
@@ -153,6 +181,8 @@ class PricingScraperPool {
                 console.warn(`[acquireScraper] All scrapers are busy. Waiting for an available scraper...`);
                 await sleep(10000);
             }
+            await sleep(2000);
+
         }
     }
 

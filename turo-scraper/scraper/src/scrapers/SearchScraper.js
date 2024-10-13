@@ -3,8 +3,6 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 const Xvfb = require('xvfb');
 const fetch = require("cross-fetch");
-const utils = require("../utils/utils");
-const cellutil = require("../utils/cellutil");
 const { sleep } = require("../utils/utils");
 const { PROXY_AUTH, PROXY_SERVER } = require("../utils/constants");
 
