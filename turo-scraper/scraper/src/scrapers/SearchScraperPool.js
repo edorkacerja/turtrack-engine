@@ -1,10 +1,9 @@
 const { sleep, logMemoryUsage } = require("../utils/utils");
 const SearchScraper = require("./SearchScraper");
 const Cell = require("../models/Cell");
-const { commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const cellutil = require("../utils/cellutil");
 const JobService = require("../services/JobService");
-const { Mutex } = require('async-mutex'); // Import the Mutex class
+const { Mutex } = require('async-mutex');
 
 class SearchScraperPool {
     constructor(
@@ -20,14 +19,14 @@ class SearchScraperPool {
         this.handleFailedScrape = handleFailedScrape;
         this.handleSuccessfulScrape = handleSuccessfulScrape;
 
-        this.scrapers = new Map(); // Map of scraperID => scraper instance
-        this.availableScrapers = new Set(); // Set of available scraper IDs
+        this.scrapers = new Map();
+        this.availableScrapers = new Set();
         this.processingPromises = new Set();
         this.idleTimers = new Map();
 
         this.divider = 2;
         this.recursiveDepth = 10;
-        this.mutex = new Mutex(); // Initialize the mutex
+        this.mutex = new Mutex();
     }
 
     async initialize() {
@@ -35,10 +34,10 @@ class SearchScraperPool {
     }
 
     async createScraper(retryCount = 0, scraperId) {
-        const maxRetries = 3; // Adjust as needed
+        const maxRetries = 3;
 
         try {
-            const instanceId = scraperId ? scraperId : `Search-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`; // Unique ID
+            const instanceId = scraperId ? scraperId : `Search-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
             console.log(`[createScraper] Attempting to create scraper with ID: ${instanceId}`);
 
             const scraper = new SearchScraper({
@@ -68,22 +67,19 @@ class SearchScraperPool {
 
             await this.mutex.runExclusive(() => {
                 console.log(`[createScraper] Acquired mutex to add scraper ${instanceId} to pool.`);
-                // Add scraper to the Map
                 this.scrapers.set(instanceId, scraper);
-                // Add the scraper ID to the available set
                 this.availableScrapers.add(instanceId);
                 console.log(`[createScraper] Scraper ${instanceId} added to pool.`);
             });
 
             console.log(`Created new scraper: ${scraper.instanceId}. Total scrapers: ${this.scrapers.size}`);
             this.startIdleTimer(scraper);
-            // return scraper;
         } catch (error) {
             console.error(`[createScraper] Error creating scraper (attempt ${retryCount + 1}):`, error);
 
             if (retryCount < maxRetries) {
                 console.log(`[createScraper] Retrying scraper creation in 10 seconds...`);
-                await sleep(10000); // Sleep for 10 seconds
+                await sleep(10000);
                 return this.createScraper(retryCount + 1, scraperId);
             } else {
                 console.error(`[createScraper] Failed to create scraper after ${maxRetries} attempts`);
@@ -97,28 +93,22 @@ class SearchScraperPool {
             let scraper = null;
             let scraperId = null;
 
-            // Lock the critical section
             await this.mutex.runExclusive(async () => {
                 console.log(`[acquireScraper] Acquired mutex to check for available scrapers.`);
-                // Check if there's an available scraper
-                if (this.scrapers.size < this.maxPoolSize) {
-                    // Indicate that we're creating a new scraper
-                    // create a scraper id and put a null element in the total map.
-                    scraperId = `Search-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`; // Unique ID
-                    this.scrapers.set(scraperId, null);
-                    console.log(`[acquireScraper] Pool size (${this.scrapers.size}) is less than max (${this.maxPoolSize}). Will create a new scraper.`);
-                } else if (this.availableScrapers.size > 0) {
-                    // Get an iterator over the set
+                if (this.availableScrapers.size > 0) {
                     const iterator = this.availableScrapers.values();
                     let availableScraperId = iterator.next().value;
                     this.availableScrapers.delete(availableScraperId);
                     scraper = this.scrapers.get(availableScraperId);
-                    this.stopIdleTimer(scraper); // Stop the idle timer when scraper is taken for processing
-                    console.log(`[acquireScraper] Assigned available scraper ${scraperId} to requester.`);
-                }  else {
+                    this.stopIdleTimer(scraper);
+                    console.log(`[acquireScraper] Assigned available scraper ${availableScraperId} to requester.`);
+                } else if (this.scrapers.size < this.maxPoolSize) {
+                    scraperId = `Search-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                    this.scrapers.set(scraperId, null);
+                    console.log(`[acquireScraper] Pool size (${this.scrapers.size}) is less than max (${this.maxPoolSize}). Will create a new scraper.`);
+                } else {
                     console.log(`[acquireScraper] No available scrapers and pool size has reached max (${this.maxPoolSize}).`);
                 }
-                // Mutex is released here
             });
 
             if (scraper) {
@@ -126,21 +116,18 @@ class SearchScraperPool {
                 return scraper;
             }
 
-            // If we can create a new scraper
             if (scraperId !== null) {
                 try {
                     console.log(`[acquireScraper] Creating a new scraper...`);
                     await this.createScraper(0, scraperId);
-                    await sleep(1000); // Wait for 1 second before checking again
-
+                    await sleep(1000);
                 } catch (error) {
                     console.error(`[acquireScraper] Error while creating new scraper:`, error);
                     throw error;
                 }
             } else {
-                // Else, wait until a scraper becomes available
                 console.log(`[acquireScraper] All scrapers are busy. Waiting for an available scraper...`);
-                await sleep(10000); // Wait for 1 second before checking again
+                await sleep(10000);
             }
         }
     }
@@ -215,10 +202,10 @@ class SearchScraperPool {
         }
     }
 
-    async handleMessage(topic, partition, message, consumer) {
-        console.log(`[handleMessage] Received message on topic ${topic}, partition ${partition}, offset ${message.offset}.`);
+    async handleMessage(message, channel) {
+        console.log(`[handleMessage] Received message from RabbitMQ.`);
 
-        const messageData = JSON.parse(message.value.toString());
+        const messageData = JSON.parse(message.content.toString());
         const { id, cellSize, bottomLeftLat, bottomLeftLng, topRightLat, topRightLng, jobId, updateOptimalCell } = messageData;
         console.log(`[handleMessage] Processing cell ${id} for job ${jobId}.`);
 
@@ -229,18 +216,18 @@ class SearchScraperPool {
         cell.setCountry("US");
         cell.setCellSize(cellSize);
 
-        this.recursiveFetch(cell, 0, jobId, consumer, topic, partition, message, null, updateOptimalCell)
-            .catch(async (error) => {
-                console.error(`[handleMessage] Error processing cell ${cell.id}:`, error);
-                await this.handleFailedScrape(cell, error, jobId, topic, partition, message);
-            })
-            .finally(async () => {
-                console.log(`[handleMessage] Finished processing cell ${cell.id}.`);
-            });
-
+        try {
+            await this.recursiveFetch(cell, 0, jobId, channel, message, null, updateOptimalCell);
+            console.log(`[handleMessage] Finished processing cell ${cell.id}.`);
+            channel.ack(message);
+        } catch (error) {
+            console.error(`[handleMessage] Error processing cell ${cell.id}:`, error);
+            await this.handleFailedScrape(cell, error, jobId, message);
+            channel.nack(message, false, false);
+        }
     }
 
-    async recursiveFetch(cell, depth, jobId, consumer, topic, partition, message, baseCell, updateOptimalCell = false) {
+    async recursiveFetch(cell, depth, jobId, channel, message, baseCell, updateOptimalCell = false) {
         if (!baseCell) baseCell = cell;
 
         console.log(`[recursiveFetch] Starting recursive fetch for cell ${cell.id} at depth ${depth}.`);
@@ -260,21 +247,19 @@ class SearchScraperPool {
                 const isJobRunning = await JobService.isJobRunning(jobId);
 
                 if (!isJobRunning) {
-                    console.log(`[recursiveFetch] Job ${jobId} is no longer running. Committing offset.`);
-                    await commitOffsetsWithRetry(consumer, topic, partition, message.offset);
+                    console.log(`[recursiveFetch] Job ${jobId} is no longer running. Acknowledging message.`);
+                    channel.ack(message);
                     return;
                 }
 
-                // Acquire scraper
                 scraper = await this.acquireScraper();
                 console.log(`[recursiveFetch] Acquired scraper ${scraper.instanceId} for cell ${cell.id}.`);
 
                 console.log(`[recursiveFetch] Fetching data for cell ${cell.id}.`);
                 const data = await scraper.fetch(cell);
 
-                // Release scraper after successful fetch
                 await this.releaseScraper(scraper);
-                scraper = null; // Prevent further use of released scraper
+                scraper = null;
                 console.log(`[recursiveFetch] Released scraper after fetching data for cell ${cell.id}.`);
 
                 if (!data?.vehicles) {
@@ -296,18 +281,16 @@ class SearchScraperPool {
                         jobId: jobId,
                         updateOptimalCell: updateOptimalCell
                     });
-                    await commitOffsetsWithRetry(consumer, topic, partition, message.offset);
                     return;
                 }
 
-                // Update total cells by 3 because the cell split function returns 4 cells
                 console.log(`[recursiveFetch] Splitting cell ${cell.id} into smaller cells.`);
                 await JobService.incrementJobTotalItems(jobId, 3);
 
                 const cells = cellutil.cellSplit(cell, this.divider, this.divider);
                 for (let minicell of cells) {
                     console.log(`[recursiveFetch] Recursively fetching minicell ${minicell.id}.`);
-                    await this.recursiveFetch(minicell, depth + 1, jobId, consumer, topic, partition, message, baseCell, updateOptimalCell);
+                    await this.recursiveFetch(minicell, depth + 1, jobId, channel, message, baseCell, updateOptimalCell);
                 }
                 return;
             } catch (error) {
@@ -315,7 +298,6 @@ class SearchScraperPool {
                 retryCount++;
 
                 if (scraper) {
-                    // Destroy the scraper if an error occurred during fetch
                     await this.destroyScraper(scraper.instanceId);
                     scraper = null;
                 }

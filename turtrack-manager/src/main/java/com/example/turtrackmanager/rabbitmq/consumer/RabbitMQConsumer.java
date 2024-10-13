@@ -1,0 +1,47 @@
+package com.example.turtrackmanager.rabbitmq.consumer;
+
+import com.example.turtrackmanager.service.manager.CellService;
+import com.example.turtrackmanager.service.turtrack.DailyRateAndAvailabilityService;
+import com.example.turtrackmanager.service.turtrack.VehicleDetailsService;
+import com.example.turtrackmanager.service.turtrack.VehicleSkeletonService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+
+import static com.example.turtrackmanager.util.Constants.RabbitMQ.*;
+
+@Service
+@RequiredArgsConstructor
+public class RabbitMQConsumer {
+
+    private final VehicleSkeletonService vehicleSkeletonService;
+    private final VehicleDetailsService vehicleDetailsService;
+    private final DailyRateAndAvailabilityService dailyRateAndAvailabilityService;
+    private final CellService cellService;
+
+    @RabbitListener(queues = SCRAPED_CELLS_QUEUE)
+    public void consumeScrapedCells(Map<String, Object> message) {
+        System.out.println("Received scraped cell message: " + message);
+        cellService.processCell(message);
+    }
+
+    @RabbitListener(queues = SCRAPED_VEHICLE_DETAILS_QUEUE)
+    public void consumeVehicles(Map<String, Object> message) {
+        System.out.println("Received vehicle message: " + message);
+        vehicleDetailsService.processAndForwardVehicle(message);
+    }
+
+    @RabbitListener(queues = SCRAPED_DR_AVAILABILITY_QUEUE)
+    public void consumePricing(Map<String, Object> message) {
+        System.out.println("Received pricing message: " + message);
+        dailyRateAndAvailabilityService.processAndForwardDailyRates(message);
+    }
+
+    @RabbitListener(queues = DLQ_DR_AVAILABILITY_QUEUE)
+    public void consumeDLQPricing(Map<String, Object> message) {
+        System.out.println("Received DLQ pricing message: " + message);
+        dailyRateAndAvailabilityService.processAndForwardDailyRates(message);
+    }
+}

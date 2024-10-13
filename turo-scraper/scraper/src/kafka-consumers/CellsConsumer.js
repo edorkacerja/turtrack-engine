@@ -1,14 +1,13 @@
 'use strict';
 
-const { Kafka } = require('kafkajs');
+const amqp = require('amqplib');
 const {
-    KAFKA_CLIENT_ID_PREFIX_SEARCH,
-    KAFKA_CONSUMER_GROUP_ID_SEARCH,
-    TO_BE_SCRAPED_CELLS_TOPIC, SCRAPED_CELLS_TOPIC, DLQ_CELLS_TOPIC
+    TO_BE_SCRAPED_CELLS_QUEUE,
+    SCRAPED_CELLS_QUEUE,
+    DLQ_CELLS_QUEUE
 } = require("../utils/constants");
 const JobService = require("../services/JobService");
 const { logMemoryUsage } = require("../utils/utils");
-const { sendToKafka, commitOffsetsWithRetry } = require("../utils/kafkaUtil");
 const SearchScraperPool = require("../scrapers/SearchScraperPool");
 const dateutil = require("../utils/dateutil");
 const BaseCell = require("../models/BaseCell");
@@ -21,43 +20,29 @@ class CellsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 10; // Optimal scrapers
+        this.MAX_POOL_SIZE = 10;
         this.isShuttingDown = false;
         this.fileManager = new FileManager("search");
         this.totalMessagesReceived = 0;
 
-        this.kafka = new Kafka({
-            clientId: `${KAFKA_CLIENT_ID_PREFIX_SEARCH}`,
-            brokers: [process.env.KAFKA_BOOTSTRAP_SERVERS],
-            retry: {
-                initialRetryTime: 100,
-                retries: 8
-            }
-        });
-
-        this.consumer = this.kafka.consumer({
-            groupId: KAFKA_CONSUMER_GROUP_ID_SEARCH,
-            maxInFlightRequests: 1,
-            sessionTimeout: 600000,
-            heartbeatInterval: 3000,
-            retry: {
-                initialRetryTime: 300,
-                retries: 10
-            },
-            readUncommitted: true,
-            autoCommit: false,
-            maxBytesPerPartition: 3000
-        });
-
+        this.connection = null;
+        this.channel = null;
         this.scraperPool = null;
     }
 
     async start() {
         while (true) {
             try {
-                console.log(`Connecting to Kafka and subscribing to ${TO_BE_SCRAPED_CELLS_TOPIC}`);
-                await this.consumer.connect();
-                await this.consumer.subscribe({ topic: TO_BE_SCRAPED_CELLS_TOPIC, fromBeginning: true });
+                console.log(`Connecting to RabbitMQ and subscribing to ${TO_BE_SCRAPED_CELLS_QUEUE}`);
+                this.connection = await amqp.connect(process.env.RABBITMQ_URL);
+                this.channel = await this.connection.createChannel();
+
+                await this.channel.assertQueue(TO_BE_SCRAPED_CELLS_QUEUE, { durable: true });
+                await this.channel.assertQueue(SCRAPED_CELLS_QUEUE, { durable: true });
+                await this.channel.assertQueue(DLQ_CELLS_QUEUE, { durable: true });
+
+                // Set the prefetch count to control concurrency
+                await this.channel.prefetch(this.MAX_POOL_SIZE);
 
                 console.log(`Initializing Search ScraperPool...`);
                 this.scraperPool = new SearchScraperPool(
@@ -65,112 +50,94 @@ class CellsConsumer {
                     this.proxyAuth,
                     this.proxyServer,
                     this.handleFailedScrape.bind(this),
-                    this.handleSuccessfulScrape.bind(this),
-                    // this.pauseConsumer.bind(this),
-                    // this.resumeConsumer.bind(this)
+                    this.handleSuccessfulScrape.bind(this)
                 );
                 await this.scraperPool.initialize();
 
-                await this.runKafkaConsumer();
+                await this.runRabbitMQConsumer();
                 console.log(`Availability scraper consumer is now running and listening for messages`);
                 logMemoryUsage();
 
                 break;
             } catch (error) {
                 console.error(`Consumer error, attempting to reconnect:`, error);
-                await this.consumer.disconnect().catch(() => { });
-                if (this.scraperPool) {
-                    await this.scraperPool.close();
-                }
+                if (this.channel) await this.channel.close().catch(() => {});
+                if (this.connection) await this.connection.close().catch(() => {});
+                if (this.scraperPool) await this.scraperPool.close();
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
         }
     }
 
-    async runKafkaConsumer() {
-        // Dynamically import p-limit
-        const pLimit = (await import('p-limit')).default;
-        const limit = pLimit(this.MAX_POOL_SIZE); // Limit to 10 concurrent async tasks
+    async runRabbitMQConsumer() {
+        await this.channel.consume(TO_BE_SCRAPED_CELLS_QUEUE, async (message) => {
+            if (message === null) {
+                console.log('Consumer cancelled by server');
+                return;
+            }
 
-        let activeTasksCount = 0;
-        let totalTasksProcessed = 0;
+            this.totalMessagesReceived++;
+            console.log(`Received message from ${TO_BE_SCRAPED_CELLS_QUEUE}`);
+            console.log(`Total messages received: ${this.totalMessagesReceived}`);
 
-        await this.consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
-                this.totalMessagesReceived++;
-                console.log(`Received message from ${topic}#${partition}`);
-                console.log(`Total messages received: ${this.totalMessagesReceived}`);
+            const jobId = this.extractJobId(message);
+            const isJobRunning = await JobService.isJobRunning(jobId);
 
+            if (isJobRunning) {
+                console.log(`Processing message for job ${jobId}`);
+                await this.processMessage(message);
+            } else {
+                console.log(`Job ${jobId} is not running. Skipping message.`);
+                this.channel.ack(message);
+            }
+        }, { noAck: false });
+    }
 
-                limit(async () => {
-                    activeTasksCount++;
-
-                    console.log(`Starting limited task. Active tasks: ${activeTasksCount}`);
-                    const jobId = this.extractJobId(message);
-                    const isJobRunning = await JobService.isJobRunning(jobId);
-
-                    if (isJobRunning) {
-                        await this.scraperPool.handleMessage(topic, partition, message, this.consumer);
-                    } else {
-                        console.log(`Job ${jobId} is not running. Skipping message.`);
-                        await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
-                    }
-
-                    activeTasksCount--;
-                    totalTasksProcessed++;
-                    console.log(`Task completed. Active tasks: ${activeTasksCount}, Total processed: ${totalTasksProcessed}`);
-                }).catch(error => {
-                    console.error('Error in limited task:', error);
-                    activeTasksCount--;
-                });
-            },
-        });
+    async processMessage(message) {
+        try {
+            await this.scraperPool.handleMessage(message, this.channel);
+            console.log(`Finished processing message`);
+        } catch (error) {
+            console.error(`Error processing message:`, error);
+            // Handle the error (e.g., send to DLQ, retry, etc.)
+            await this.handleFailedScrape(null, error, this.extractJobId(message), message);
+        }
     }
 
     extractJobId(message) {
         try {
-            const messageValue = JSON.parse(message.value.toString());
-            return messageValue.jobId;
+            const messageContent = JSON.parse(message.content.toString());
+            return messageContent.jobId;
         } catch (error) {
             console.error('Error extracting jobId from message:', error);
             return null;
         }
     }
 
-    async pauseConsumer() {
-        await this.consumer.pause([{ topic: TO_BE_SCRAPED_CELLS_TOPIC }]);
-        console.log('Consumer paused');
-    }
-
-    async resumeConsumer() {
-        await this.consumer.resume([{ topic: TO_BE_SCRAPED_CELLS_TOPIC }]);
-        console.log('Consumer resumed');
-    }
-
-    async handleFailedScrape(cell, error, jobId, topic, partition, message) {
-        console.error(`Scraping failed for cell ${cell.getId()}`);
+    async handleFailedScrape(cell, error, jobId, message) {
+        console.error(`Scraping failed for cell ${cell ? cell.getId() : 'unknown'}`);
 
         const dlqMessage = {
-            cellId: cell.getId(),
+            cellId: cell ? cell.getId() : 'unknown',
             error: error ? (error.message || String(error)) : 'Unknown error',
             timestamp: new Date().toISOString(),
             jobId
         };
 
-        await commitOffsetsWithRetry(this.consumer, topic, partition, message.offset);
+        this.channel.ack(message);
 
         try {
-            await sendToKafka(DLQ_CELLS_TOPIC, dlqMessage);
-            console.log(`Failed cell ${cell.getId()} sent to DLQ`);
+            await this.channel.sendToQueue(DLQ_CELLS_QUEUE, Buffer.from(JSON.stringify(dlqMessage)));
+            console.log(`Failed cell ${cell ? cell.getId() : 'unknown'} sent to DLQ`);
         } catch (dlqError) {
-            console.error(`Failed to send to DLQ for cell ${cell.getId()}:`, dlqError);
+            console.error(`Failed to send to DLQ for cell ${cell ? cell.getId() : 'unknown'}:`, dlqError);
         }
     }
 
     async handleSuccessfulScrape(data) {
         try {
-            await sendToKafka(SCRAPED_CELLS_TOPIC, data);
-            console.log(`Scraped data sent for cell ${data}`);
+            await this.channel.sendToQueue(SCRAPED_CELLS_QUEUE, Buffer.from(JSON.stringify(data)));
+            console.log(`Scraped data sent for cell ${data.baseCell.getId()}`);
 
             let { baseCell, optimalCell, scraped } = data;
 
@@ -200,7 +167,7 @@ class CellsConsumer {
             await this.fileManager.write(optimalCell.getId(), scraped);
 
         } catch (error) {
-            console.error(`Failed to send scraped data for vehicle ${data}:`, error);
+            console.error(`Failed to send scraped data for cell ${data.baseCell.getId()}:`, error);
         }
     }
 
@@ -210,10 +177,9 @@ class CellsConsumer {
 
         console.log(`Shutting down gracefully...`);
         try {
-            await this.consumer.disconnect();
-            if (this.scraperPool) {
-                await this.scraperPool.close();
-            }
+            if (this.channel) await this.channel.close();
+            if (this.connection) await this.connection.close();
+            if (this.scraperPool) await this.scraperPool.close();
         } catch (error) {
             console.error(`Error during shutdown:`, error);
         } finally {

@@ -121,6 +121,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       PORT: 5003
       TURTRACK_MANAGER_API_BASE_URL: http://host.docker.internal:9999
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     deploy:
       replicas: 1
     networks:

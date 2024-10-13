@@ -3,6 +3,15 @@
 'use strict';
 
 module.exports = {
+    // RabbitMQ Queues
+    TO_BE_SCRAPED_DR_AVAILABILITY_QUEUE: 'TO-BE-SCRAPED-dr-availability-queue',
+    TO_BE_SCRAPED_CELLS_QUEUE: 'TO-BE-SCRAPED-cells-queue',
+    DLQ_DR_AVAILABILITY_QUEUE: 'DLQ-dr-availability-queue',
+    DLQ_CELLS_QUEUE: 'DLQ-cells-queue',
+    SCRAPED_DR_AVAILABILITY_QUEUE: 'SCRAPED-dr-availability-queue',
+    SCRAPED_CELLS_QUEUE: 'SCRAPED-cells-queue',
+
+    // Kafka Topics
     TO_BE_SCRAPED_TOPIC_DR_AVAILABILITY_: 'TO-BE-SCRAPED-dr-availability-topic',
     TO_BE_SCRAPED_CELLS_TOPIC: 'TO-BE-SCRAPED-cells-topic',
     DLQ_TOPIC_DR_AVAILABILITY: 'DLQ-dr-availability-topic',
