@@ -1,4 +1,4 @@
-package com.example.turtrackmanager.service.manager;
+package com.example.turtrackmanager.rabbitmq.producer;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
@@ -6,12 +6,12 @@ import org.springframework.stereotype.Service;
 import static com.example.turtrackmanager.util.Constants.RabbitMQ.*;
 
 @Service
-public class RabbitMQSender {
+public class RabbitMQProducer {
 
     private final RabbitTemplate rabbitTemplate;
     private final String exchange = "turtrack.exchange";
 
-    public RabbitMQSender(RabbitTemplate rabbitTemplate) {
+    public RabbitMQProducer(RabbitTemplate rabbitTemplate) {
         this.rabbitTemplate = rabbitTemplate;
     }
 

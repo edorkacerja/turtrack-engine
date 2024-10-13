@@ -4,6 +4,7 @@ import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.example.turtrackmanager.repository.turtrack.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +20,10 @@ public class VehicleService {
     public List<Vehicle> getAllVehicles() {
         log.info("Fetching all vehicles");
         return vehicleRepository.findAll();
+    }
+
+    public List<Vehicle> getVehiclesWithLimit(int limit) {
+        return vehicleRepository.findAll(PageRequest.of(0, limit)).getContent();
     }
 
     public Optional<Vehicle> getVehicleById(Long id) {

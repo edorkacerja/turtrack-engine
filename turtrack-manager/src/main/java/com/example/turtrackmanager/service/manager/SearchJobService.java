@@ -4,15 +4,14 @@ import com.example.turtrackmanager.dto.ToBeScrapedCellKafkaMessage;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.manager.OptimalCell;
 import com.example.turtrackmanager.model.turtrack.Cell;
+import com.example.turtrackmanager.rabbitmq.producer.RabbitMQProducer;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import com.example.turtrackmanager.repository.manager.OptimalCellRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.example.turtrackmanager.util.Constants.CALIBRATOR_URL;
-import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_CELLS_TOPIC;
 import static com.example.turtrackmanager.util.Constants.RabbitMQ.TO_BE_SCRAPED_CELLS_QUEUE;
 
 @Service
@@ -35,7 +33,7 @@ public class SearchJobService {
 //    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
 //    private final KafkaTemplate<String, ToBeScrapedCellKafkaMessage> optimalCellSearchKafkaTemplate;
     private final OptimalCellRepository optimalCellRepository;
-    private final RabbitMQSender rabbitMQSender;
+    private final RabbitMQProducer rabbitMQProducer;
 
 
     @Transactional
@@ -114,7 +112,7 @@ public class SearchJobService {
                             .build();
 
                     try {
-                        rabbitMQSender.sendToBeScrapedCells(kafkaMessage);
+                        rabbitMQProducer.sendToBeScrapedCells(kafkaMessage);
                         log.debug("Successfully sent message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage);
                     } catch (Exception e) {
                         log.error("Failed to send message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage, e);
@@ -161,7 +159,7 @@ public class SearchJobService {
                             .build();
 
                     try {
-                        rabbitMQSender.sendToBeScrapedCells(kafkaMessage);
+                        rabbitMQProducer.sendToBeScrapedCells(kafkaMessage);
                         log.debug("Successfully sent message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage);
                     } catch (Exception e) {
                         log.error("Failed to send message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage, e);
