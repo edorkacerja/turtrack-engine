@@ -4,13 +4,7 @@ const JobService = require("../services/JobService");
 const { Mutex } = require('async-mutex');
 
 class PricingScraperPool {
-    constructor(
-        maxPoolSize = 3,
-        proxyAuth,
-        proxyServer,
-        handleFailedScrape,
-        handleSuccessfulScrape,
-    ) {
+    constructor(maxPoolSize = 3, proxyAuth, proxyServer, handleFailedScrape, handleSuccessfulScrape) {
         this.maxPoolSize = maxPoolSize;
         this.proxyAuth = proxyAuth;
         this.proxyServer = proxyServer;
@@ -22,6 +16,38 @@ class PricingScraperPool {
         this.idleTimers = new Map();
 
         this.mutex = new Mutex();
+    }
+
+    getAvailableScraper() {
+        return this.mutex.runExclusive(() => {
+            if (this.availableScrapers.size > 0) {
+                const iterator = this.availableScrapers.values();
+                const scraperId = iterator.next().value;
+                this.availableScrapers.delete(scraperId);
+                return this.scrapers.get(scraperId);
+            }
+            return null;
+        });
+    }
+
+    addScraper(scraper) {
+        return this.mutex.runExclusive(() => {
+            this.scrapers.set(scraper.instanceId, scraper);
+            this.availableScrapers.add(scraper.instanceId);
+        });
+    }
+
+    removeScraper(scraperId) {
+        return this.mutex.runExclusive(() => {
+            const scraper = this.scrapers.get(scraperId);
+            this.scrapers.delete(scraperId);
+            this.availableScrapers.delete(scraperId);
+            return scraper;
+        });
+    }
+
+    getScraperCount() {
+        return this.mutex.runExclusive(() => this.scrapers.size);
     }
 
     async handleMessage(message, channel) {
@@ -56,7 +82,7 @@ class PricingScraperPool {
         }
     }
 
-    async fetchWithRetry( vehicleId, jobId, startDate, endDate, maxRetries = 10) {
+    async fetchWithRetry(vehicleId, jobId, startDate, endDate, maxRetries = 10) {
         let scraper;
         let retryCount = 0;
         while (retryCount < maxRetries) {
@@ -111,7 +137,6 @@ class PricingScraperPool {
                 instanceId: instanceId,
                 proxyAuth: this.proxyAuth,
                 proxyServer: this.proxyServer,
-                // country: "US",
                 delay: 1100,
                 headless: false,
             });
@@ -119,14 +144,9 @@ class PricingScraperPool {
             console.log(`[createScraper] Initializing scraper ${instanceId}...`);
             await scraper.init();
 
-            await this.mutex.runExclusive(() => {
-                console.log(`[createScraper] Acquired mutex to add scraper ${instanceId} to pool.`);
-                this.scrapers.set(instanceId, scraper);
-                this.availableScrapers.add(instanceId);
-                console.log(`[createScraper] Scraper ${instanceId} added to pool.`);
-            });
+            await this.addScraper(scraper);
 
-            console.log(`Created new scraper: ${scraper.instanceId}. Total scrapers: ${this.scrapers.size}`);
+            console.log(`Created new scraper: ${scraper.instanceId}. Total scrapers: ${await this.getScraperCount()}`);
             this.startIdleTimer(scraper);
         } catch (error) {
             console.error(`[createScraper] Error creating scraper (attempt ${retryCount + 1}):`, error);
@@ -144,37 +164,21 @@ class PricingScraperPool {
 
     async acquireScraper() {
         while (true) {
-            let scraper = null;
-            let scraperId = null;
-
-            await this.mutex.runExclusive(async () => {
-                console.log(`[acquireScraper] Acquired mutex to check for available scrapers.`);
-                if (this.availableScrapers.size > 0) {
-                    const iterator = this.availableScrapers.values();
-                    let availableScraperId = iterator.next().value;
-                    this.availableScrapers.delete(availableScraperId);
-                    scraper = this.scrapers.get(availableScraperId);
-                    console.log(`[acquireScraper] Assigned available scraper ${availableScraperId} to requester.`);
-                } else if (this.scrapers.size < this.maxPoolSize) {
-                    scraperId = `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-                    this.scrapers.set(scraperId, null);
-                    console.log(`[acquireScraper] Pool size (${this.scrapers.size}) is less than max (${this.maxPoolSize}). Will create a new scraper.`);
-                } else {
-                    console.log(`[acquireScraper] No available scrapers and pool size has reached max (${this.maxPoolSize}).`);
-                }
-            });
-
+            let scraper = await this.getAvailableScraper();
             if (scraper) {
-                console.log(`[acquireScraper] Returning scraper ${scraper.instanceId} to requester.`);
                 this.stopIdleTimer(scraper);
                 return scraper;
             }
 
-            if (scraperId !== null) {
+            const scraperCount = await this.getScraperCount();
+            if (scraperCount < this.maxPoolSize) {
+                const scraperId = `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
                 try {
                     console.log(`[acquireScraper] Creating a new scraper...`);
                     await this.createScraper(0, scraperId);
                     await sleep(1000);
+                    scraper = await this.getAvailableScraper();
+                    if (scraper) return scraper;
                 } catch (error) {
                     console.error(`[acquireScraper] Error while creating new scraper:`, error);
                     throw error;
@@ -186,8 +190,8 @@ class PricingScraperPool {
         }
     }
 
-    async releaseScraper(scraper) {
-        await this.mutex.runExclusive(() => {
+    releaseScraper(scraper) {
+        return this.mutex.runExclusive(() => {
             if (this.scrapers.has(scraper.instanceId)) {
                 this.availableScrapers.add(scraper.instanceId);
                 this.startIdleTimer(scraper);
@@ -229,23 +233,14 @@ class PricingScraperPool {
 
         while (retries < maxRetries) {
             try {
-                let scraper;
+                // Get and remove the scraper atomically
+                const scraper = await this.removeScraper(scraperId);
 
-                // Critical section: remove scraper from pool
-                await this.mutex.runExclusive(() => {
-                    scraper = this.scrapers.get(scraperId);
-                    if (scraper) {
-                        this.scrapers.delete(scraperId);
-                        this.availableScrapers.delete(scraperId);
-                        if (this.idleTimers.has(scraperId)) {
-                            clearTimeout(this.idleTimers.get(scraperId));
-                            this.idleTimers.delete(scraperId);
-                        }
-                        console.log(`Scraper ${scraperId} removed from pool`);
-                    }
-                });
+                if (this.idleTimers.has(scraperId)) {
+                    clearTimeout(this.idleTimers.get(scraperId));
+                    this.idleTimers.delete(scraperId);
+                }
 
-                // Close the scraper outside the mutex
                 if (scraper) {
                     await scraper.close();
                     console.log(`Scraper ${scraperId} closed successfully`);
@@ -253,30 +248,29 @@ class PricingScraperPool {
                     console.warn(`Scraper ${scraperId} not found in pool`);
                 }
 
-                // If we've made it here, everything succeeded
                 console.log(`Scraper ${scraperId} destroyed successfully`);
                 break;
-
             } catch (error) {
                 console.error(`Error destroying scraper ${scraperId} (Attempt ${retries + 1}):`, error);
                 retries++;
                 if (retries >= maxRetries) {
                     console.error(`Failed to destroy scraper ${scraperId} after ${maxRetries} attempts`);
+                    // Ensure scraper is removed from all collections even if closing fails
+                    await this.removeScraper(scraperId);
+                    this.idleTimers.delete(scraperId);
                     break;
                 }
-                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between retries
+                await sleep(1000);
             }
         }
 
-        console.log(`Total scrapers remaining: ${this.scrapers.size}`);
+        console.log(`Total scrapers remaining: ${await this.getScraperCount()}`);
     }
 
     async close() {
         console.log(`[close] Closing ScraperPool and all scrapers.`);
-        for (const scraper of this.scrapers.values()) {
-            await scraper.close();
-            console.log(`[close] Closed scraper ${scraper.instanceId}.`);
-        }
+        const scraperPromises = Array.from(this.scrapers.values()).map(scraper => scraper.close());
+        await Promise.all(scraperPromises);
         this.scrapers.clear();
         this.availableScrapers.clear();
         this.idleTimers.forEach(timer => clearTimeout(timer));
