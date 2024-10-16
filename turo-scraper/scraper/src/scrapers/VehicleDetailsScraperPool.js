@@ -62,7 +62,7 @@ class VehicleDetailsScraperPool {
 
                 console.log(`[handleMessage] Acquired scraper ${scraper.instanceId} for vehicle ${vehicleId}.`);
 
-                const data = await scraper.fetchFromTuro(vehicleId, startDate, startTime, endDate, endTime);
+                const data = await scraper.fetchFromTuro(vehicleId, jobId, startDate, startTime, endDate, endTime);
                 if (!data) {
                     throw new Error("No data returned from fetchFromTuro");
                 }
@@ -106,7 +106,7 @@ class VehicleDetailsScraperPool {
 
             const scraperCount = await this.getScraperCount();
             if (scraperCount < this.maxPoolSize) {
-                const scraperId = `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                const scraperId = `Details-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
                 try {
                     console.log(`[acquireScraper] Creating a new scraper...`);
                     await this.createScraper(0, scraperId);

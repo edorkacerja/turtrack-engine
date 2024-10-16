@@ -1,5 +1,9 @@
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+const fetch = require("cross-fetch");
 const BaseScraper = require("./BaseScraper");
-const { sleep, getRandomInt, logMemoryUsage } = require("../utils/utils");
+const { sleep, logMemoryUsage } = require("../utils/utils");
 
 class PricingScraper extends BaseScraper {
   static type = "pricing";
@@ -61,12 +65,16 @@ class PricingScraper extends BaseScraper {
     try {
       const data = await this.page.evaluate(
           async ({ requestConfig, url }) => {
-            const response = await fetch(url, requestConfig);
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
+            try {
+              const response = await fetch(url, requestConfig);
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            } catch (error) {
+              return { error: error.toString() };
             }
-            return response.json();
-          },
+            },
           { requestConfig, url }
       );
 

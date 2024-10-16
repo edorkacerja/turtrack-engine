@@ -12,7 +12,7 @@ const VehicleDetailsScraperPool = require("../scrapers/VehicleDetailsScraperPool
 
 class VehicleDetailsConsumer {
     constructor() {
-        this.MAX_POOL_SIZE = 20;
+        this.MAX_POOL_SIZE = 1;
         this.isShuttingDown = false;
 
         this.connection = null;

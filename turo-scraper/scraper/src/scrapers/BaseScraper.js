@@ -1,4 +1,6 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const Xvfb = require('xvfb');
 const {getRandomInt, sleep} = require("../utils/utils");
 const {PROXY_AUTH, PROXY_SERVER} = require("../utils/constants");

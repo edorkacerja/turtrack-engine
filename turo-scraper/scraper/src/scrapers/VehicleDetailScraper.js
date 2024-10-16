@@ -1,7 +1,9 @@
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const fetch = require("cross-fetch");
-const utils = require("../utils/utils");
 const BaseScraper = require("./BaseScraper");
-const VehicleDetailRequest = require("../dtos/vehicleDetailRequest.dto");
+const { sleep, logMemoryUsage } = require("../utils/utils");
 
 class VehicleDetailScraper extends BaseScraper {
   static type = "vehicle_detail";
@@ -9,82 +11,32 @@ class VehicleDetailScraper extends BaseScraper {
   constructor(config) {
     super(config);
 
-    const vehicleDetailRequest = new VehicleDetailRequest(config);
+    const { instanceId } = config;
 
-    this.startDate = vehicleDetailRequest.startDate;
-    this.endDate = vehicleDetailRequest.endDate;
-    this.startTime = vehicleDetailRequest.startTime;
-    this.endTime = vehicleDetailRequest.endTime;
-
-
-    this.onSuccessCallback = () => {};
-    this.onFailedCallback = () => {};
-    this.onFinishCallback = () => {};
+    this.instanceId = instanceId || 'unknown';
+    this.currentRequestTotalBytes = 0;
   }
 
-  async scrape(vehicles) {
-    const promises = vehicles.map(async (vehicle) => {
-      if (!this.isRunning()) return;
+  async scrape(vehicleId, jobId, startDate, startTime, endDate, endTime) {
+    this.currentRequestTotalBytes = 0;
+    await sleep(this.delay);
 
-      const vehicleId = vehicle.getId();
+    try {
+      const data = await this.fetchFromTuro(vehicleId, startDate, startTime, endDate, endTime);
+      console.log(`[${this.instanceId}] Total data received for vehicle ${vehicleId}: ${this.currentRequestTotalBytes} Bytes`);
 
-      try {
-        const data = await this.fetch(vehicleId);
-        this.onSuccessCallback({
-          id: vehicleId,
-          vehicle,
-          scraped: data,
-        });
-      } catch (error) {
-        this.onFailedCallback({ vehicle, error });
-      } finally {
-        await utils.sleep(this.delay);
+      if (this.isValidResponse(data)) {
+        console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
+        logMemoryUsage();
+        return data;
+      } else {
+        throw new Error(`[${this.instanceId}] Invalid response structure`);
       }
-    });
 
-    await Promise.allSettled(promises);
-    this.onFinishCallback(this.scraped);
-  }
-
-  async fetch(vehicleId) {
-    const headers = {
-      accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
-      "content-type": "application/json",
-    };
-
-    const requestConfig = {
-      headers,
-      body: null,
-      method: "GET",
-      mode: "cors",
-      credentials: "include",
-    };
-
-    const queryParams = new URLSearchParams({
-      endDate: this.endDate,
-      endTime: this.endTime,
-      startDate: this.startDate,
-      startTime: this.startTime,
-      vehicleId: vehicleId,
-    });
-
-    const url = `https://turo.com/api/vehicle/detail?${queryParams.toString()}`;
-
-    const response = await this.page.evaluate(
-        async ({ requestConfig, url }) => {
-          const res = await fetch(url, requestConfig);
-          const data = await res.json();
-          return { status: res.status, data };
-        },
-        { requestConfig, url }
-    );
-
-    if (response.status !== 200) {
-      throw response.data;
+    } catch (error) {
+      console.error(`[${this.instanceId}] Error scraping vehicle ${vehicleId}:`, error);
+      throw error;
     }
-
-    return response.data;
   }
 
   async fetchFromTuro(vehicleId, startDate, startTime, endDate, endTime) {
@@ -92,53 +44,68 @@ class VehicleDetailScraper extends BaseScraper {
       accept: "*/*",
       "accept-language": "en-US,en;q=0.9",
       "content-type": "application/json",
+      "referer": "https://turo.com/"
     };
 
     const requestConfig = {
       headers,
-      body: null,
       method: "GET",
       mode: "cors",
       credentials: "include",
     };
 
-    const queryParams = new URLSearchParams({
-      endDate: endDate,
-      endTime: endTime,
-      startDate: startDate,
-      startTime: startTime,
-      vehicleId: vehicleId,
-    });
+    // Using the hardcoded URL as requested
+    const url = "https://turo.com/api/vehicle/detail?endDate=10%2F21%2F2024&endTime=10%3A00&startDate=10%2F18%2F2024&startTime=10%3A00&vehicleId=1597069";
 
-    const url = `https://turo.com/api/vehicle/detail?${queryParams.toString()}`;
+    try {
+      const data = await this.page.evaluate(
+          async ({ requestConfig, url }) => {
+            try {
+              const response = await fetch(url, requestConfig);
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            } catch (error) {
+              return { error: error.toString() };
+            }
+            },
+          { requestConfig, url }
+      );
 
-    const response = await this.page.evaluate(
-        async ({ requestConfig, url }) => {
-          const res = await fetch(url, requestConfig);
-          const data = await res.json();
-          return { status: res.status, data };
-        },
-        { requestConfig, url }
-    );
-
-    if (response.status !== 200) {
-      throw response.data;
+      this.updateTotalBytes(data);
+      return data;
+    } catch (error) {
+      console.error(`[${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);
+      throw error;
     }
-
-    return response.data;
   }
 
-
-  async onSuccess(callfunction) {
-    this.onSuccessCallback = callfunction;
+  updateTotalBytes(data) {
+    const responseSize = JSON.stringify(data).length;
+    this.currentRequestTotalBytes += responseSize;
   }
 
-  async onFailed(callfunction) {
-    this.onFailedCallback = callfunction;
+  isValidResponse(data) {
+    return (
+        data &&
+        typeof data === 'object' &&
+        data.vehicle &&
+        typeof data.vehicle === 'object'
+    );
   }
 
-  async onFinish(callfunction) {
-    this.onFinishCallback = callfunction;
+  async destroy() {
+    try {
+      await super.destroy();
+      console.log(`[${this.instanceId}] VehicleDetailScraper instance destroyed and data cleared`);
+    } catch (error) {
+      console.error(`[${this.instanceId}] Error during VehicleDetailScraper destruction:`, error);
+    }
+  }
+
+  async close() {
+    await this.destroy();
   }
 }
 
