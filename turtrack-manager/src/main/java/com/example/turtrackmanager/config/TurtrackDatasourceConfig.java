@@ -15,6 +15,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import jakarta.persistence.EntityManagerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
 @EnableJpaRepositories(
         basePackages = "com.example.turtrackmanager.repository.turtrack",
@@ -43,9 +47,15 @@ public class TurtrackDatasourceConfig {
     @Bean
     public LocalContainerEntityManagerFactoryBean turtrackEntityManagerFactory(
             EntityManagerFactoryBuilder builder) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("hibernate.hbm2ddl.auto", "update");
+        properties.put("hibernate.show_sql", "true");
+        properties.put("hibernate.format_sql", "true");
+
         return builder
                 .dataSource(turtrackDataSource())
                 .packages("com.example.turtrackmanager.model.turtrack")
+                .properties(properties)
                 .persistenceUnit("turtrack")
                 .build();
     }
