@@ -6,7 +6,6 @@ const VehicleDetailScraper = require("../scrapers/VehicleDetailScraper");
 const Vehicle = require("../models/Vehicle");
 const FileManager = require("../managers/FileManager");
 const MetadataManager = require("../managers/MetadataManager");
-const { sendToKafka, disconnectProducer } = require("../utils/kafkaUtil");
 
 const dateutil = require("../utils/dateutil");
 const BaseCell = require("../models/BaseCell");
@@ -169,8 +168,6 @@ const pricingService = async (dto) => {
     fileManager.write(vehicle.getId(), scrapedWithVehicleId);
 
     console.log(scrapedWithVehicleId);
-    // Send vehicle detail data to Kafka
-    await sendToKafka('SCRAPED-dr-availability-topic', scrapedWithVehicleId);
 
     failedInRow = 0;
   }
@@ -223,8 +220,6 @@ const vehicleDetailService = async (dto) => {
     MetadataManager.updateHash();
     fileManager.write(vehicle.getId(), scraped);
 
-    // Send vehicle detail data to Kafka
-    await sendToKafka('SCRAPED-vehicle-details-topic', scraped);
 
     failedInRow = 0;
   }
@@ -251,7 +246,6 @@ const clearDatabaseService = async (dto) => {
 
 const stopAllService = async () => {
   await BaseScraper.close();
-  await disconnectProducer();
 };
 
 const getDatabaseSize = async () => {

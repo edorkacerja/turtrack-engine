@@ -2,7 +2,6 @@ const path = require("path");
 const parser = require("fast-csv");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
-const kafkaUtil = require('../utils/kafkaUtil');
 
 const Vehicle = require("../models/Vehicle");
 const BaseCell = require("../models/BaseCell");

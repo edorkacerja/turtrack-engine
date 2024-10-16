@@ -5,10 +5,9 @@ const os = require('os');
 
 const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
-const { initializeProducer } = require("./utils/kafkaUtil");
-const PricingConsumer = require('./kafka-consumers/PricingConsumer');
-const CellsConsumer = require("./kafka-consumers/CellsConsumer");
-const VehicleDetailsConsumer = require("./kafka-consumers/VehicleDetailsConsumer");
+const PricingConsumer = require('./consumers/PricingConsumer');
+const CellsConsumer = require("./consumers/CellsConsumer");
+const VehicleDetailsConsumer = require("./consumers/VehicleDetailsConsumer");
 
 const port = process.env.PORT || 5011;
 const scraperType = process.env.SCRAPER_TYPE || 'search';
@@ -28,10 +27,6 @@ app.get('/container-id', (req, res) => {
 async function startServer() {
   try {
     console.log(`Starting server with scraper type: ${scraperType}`);
-
-    // Initialize Kafka producer
-    await initializeProducer();
-    console.log("Kafka producer initialized");
 
     // Start the appropriate consumer based on SCRAPER_TYPE
     if (scraperType === 'pricing') {

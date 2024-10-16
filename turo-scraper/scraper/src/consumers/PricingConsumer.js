@@ -36,6 +36,8 @@ class PricingConsumer {
                 await this.channel.prefetch(this.MAX_POOL_SIZE);
 
                 console.log(`Initializing Pricing ScraperPool...`);
+                // Note: If I use the real class PricingScraperPool, all the requests to Turo fail!?!?
+                // So instead we use ScraperPool which is not even a subclass. I don't understand...
                 this.scraperPool = new ScraperPool(
                     this.MAX_POOL_SIZE,
                     this.proxyAuth,
