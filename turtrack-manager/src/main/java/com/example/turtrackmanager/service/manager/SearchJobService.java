@@ -1,6 +1,7 @@
 package com.example.turtrackmanager.service.manager;
 
-import com.example.turtrackmanager.dto.ToBeScrapedCellKafkaMessage;
+import com.example.turtrackmanager.dto.CreateSearchJobDTO;
+import com.example.turtrackmanager.dto.ToBeScrapedCellMessage;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.manager.OptimalCell;
 import com.example.turtrackmanager.model.turtrack.Cell;
@@ -30,15 +31,11 @@ import static com.example.turtrackmanager.util.Constants.RabbitMQ.TO_BE_SCRAPED_
 public class SearchJobService {
     private final JobRepository jobRepository;
     private final RestTemplate restTemplate;
-//    private final KafkaTemplate<String, Cell> searchKafkaTemplate;
-//    private final KafkaTemplate<String, ToBeScrapedCellKafkaMessage> optimalCellSearchKafkaTemplate;
     private final OptimalCellRepository optimalCellRepository;
     private final RabbitMQProducer rabbitMQProducer;
 
-
     @Transactional
-    public Job createAndStartSearchJob(Map<String, Object> searchParams) {
-
+    public Job createAndStartSearchJob(CreateSearchJobDTO createSearchJobDTO) {
         Job job = Job.builder()
                 .title("Search Job")
                 .status(Job.JobStatus.CREATED)
@@ -51,8 +48,8 @@ public class SearchJobService {
 
         try {
             // Process and store search parameters
-            job.setTotalItems((int)searchParams.get("limit") - (int) searchParams.get("startAt"));
-            job = startJob(job, searchParams);
+            job.setTotalItems(createSearchJobDTO.getLimit() - createSearchJobDTO.getStartAt());
+            job = startJob(job, createSearchJobDTO);
         } catch (Exception e) {
             log.error("Failed to start search job: {}", job.getId(), e);
             job.setStatus(Job.JobStatus.FAILED);
@@ -63,21 +60,21 @@ public class SearchJobService {
     }
 
     @Transactional
-    public Job startJob(Job job, Map<String, Object> searchParams) {
+    public Job startJob(Job job, CreateSearchJobDTO createSearchJobDTO) {
         log.info("Starting job: {}", job);
 
         try {
-            int startAt = (int) searchParams.get("startAt");
-            int limit = (int) searchParams.get("limit");
+            int startAt = createSearchJobDTO.getStartAt();
+            int limit = createSearchJobDTO.getLimit();
             int totalCountOfCellsToBeScraped = limit == 0 ? -1 : limit - startAt;
 
-            boolean fromOptimalCells = (boolean) searchParams.get("fromOptimalCells");
-            boolean updateOptimalCells = (boolean) searchParams.get("updateOptimalCells");
-            int cellSize = (int) searchParams.get("cell_size");
-            int recursiveDepth = (int) searchParams.get("recursiveDepth");
+            boolean fromOptimalCells = createSearchJobDTO.getFromOptimalCells();
+            boolean updateOptimalCells = createSearchJobDTO.getUpdateOptimalCells();
+            int cellSize = createSearchJobDTO.getCellSize();
+            int recursiveDepth = createSearchJobDTO.getRecursiveDepth();
 
-            String startDate = (String) searchParams.get("startDate");
-            String endDate = (String) searchParams.get("endDate");
+            String startDate = String.valueOf(createSearchJobDTO.getStartDate());
+            String endDate = String.valueOf(createSearchJobDTO.getEndDate());
 
             if (fromOptimalCells) {
                 List<OptimalCell> cells = optimalCellRepository.findByCellSize(cellSize);
@@ -94,9 +91,8 @@ public class SearchJobService {
 
                 List<OptimalCell> sortedCells = cellStream.collect(Collectors.toList());
 
-                // Send cells to Kafka
                 sortedCells.forEach(cell -> {
-                    ToBeScrapedCellKafkaMessage kafkaMessage = ToBeScrapedCellKafkaMessage.builder()
+                    ToBeScrapedCellMessage toBeScrapedCellMessage = ToBeScrapedCellMessage.builder()
                             .id(cell.getId().toString())
                             .country(cell.getCountry())
                             .cellSize(cell.getCellSize())
@@ -112,10 +108,10 @@ public class SearchJobService {
                             .build();
 
                     try {
-                        rabbitMQProducer.sendToBeScrapedCells(kafkaMessage);
-                        log.debug("Successfully sent message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage);
+                        rabbitMQProducer.sendToBeScrapedCells(toBeScrapedCellMessage);
+                        log.debug("Successfully sent message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, toBeScrapedCellMessage);
                     } catch (Exception e) {
-                        log.error("Failed to send message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, kafkaMessage, e);
+                        log.error("Failed to send message to RabbitMQ queue '{}': {}", TO_BE_SCRAPED_CELLS_QUEUE, toBeScrapedCellMessage, e);
                     }
 
                 });
@@ -128,10 +124,10 @@ public class SearchJobService {
                 job.setCompletedItems(0);
                 job.setFailedItems(0);
                 job.setPercentCompleted(0.0);
-                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), sortedCells.size());
+                log.info("Job started: {}. Sent {} cells to Rabbit.", job.getId(), sortedCells.size());
 
             } else {
-                List<Cell> baseCells = callCalibratorEndpoint(searchParams);
+                List<Cell> baseCells = callCalibratorEndpoint(createSearchJobDTO);
 
                 Stream<Cell> cellStream = baseCells.stream().skip(startAt);
 
@@ -141,9 +137,8 @@ public class SearchJobService {
 
                 List<Cell> cellsToProcess = cellStream.collect(Collectors.toList());
 
-                // Send cells to Kafka
                 cellsToProcess.forEach(cell -> {
-                    ToBeScrapedCellKafkaMessage kafkaMessage = ToBeScrapedCellKafkaMessage.builder()
+                    ToBeScrapedCellMessage kafkaMessage = ToBeScrapedCellMessage.builder()
                             .id(cell.getId().toString())
                             .country(cell.getCountry())
                             .cellSize(cell.getCellSize())
@@ -166,7 +161,7 @@ public class SearchJobService {
                     }
                 });
 
-                log.info("Sent {} cells to Kafka.", cellsToProcess.size());
+                log.info("Sent {} cells to Rabbit.", cellsToProcess.size());
 
                 job.setStatus(Job.JobStatus.RUNNING);
                 job.setStartedAt(LocalDateTime.now());
@@ -174,7 +169,7 @@ public class SearchJobService {
                 job.setCompletedItems(0);
                 job.setFailedItems(0);
                 job.setPercentCompleted(0.0);
-                log.info("Job started: {}. Sent {} cells to Kafka.", job.getId(), cellsToProcess.size());
+                log.info("Job started: {}. Sent {} cells to Rabbit.", job.getId(), cellsToProcess.size());
             }
 
         } catch (Exception e) {
@@ -185,13 +180,12 @@ public class SearchJobService {
         return jobRepository.save(job);
     }
 
-
-    private List<Cell> callCalibratorEndpoint(Map<String, Object> params) {
+    private List<Cell> callCalibratorEndpoint(CreateSearchJobDTO createSearchJobDTO) {
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(MediaType.ALL));
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(params, headers);
+        HttpEntity<CreateSearchJobDTO> requestEntity = new HttpEntity<>(createSearchJobDTO, headers);
 
         String url = CALIBRATOR_URL + "/api/v1/calibrator/calibrate";
 
@@ -210,7 +204,7 @@ public class SearchJobService {
                         .setTopRightLat(topRightCoords.get("lat"))
                         .setTopRightLng(topRightCoords.get("lng"))
                         .setCellSize((Integer) cellData.get("cell_size"))
-                        .setCountry((String) params.get("country"))
+                        .setCountry(createSearchJobDTO.getCountry())
                         .setId((String) cellData.get("temp_id"));
 
                 processedGrid.add(processedCell);

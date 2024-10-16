@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ToBeScrapedVehicleKafkaMessage {
+public class ToBeScrapedVehicleAvailabilityMessage {
     private String vehicleId;
     private String country;
     private String startDate;

@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ToBeScrapedCellKafkaMessage {
+public class ToBeScrapedCellMessage {
     private String id;
     private String country;
     private Integer cellSize;

@@ -1,6 +1,6 @@
 package com.example.turtrackmanager.config.kafka;
 
-import com.example.turtrackmanager.dto.ToBeScrapedVehicleKafkaMessage;
+import com.example.turtrackmanager.dto.ToBeScrapedVehicleAvailabilityMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -141,7 +141,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ProducerFactory<String, ToBeScrapedVehicleKafkaMessage> producerFactory() {
+    public ProducerFactory<String, ToBeScrapedVehicleAvailabilityMessage> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -155,7 +155,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, ToBeScrapedVehicleKafkaMessage> kafkaTemplate() {
+    public KafkaTemplate<String, ToBeScrapedVehicleAvailabilityMessage> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 }

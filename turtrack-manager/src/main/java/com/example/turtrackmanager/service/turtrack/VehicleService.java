@@ -5,6 +5,7 @@ import com.example.turtrackmanager.repository.turtrack.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -54,4 +55,10 @@ public class VehicleService {
         log.info("Deleting vehicle with id: {}", id);
         vehicleRepository.deleteById(id);
     }
+
+    public List<Vehicle> getVehiclesWithLimitAndOffset(int limit, int offset) {
+        Pageable pageable = PageRequest.of(offset / limit, limit);
+        return vehicleRepository.findAll(pageable).getContent();
+    }
+
 }

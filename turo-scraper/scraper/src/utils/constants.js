@@ -4,10 +4,13 @@
 
 module.exports = {
     // RabbitMQ Queues
+    TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE: 'TO-BE-SCRAPED-vehicle-details-queue',
     TO_BE_SCRAPED_DR_AVAILABILITY_QUEUE: 'TO-BE-SCRAPED-dr-availability-queue',
     TO_BE_SCRAPED_CELLS_QUEUE: 'TO-BE-SCRAPED-cells-queue',
+    DLQ_VEHICLE_DETAILS_QUEUE: 'DLQ-vehicle-details-queue',
     DLQ_DR_AVAILABILITY_QUEUE: 'DLQ-dr-availability-queue',
     DLQ_CELLS_QUEUE: 'DLQ-cells-queue',
+    SCRAPED_VEHICLE_DETAILS_QUEUE: 'SCRAPED-vehicle-details-queue',
     SCRAPED_DR_AVAILABILITY_QUEUE: 'SCRAPED-dr-availability-queue',
     SCRAPED_CELLS_QUEUE: 'SCRAPED-cells-queue',
 

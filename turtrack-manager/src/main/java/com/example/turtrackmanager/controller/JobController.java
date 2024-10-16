@@ -1,11 +1,14 @@
 package com.example.turtrackmanager.controller;
 
-import com.example.turtrackmanager.dto.JobCreationDTO;
+import com.example.turtrackmanager.dto.CreateSearchJobDTO;
+import com.example.turtrackmanager.dto.CreateAvailabilityJobDTO;
+import com.example.turtrackmanager.dto.CreateVehicleDetailsJobDTO;
 import com.example.turtrackmanager.dto.JobDTO;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.service.manager.DailyRateAndAvailabilityJobService;
 import com.example.turtrackmanager.service.manager.JobService;
 import com.example.turtrackmanager.service.manager.SearchJobService;
+import com.example.turtrackmanager.service.manager.VehicleDetailsJobService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,7 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 
@@ -30,6 +32,7 @@ public class JobController {
     private final JobService jobService;
     private final DailyRateAndAvailabilityJobService availabilityJobService;
     private final SearchJobService searchJobService;
+    private final VehicleDetailsJobService vehicleDetailsJobService;
 
     @GetMapping
     public ResponseEntity<Page<JobDTO>> getAllJobs(
@@ -59,22 +62,25 @@ public class JobController {
 //    }
 
     @PostMapping("/availability/create")
-    public ResponseEntity<JobDTO> createAndStartAvailabilityJob(@RequestBody @Validated JobCreationDTO jobCreationDTO) {
-        log.info("Received request to start job: {}", jobCreationDTO);
-        Job createdJob = availabilityJobService.createAndStartAvailabilityJob(jobCreationDTO);
+    public ResponseEntity<JobDTO> createAndStartAvailabilityJob(@RequestBody @Validated CreateAvailabilityJobDTO createAvailabilityJobDTO) {
+        log.info("Received request to start job: {}", createAvailabilityJobDTO);
+        Job createdJob = availabilityJobService.createAndStartAvailabilityJob(createAvailabilityJobDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
     }
 
     @PostMapping("/search/create")
-    public ResponseEntity<JobDTO> createAndStartSearchJob(@RequestBody Map<String, Object> searchParams) {
-        log.info("Received request to create SEARCH job with params: {}", searchParams);
+    public ResponseEntity<JobDTO> createAndStartSearchJob(@RequestBody CreateSearchJobDTO createSearchJobDTO) {
+        log.info("Received request to create SEARCH job with params: {}", createSearchJobDTO);
 
+        Job createdJob = searchJobService.createAndStartSearchJob(createSearchJobDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
+    }
 
-        // Store search parameters in the job entity or process them as needed
-        // For simplicity, we'll just log them here
-        log.info("Search parameters: {}", searchParams);
+    @PostMapping("/details/create")
+    public ResponseEntity<JobDTO> createAndStartVehicleDetailsJob(@RequestBody CreateVehicleDetailsJobDTO createVehicleDetailsJobDTO) {
+        log.info("Received request to create VEHICLE DETAILS job with params: {}", createVehicleDetailsJobDTO);
 
-        Job createdJob = searchJobService.createAndStartSearchJob(searchParams);
+        Job createdJob = vehicleDetailsJobService.createAndStartVehicleDetailsJob(createVehicleDetailsJobDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDTO.toDTO(createdJob));
     }
 

@@ -1,7 +1,7 @@
 package com.example.turtrackmanager.service.manager;
 
-import com.example.turtrackmanager.dto.JobCreationDTO;
-import com.example.turtrackmanager.dto.ToBeScrapedVehicleKafkaMessage;
+import com.example.turtrackmanager.dto.CreateAvailabilityJobDTO;
+import com.example.turtrackmanager.dto.ToBeScrapedVehicleAvailabilityMessage;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.example.turtrackmanager.rabbitmq.producer.RabbitMQProducer;
@@ -32,13 +32,13 @@ public class DailyRateAndAvailabilityJobService {
     private final VehicleService vehicleService;
 
     @Transactional
-    public Job createAndStartAvailabilityJob(JobCreationDTO jobCreationDTO) {
-        Job job = jobService.createJob(jobCreationDTO);
+    public Job createAndStartAvailabilityJob(CreateAvailabilityJobDTO createAvailabilityJobDTO) {
+        Job job = jobService.createJob(createAvailabilityJobDTO);
         job = jobRepository.save(job);
         log.info("Created job: {}", job);
 
         try {
-            int totalItems = startAvailabilityJob(job, jobCreationDTO);
+            int totalItems = startAvailabilityJob(job, createAvailabilityJobDTO);
             job.setTotalItems(totalItems);
             job.setStatus(Job.JobStatus.RUNNING);
             job.setStartedAt(LocalDateTime.now());
@@ -50,14 +50,14 @@ public class DailyRateAndAvailabilityJobService {
         return jobRepository.save(job);
     }
 
-    private int startAvailabilityJob(Job job, JobCreationDTO jobCreationDTO) {
-        int totalItems = 0;
+    private int startAvailabilityJob(Job job, CreateAvailabilityJobDTO createAvailabilityJobDTO) {
+        int totalItems;
 
         if (job.getJobType() == Job.JobType.DAILY_RATE_AND_AVAILABILITY) {
             totalItems = feedVehiclesToAvailabilityScraper(
-                    jobCreationDTO.getNumberOfVehicles(),
-                    jobCreationDTO.getStartDate(),
-                    jobCreationDTO.getEndDate(),
+                    createAvailabilityJobDTO.getNumberOfVehicles(),
+                    createAvailabilityJobDTO.getStartDate(),
+                    createAvailabilityJobDTO.getEndDate(),
                     String.valueOf(job.getId())
             );
         } else {
@@ -65,21 +65,6 @@ public class DailyRateAndAvailabilityJobService {
         }
 
         return totalItems;
-    }
-
-    public int feedVehiclesToAvailabilityScraper(int numberOfVehicles) {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-        LocalDate sevenDaysAgo = LocalDate.now().minusDays(7);
-
-        return feedVehiclesToAvailabilityScraper(numberOfVehicles, sevenDaysAgo, yesterday, null);
-    }
-
-    public void feedVehiclesToAvailabilityScraper() {
-        feedVehiclesToAvailabilityScraper(0); // 0 means process all vehicles
-    }
-
-    public void feedVehiclesToAvailabilityScraper(LocalDate startDate, LocalDate endDate) {
-        feedVehiclesToAvailabilityScraper(0, startDate, endDate, null);
     }
 
     public int feedVehiclesToAvailabilityScraper(int numberOfVehicles, LocalDate startDate, LocalDate endDate, String jobId) {
@@ -96,7 +81,7 @@ public class DailyRateAndAvailabilityJobService {
 
         vehicles.forEach(vehicle -> {
             try {
-                ToBeScrapedVehicleKafkaMessage message = ToBeScrapedVehicleKafkaMessage.builder()
+                ToBeScrapedVehicleAvailabilityMessage message = ToBeScrapedVehicleAvailabilityMessage.builder()
                         .vehicleId(String.valueOf(vehicle.getId()))
                         .country(vehicle.getCountry())
                         .startDate(getStartDate(vehicle, startDate))

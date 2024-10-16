@@ -1,7 +1,5 @@
 package com.example.turtrackmanager.config.kafka;
-import com.example.turtrackmanager.dto.ToBeScrapedCellKafkaMessage;
-import com.example.turtrackmanager.model.manager.OptimalCell;
-import com.example.turtrackmanager.model.turtrack.Cell;
+import com.example.turtrackmanager.dto.ToBeScrapedCellMessage;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,7 +55,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, ToBeScrapedCellKafkaMessage> cellProducerFactory() {
+    public ProducerFactory<String, ToBeScrapedCellMessage> cellProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -66,7 +64,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, ToBeScrapedCellKafkaMessage> optimalCellProducerFactory() {
+    public ProducerFactory<String, ToBeScrapedCellMessage> optimalCellProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -90,11 +88,11 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, ToBeScrapedCellKafkaMessage> searchKafkaTemplate() {
+    public KafkaTemplate<String, ToBeScrapedCellMessage> searchKafkaTemplate() {
         return new KafkaTemplate<>(cellProducerFactory());
     }
     @Bean
-    public KafkaTemplate<String, ToBeScrapedCellKafkaMessage> optimalCellSearchKafkaTemplate() {
+    public KafkaTemplate<String, ToBeScrapedCellMessage> optimalCellSearchKafkaTemplate() {
         return new KafkaTemplate<>(optimalCellProducerFactory());
     }
 }

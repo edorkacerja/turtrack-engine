@@ -1,6 +1,6 @@
 package com.example.turtrackmanager.service.manager;
 
-import com.example.turtrackmanager.dto.JobCreationDTO;
+import com.example.turtrackmanager.dto.CreateAvailabilityJobDTO;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import jakarta.persistence.EntityManager;
@@ -38,12 +38,12 @@ public class JobService {
                 .orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
     }
 
-    public Job createJob(JobCreationDTO jobCreationDTO) {
+    public Job createJob(CreateAvailabilityJobDTO createAvailabilityJobDTO) {
         return Job.builder()
-                .title(generateJobTitle(jobCreationDTO))
+                .title(generateJobTitle(createAvailabilityJobDTO))
                 .status(Job.JobStatus.CREATED)
                 .createdAt(LocalDateTime.now())
-                .jobType(jobCreationDTO.getJobType())
+                .jobType(createAvailabilityJobDTO.getJobType())
                 .completedItems(0)
                 .percentCompleted(0.0)
                 .build();
@@ -92,9 +92,9 @@ public class JobService {
         log.info("Deleted job: {}", job);
     }
 
-    private String generateJobTitle(JobCreationDTO jobCreationDTO) {
+    private String generateJobTitle(CreateAvailabilityJobDTO createAvailabilityJobDTO) {
         return String.format("%s Job - %s",
-                jobCreationDTO.getJobType(),
+                createAvailabilityJobDTO.getJobType(),
                 LocalDateTime.now().toString());
     }
 
