@@ -3,7 +3,6 @@ package com.example.turtrackmanager.service.turtrack;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -13,7 +12,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VehicleDetailsService {
 
-    private final KafkaTemplate<String, Vehicle> vehicleDetailsKafkaTemplate;
 
     public void processAndForwardVehicle(Map<String, Object> message) {
         Vehicle vehicle = extractVehicle(message);
@@ -86,6 +84,5 @@ public class VehicleDetailsService {
     }
 
     private void forwardVehicle(Vehicle vehicle) {
-        vehicleDetailsKafkaTemplate.send("PROCESSED-vehicle-details-topic", vehicle);
     }
 }
