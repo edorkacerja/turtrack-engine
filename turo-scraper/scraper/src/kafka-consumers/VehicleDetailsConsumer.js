@@ -1,126 +1,133 @@
-const { Kafka } = require('kafkajs');
-const VehicleDetailScraper = require('../scrapers/VehicleDetailScraper');
-const { sendToKafka } = require('../utils/kafkaUtil');
-const os = require('os');
+'use strict';
 
-const instanceId = os.hostname();
+const amqp = require('amqplib');
+const {
+    TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE,
+    SCRAPED_VEHICLE_DETAILS_QUEUE,
+    DLQ_VEHICLE_DETAILS_QUEUE
+} = require("../utils/constants");
+const { logMemoryUsage } = require("../utils/utils");
+const JobService = require("../services/JobService");
+const VehicleDetailsScraperPool = require("../scrapers/VehicleDetailsScraperPool");
 
-const kafka = new Kafka({
-    clientId: `vehicle-details-scraper-client-${instanceId}`,
-    brokers: [process.env.KAFKA_BOOTSTRAP_SERVERS]
-});
+class VehicleDetailsConsumer {
+    constructor() {
+        this.MAX_POOL_SIZE = 20;
+        this.isShuttingDown = false;
 
-const consumer = kafka.consumer({
-    groupId: 'vehicle-details-scraper-group',
-    maxInFlightRequests: 1
-});
-
-let vehicleDetailsScraper;
-
-async function initializeScraper(config) {
-    if (!vehicleDetailsScraper) {
-        vehicleDetailsScraper = new VehicleDetailScraper(config);
-        await vehicleDetailsScraper.init();
-        vehicleDetailsScraper.onSuccess(handleSuccess);
-        vehicleDetailsScraper.onFailed(handleFailed);
-        vehicleDetailsScraper.onFinish(handleFinish);
+        this.connection = null;
+        this.channel = null;
+        this.scraperPool = null;
     }
-    return vehicleDetailsScraper;
-}
 
-async function handleMessage(messageData) {
-    try {
-        if (!messageData || typeof messageData !== 'object' || !messageData.country || !messageData.vehicleId) {
-            throw new Error('Invalid message data');
+    async start() {
+        while (true) {
+            try {
+                console.log(`Connecting to RabbitMQ and subscribing to ${TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE}`);
+                this.connection = await amqp.connect(process.env.RABBITMQ_URL);
+                this.channel = await this.connection.createChannel();
+
+                await this.channel.assertQueue(TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE, { durable: true });
+                await this.channel.assertQueue(SCRAPED_VEHICLE_DETAILS_QUEUE, { durable: true });
+                await this.channel.assertQueue(DLQ_VEHICLE_DETAILS_QUEUE, { durable: true });
+
+                await this.channel.prefetch(this.MAX_POOL_SIZE);
+
+                console.log(`Initializing Vehicle Details ScraperPool...`);
+                this.scraperPool = new VehicleDetailsScraperPool(
+                    this.MAX_POOL_SIZE,
+                    this.handleFailedScrape.bind(this),
+                    this.handleSuccessfulScrape.bind(this)
+                );
+
+                await this.runRabbitMQConsumer();
+                console.log(`Vehicle Details Consumer is now running and listening for messages from the queue`);
+                logMemoryUsage();
+
+                break;
+            } catch (error) {
+                console.error(`Consumer error, attempting to reconnect:`, error);
+                if (this.channel) await this.channel.close().catch(() => {});
+                if (this.connection) await this.connection.close().catch(() => {});
+                if (this.scraperPool) await this.scraperPool.close();
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
         }
-
-        const { country, vehicleId, startDate, endDate, startTime, endTime } = messageData;
-        console.log(`[Instance ${instanceId}] Consumed vehicle with id ${vehicleId} to be scraped for details`);
-
-        const scraper = await initializeScraper({
-            country,
-            startDate,
-            endDate,
-            startTime,
-            endTime
-        });
-
-        const vehicle = { getId: () => vehicleId };
-        await scraper.scrape([vehicle]);
-    } catch (error) {
-        console.error(`[Instance ${instanceId}] Error processing message:`, error);
-        await handleFailed({ vehicle: { getId: () => messageData.vehicleId }, error });
     }
-}
 
-async function handleSuccess(data) {
-    const { vehicle, scraped } = data;
+    async runRabbitMQConsumer() {
+        await this.channel.consume(TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE, async (message) => {
+            if (message === null) {
+                console.log('Consumer cancelled by server');
+                return;
+            }
 
-    const scrapedWithVehicleId = {
-        ...scraped,
-        vehicleId: vehicle.getId(),
-        scrapedBy: instanceId
-    };
+            const messageData = JSON.parse(message.content.toString());
+            const { vehicleId, startDate, endDate, startTime, endTime, jobId } = messageData;
+            console.log(`Received message from ${TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE} JobID: ${jobId}`);
 
-    console.log(`[Instance ${instanceId}] Successfully scraped details for vehicle ${vehicle.getId()}`);
+            try {
+                const isJobRunning = await JobService.isJobRunning(jobId);
+                if (!isJobRunning) {
+                    console.log(`Job ${jobId} is no longer running. Acknowledging message.`);
+                    this.channel.ack(message);
+                    return;
+                }
 
-    await sendToKafka('SCRAPED-vehicle-details-topic', scrapedWithVehicleId);
-}
+                await this.scraperPool.handleMessage(messageData, this.channel);
+                console.log(`Finished processing message for job ${jobId}`);
+            } catch (error) {
+                console.error(`Error processing message for job ${jobId}:`, error);
+                await this.handleFailedScrape({ id: vehicleId }, error, jobId);
+            } finally {
+                this.channel.ack(message);
+            }
+        }, { noAck: false });
+    }
 
-async function handleFailed(data) {
-    const { vehicle, error } = data;
-    console.log(`[Instance ${instanceId}] Failed to scrape details for vehicle ${vehicle.getId()}`);
+    async handleFailedScrape(vehicle, error, jobId) {
+        console.error(`Scraping failed for vehicle ${vehicle.id}`);
 
-    let dlqMessage;
-
-    if (error && error.errors && Array.isArray(error.errors)) {
-        dlqMessage = {
-            vehicleId: vehicle.getId(),
-            error: "invalid_request",
-            errors: error.errors.map(err => ({
-                field: err.field,
-                message: err.message,
-                data: err.data
-            })),
-            timestamp: new Date().toISOString(),
-            instanceId: instanceId
-        };
-    } else {
-        dlqMessage = {
-            vehicleId: vehicle.getId(),
+        const dlqMessage = {
+            vehicleId: vehicle.id,
             error: error ? (error.message || String(error)) : 'Unknown error',
             timestamp: new Date().toISOString(),
-            instanceId: instanceId
+            jobId
         };
+
+        try {
+            await this.channel.sendToQueue(DLQ_VEHICLE_DETAILS_QUEUE, Buffer.from(JSON.stringify(dlqMessage)));
+            console.log(`Failed vehicle ${vehicle.id} sent to DLQ`);
+        } catch (dlqError) {
+            console.error(`Failed to send to DLQ for vehicle ${vehicle.id}:`, dlqError);
+        }
     }
 
-    try {
-        await sendToKafka('DLQ-vehicle-details-topic', dlqMessage);
-        console.log(`[Instance ${instanceId}] Sent failed vehicle ${vehicle.getId()} to DLQ`);
-    } catch (dlqError) {
-        console.error(`[Instance ${instanceId}] Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
-        // You might want to implement a retry mechanism or alert system here
+    async handleSuccessfulScrape(data) {
+        const { vehicleId, scraped } = data;
+        try {
+            await this.channel.sendToQueue(SCRAPED_VEHICLE_DETAILS_QUEUE, Buffer.from(JSON.stringify(data)));
+            console.log(`Scraped data sent for vehicle ${vehicleId}`);
+        } catch (error) {
+            console.error(`Failed to send scraped data for vehicle ${vehicleId}:`, error);
+        }
+    }
+
+    async cleanup() {
+        if (this.isShuttingDown) return;
+        this.isShuttingDown = true;
+
+        console.log(`Shutting down gracefully...`);
+        try {
+            if (this.channel) await this.channel.close();
+            if (this.connection) await this.connection.close();
+            if (this.scraperPool) await this.scraperPool.close();
+        } catch (error) {
+            console.error(`Error during shutdown:`, error);
+        } finally {
+            process.exit(0);
+        }
     }
 }
 
-function handleFinish() {
-    console.log(`[Instance ${instanceId}] Finished processing vehicle details`);
-}
-
-async function startVehicleDetailsConsumer() {
-    await consumer.connect();
-    await consumer.subscribe({ topic: 'TO-BE-SCRAPED-vehicle-details-topic', fromBeginning: true });
-
-    await consumer.run({
-        autoCommit: false,
-        eachMessage: async ({ topic, partition, message }) => {
-            const messageData = JSON.parse(message.value.toString());
-            await handleMessage(messageData);
-            await consumer.commitOffsets([{ topic, partition, offset: (parseInt(message.offset) + 1).toString() }]);
-        },
-    });
-
-    console.log(`[Instance ${instanceId}] Vehicle details scraper consumer is now running and listening for messages...`);
-}
-
-module.exports = { startVehicleDetailsConsumer };
+module.exports = VehicleDetailsConsumer;

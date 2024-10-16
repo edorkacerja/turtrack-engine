@@ -16,7 +16,6 @@ class VehicleDetailScraper extends BaseScraper {
     this.startTime = vehicleDetailRequest.startTime;
     this.endTime = vehicleDetailRequest.endTime;
 
-    this.localResourceName = `${config.country}.vehicles`;
 
     this.onSuccessCallback = () => {};
     this.onFailedCallback = () => {};
@@ -87,6 +86,48 @@ class VehicleDetailScraper extends BaseScraper {
 
     return response.data;
   }
+
+  async fetchFromTuro(vehicleId, startDate, startTime, endDate, endTime) {
+    const headers = {
+      accept: "*/*",
+      "accept-language": "en-US,en;q=0.9",
+      "content-type": "application/json",
+    };
+
+    const requestConfig = {
+      headers,
+      body: null,
+      method: "GET",
+      mode: "cors",
+      credentials: "include",
+    };
+
+    const queryParams = new URLSearchParams({
+      endDate: endDate,
+      endTime: endTime,
+      startDate: startDate,
+      startTime: startTime,
+      vehicleId: vehicleId,
+    });
+
+    const url = `https://turo.com/api/vehicle/detail?${queryParams.toString()}`;
+
+    const response = await this.page.evaluate(
+        async ({ requestConfig, url }) => {
+          const res = await fetch(url, requestConfig);
+          const data = await res.json();
+          return { status: res.status, data };
+        },
+        { requestConfig, url }
+    );
+
+    if (response.status !== 200) {
+      throw response.data;
+    }
+
+    return response.data;
+  }
+
 
   async onSuccess(callfunction) {
     this.onSuccessCallback = callfunction;

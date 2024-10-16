@@ -7,8 +7,8 @@ const routesV1 = require("./routes/v1");
 const MetadataManager = require("./managers/MetadataManager");
 const { initializeProducer } = require("./utils/kafkaUtil");
 const PricingConsumer = require('./kafka-consumers/PricingConsumer');
-const { startVehicleDetailsConsumer } = require('./kafka-consumers/vehicleDetailsConsumer');
 const CellsConsumer = require("./kafka-consumers/CellsConsumer");
+const VehicleDetailsConsumer = require("./kafka-consumers/VehicleDetailsConsumer");
 
 const port = process.env.PORT || 5011;
 const scraperType = process.env.SCRAPER_TYPE || 'search';
@@ -42,9 +42,13 @@ async function startServer() {
       // Set up cleanup handler
       process.on('SIGTERM', () => pricingConsumer.cleanup());
 
-    } else if (scraperType === 'vehicle-details') {
-      await startVehicleDetailsConsumer();
-      console.log("Vehicle details consumer started successfully");
+    } else if (scraperType === 'details') {
+      const detailsConsumer = new VehicleDetailsConsumer();
+      await detailsConsumer.start().catch(console.error);
+      console.log("Pricing consumer started successfully");
+
+      // Set up cleanup handler
+      process.on('SIGTERM', () => detailsConsumer.cleanup());
 
     } else if (scraperType === 'search') {
       // Initialize MetadataManager
