@@ -13,7 +13,7 @@ class PricingConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 20;
+        this.MAX_POOL_SIZE = 60;
         this.isShuttingDown = false;
 
         this.connection = null;

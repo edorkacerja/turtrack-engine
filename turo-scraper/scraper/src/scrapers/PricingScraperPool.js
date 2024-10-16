@@ -32,7 +32,7 @@ class PricingScraperPool {
 
     addScraper(scraper) {
         return this.mutex.runExclusive(() => {
-            this.scrapers.set(scraper.instanceId, scraper);
+            // this.scrapers.set(scraper.instanceId, scraper);
             this.availableScrapers.add(scraper.instanceId);
         });
     }
@@ -117,7 +117,7 @@ class PricingScraperPool {
                 }
 
                 console.log(`[fetchWithRetry] Retrying fetch (${retryCount}/${maxRetries}) after error.`);
-                await sleep(1100);
+                // await sleep(1100);
             } finally {
                 if(scraper) {
                     await this.releaseScraper(scraper);
@@ -129,17 +129,29 @@ class PricingScraperPool {
     async createScraper(retryCount = 0, scraperId) {
         const maxRetries = 3;
 
+        let scraper;
         try {
             const instanceId = scraperId ? scraperId : `Pricing-Scraper-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
             console.log(`[createScraper] Attempting to create scraper with ID: ${instanceId}`);
 
-            const scraper = new PricingScraper({
+             scraper = new PricingScraper({
                 instanceId: instanceId,
                 proxyAuth: this.proxyAuth,
                 proxyServer: this.proxyServer,
                 delay: 1100,
                 headless: false,
             });
+
+            // take space in the scraper zone
+            await this.mutex.runExclusive( () => {
+                this.scrapers.set(scraper.instanceId, scraper);
+                // this.availableScrapers.add(scraper.instanceId);
+            });
+
+            await this.mutex.runExclusive(async () => {
+                await sleep(1000);
+            });
+
 
             console.log(`[createScraper] Initializing scraper ${instanceId}...`);
             await scraper.init();
@@ -153,10 +165,15 @@ class PricingScraperPool {
 
             if (retryCount < maxRetries) {
                 console.log(`[createScraper] Retrying scraper creation in 10 seconds...`);
-                await sleep(10000);
+                // await sleep(10000);
                 return this.createScraper(retryCount + 1, scraperId);
             } else {
                 console.error(`[createScraper] Failed to create scraper after ${maxRetries} attempts`);
+                await this.mutex.runExclusive( () => {
+                    this.scrapers.delete(scraper.instanceId);
+                    // this.availableScrapers.add(scraper.instanceId);
+                });
+
                 throw new Error(`Failed to create scraper after ${maxRetries} attempts`);
             }
         }
@@ -176,7 +193,7 @@ class PricingScraperPool {
                 try {
                     console.log(`[acquireScraper] Creating a new scraper...`);
                     await this.createScraper(0, scraperId);
-                    await sleep(1000);
+                    // await sleep(1000);
                     scraper = await this.getAvailableScraper();
                     if (scraper) return scraper;
                 } catch (error) {
@@ -260,7 +277,7 @@ class PricingScraperPool {
                     this.idleTimers.delete(scraperId);
                     break;
                 }
-                await sleep(1000);
+                // await sleep(1000);
             }
         }
 

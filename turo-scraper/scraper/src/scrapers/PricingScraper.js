@@ -16,6 +16,7 @@ class PricingScraper extends BaseScraper {
   async scrape(vehicleId, jobId, startDate, endDate) {
 
     this.currentRequestTotalBytes = 0;
+    await sleep(this.delay);
 
     try {
       const data = await this.fetchFromTuro(vehicleId, startDate, endDate);
@@ -23,7 +24,6 @@ class PricingScraper extends BaseScraper {
 
       if (this.isValidResponse(data)) {
         console.log(`[${this.instanceId}] Successfully scraped vehicle ${vehicleId}`);
-        await sleep(this.delay);
         logMemoryUsage();
         return data;
       } else {
