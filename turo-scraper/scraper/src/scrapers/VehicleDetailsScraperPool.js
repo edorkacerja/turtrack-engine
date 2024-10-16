@@ -4,8 +4,10 @@ const JobService = require("../services/JobService");
 const { Mutex } = require('async-mutex');
 
 class VehicleDetailsScraperPool {
-    constructor(maxPoolSize = 20, handleFailedScrape, handleSuccessfulScrape) {
+    constructor(maxPoolSize = 13, proxyAuth, proxyServer, handleFailedScrape, handleSuccessfulScrape) {
         this.maxPoolSize = maxPoolSize;
+        this.proxyAuth = proxyAuth;
+        this.proxyServer = proxyServer;
         this.handleFailedScrape = handleFailedScrape;
         this.handleSuccessfulScrape = handleSuccessfulScrape;
 
@@ -62,7 +64,7 @@ class VehicleDetailsScraperPool {
 
                 console.log(`[handleMessage] Acquired scraper ${scraper.instanceId} for vehicle ${vehicleId}.`);
 
-                const data = await scraper.fetchFromTuro(vehicleId, jobId, startDate, startTime, endDate, endTime);
+                const data = await scraper.scrape(vehicleId, jobId, startDate, startTime, endDate, endTime);
                 if (!data) {
                     throw new Error("No data returned from fetchFromTuro");
                 }
@@ -147,9 +149,10 @@ class VehicleDetailsScraperPool {
 
             scraper = new VehicleDetailScraper({
                 instanceId: instanceId,
+                proxyAuth: this.proxyAuth,
+                proxyServer: this.proxyServer,
                 delay: 1100,
                 headless: false,
-                country: "US"
             });
 
             await this.mutex.runExclusive( () => {
@@ -172,7 +175,7 @@ class VehicleDetailsScraperPool {
 
             if (retryCount < maxRetries) {
                 console.log(`[createScraper] Retrying scraper creation in 10 seconds...`);
-                await sleep(10000);
+                // await sleep(10000);
                 return this.createScraper(retryCount + 1, scraperId);
             } else {
                 console.error(`[createScraper] Failed to create scraper after ${maxRetries} attempts`);
