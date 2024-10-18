@@ -34,16 +34,19 @@ public class Owner {
     @Column(name = "is_pro_host")
     private Boolean isProHost;
 
-//    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private List<Vehicle> vehicles = new ArrayList<>();
-//
-//    public void addVehicle(Vehicle vehicle) {
-//        vehicles.add(vehicle);
-//        vehicle.setOwner(this);
-//    }
-//
-//    public void removeVehicle(Vehicle vehicle) {
-//        vehicles.remove(vehicle);
-//        vehicle.setOwner(null);
-//    }
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Vehicle> vehicles = new ArrayList<>();
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Image> images;
+
+    public void addVehicle(Vehicle vehicle) {
+        vehicles.add(vehicle);
+        vehicle.setOwner(this);
+    }
+
+    public void removeVehicle(Vehicle vehicle) {
+        vehicles.remove(vehicle);
+        vehicle.setOwner(null);
+    }
 }

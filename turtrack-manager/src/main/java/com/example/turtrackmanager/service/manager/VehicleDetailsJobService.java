@@ -19,7 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.example.turtrackmanager.util.Constants.Kafka.TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC;
+import static com.example.turtrackmanager.util.Constants.RabbitMQ.TO_BE_SCRAPED_DR_AVAILABILITY_QUEUE;
 
 @Service
 @Slf4j
@@ -94,7 +94,7 @@ public class VehicleDetailsJobService {
                         .build();
 
                 rabbitMQProducer.sendToBeScrapedVehicleDetails(message);
-                log.debug("Successfully sent message to Kafka topic '{}': {}", TO_BE_SCRAPED_VEHICLE_DETAILS_TOPIC, message);
+                log.debug("Successfully sent message to Kafka topic '{}': {}", TO_BE_SCRAPED_DR_AVAILABILITY_QUEUE, message);
 
                 processedCount.incrementAndGet();
             } catch (Exception e) {

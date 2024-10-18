@@ -43,18 +43,6 @@ public class RabbitMQProducer {
         rabbitTemplate.convertAndSend(exchange, SCRAPED_VEHICLE_SKELETON_QUEUE, message);
     }
 
-    public void sendProcessedDrAvailability(Object message) {
-        rabbitTemplate.convertAndSend(exchange, PROCESSED_DR_AVAILABILITY_QUEUE, message);
-    }
-
-    public void sendProcessedVehicleDetails(Object message) {
-        rabbitTemplate.convertAndSend(exchange, PROCESSED_VEHICLE_DETAILS_QUEUE, message);
-    }
-
-    public void sendProcessedVehicleSkeleton(Object message) {
-        rabbitTemplate.convertAndSend(exchange, PROCESSED_VEHICLE_SKELETON_QUEUE, message);
-    }
-
     public void sendDlqCells(Object message) {
         rabbitTemplate.convertAndSend(exchange, DLQ_CELLS_QUEUE, message);
     }

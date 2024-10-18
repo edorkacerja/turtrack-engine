@@ -52,21 +52,6 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue processedDrAvailabilityQueue() {
-        return new Queue(PROCESSED_DR_AVAILABILITY_QUEUE, true);
-    }
-
-    @Bean
-    public Queue processedVehicleDetailsQueue() {
-        return new Queue(PROCESSED_VEHICLE_DETAILS_QUEUE, true);
-    }
-
-    @Bean
-    public Queue processedVehicleSkeletonQueue() {
-        return new Queue(PROCESSED_VEHICLE_SKELETON_QUEUE, true);
-    }
-
-    @Bean
     public Queue dlqCellsQueue() {
         return new Queue(DLQ_CELLS_QUEUE, true);
     }
