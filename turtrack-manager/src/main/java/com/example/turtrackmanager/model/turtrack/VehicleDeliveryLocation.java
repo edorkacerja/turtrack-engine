@@ -33,6 +33,8 @@ public class VehicleDeliveryLocation {
     @Embedded
     private Fee fee;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String instructions;
 
     @Embedded
@@ -61,7 +63,8 @@ public class VehicleDeliveryLocation {
         @Column(name = "check_in_method")
         private String checkInMethod;
 
-        @Column(name = "description")
+        @Lob
+        @Column(name = "description", columnDefinition = "TEXT")
         private String description;
 
         @Column(name = "title")

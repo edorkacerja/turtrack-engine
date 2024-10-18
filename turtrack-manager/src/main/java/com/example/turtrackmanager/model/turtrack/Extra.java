@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Data
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @Table(name = "extras")
 @JsonIgnoreProperties(ignoreUnknown = true)
+@EqualsAndHashCode(exclude = "vehicle")
 public class Extra {
 
     @Id
@@ -24,6 +26,7 @@ public class Extra {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
 
+    @Lob
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 

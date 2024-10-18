@@ -21,7 +21,7 @@ public class Location {
     @Id
     private Long id;
 
-    @Column(name = "address")
+    @Column(name = "address", length = 255)
     private String address;
 
     @Column(name = "city", length = 100)
