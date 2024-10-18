@@ -17,7 +17,8 @@ import lombok.NoArgsConstructor;
 public class Extra {
 
     @Id
-    private Long id;
+    @Column(name = "extra_id")
+    private Long extraId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", nullable = false)
@@ -26,9 +27,24 @@ public class Extra {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "price", precision = 10)
+    @Column(name = "enabled")
+    private Boolean enabled;
+
+    @Column(name = "extra_pricing_type")
+    private String extraPricingType;
+
+    @Column(name = "extra_type")
+    private String extraType;
+
+    @Column(name = "extra_category")
+    private String extraCategory;
+
+    @Column(name = "price")
     private Double price;
 
-    @Column(name = "price_type", length = 50)
-    private String priceType;
+    @Column(name = "currency_code")
+    private String currencyCode;
+
+    @Column(name = "quantity")
+    private Integer quantity;
 }

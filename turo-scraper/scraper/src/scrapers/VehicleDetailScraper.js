@@ -54,8 +54,15 @@ class VehicleDetailScraper extends BaseScraper {
       credentials: "include",
     };
 
-    // Using the hardcoded URL as requested
-    const url = "https://turo.com/api/vehicle/detail?endDate=10%2F21%2F2024&endTime=10%3A00&startDate=10%2F18%2F2024&startTime=10%3A00&vehicleId=1597069";
+    const queryParams = new URLSearchParams({
+      endDate: endDate,
+      endTime: endTime,
+      startDate: startDate,
+      startTime: startTime,
+      vehicleId: vehicleId,
+    });
+
+    const url = `https://turo.com/api/vehicle/detail?${queryParams.toString()}`;
 
     try {
       const data = await this.page.evaluate(

@@ -34,14 +34,13 @@ public class DailyRateAndAvailabilityService {
     }
 
     @Transactional
-    public void processAndForwardDailyRates(Map<String, Object> message) {
+    public void consumeScrapedDailyRates(Map<String, Object> message) {
         Long vehicleId = extractVehicleId(message);
         Long jobId = extractJobId(message);
         List<DailyRateAndAvailability> dailyRates = extractDailyRates(message, vehicleId);
 
-        for (DailyRateAndAvailability dailyRate : dailyRates) {
-            saveAndForwardDailyRate(dailyRate);
-        }
+
+        dailyRateRepository.saveAll(dailyRates);
 
         Job job = getJobById(jobId);
         incrementCompletedItems(job, 1);
@@ -123,7 +122,6 @@ public class DailyRateAndAvailabilityService {
         Map<?,?> scraped1 = (Map<?,?>) scraped;
         Object responsesObj = scraped1.get("dailyPricingResponses");
 
-//        Object responsesObj = message.get("dailyPricingResponses");
         if (!(responsesObj instanceof List)) {
             throw new IllegalArgumentException("dailyPricingResponses is missing or not a list");
         }
@@ -187,14 +185,4 @@ public class DailyRateAndAvailabilityService {
         throw new IllegalArgumentException("Cannot convert value to Double: " + value);
     }
 
-    private void saveAndForwardDailyRate(DailyRateAndAvailability dailyRate) {
-        try {
-            // Save to database
-            dailyRateRepository.save(dailyRate);
-            // Forward to Kafka
-//            availabilityKafkaTemplate.send(PROCESSED_DR_AVAILABILITY_TOPIC, dailyRate);
-        } catch (Exception e) {
-            log.error("Failed to save or send dailyRate: {}, error: {}", dailyRate, e.getMessage());
-        }
-    }
 }

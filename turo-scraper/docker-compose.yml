@@ -40,65 +40,65 @@ services:
       start_period: 30s
 
 
-#  calibrator:
-#    build: ./calibrator
-#    volumes:
-#      - turo_scraper_data:/usr/src/app/database
-#    networks:
-#      - turo_scraper_network
-#      - turtrack_common_network
-#      - turtrack-manager-network
-#    ports:
-#      - "5000:5000"
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 10s
-#
-#  plotter:
-#    build: ./plotter
-#    volumes:
-#      - turo_scraper_data:/usr/src/app/public/database/
-#    networks:
-#      - turo_scraper_network
-#      - turtrack_common_network
-#    ports:
-#      - "5002:5002"
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 10s
-#
-#  search-scraper:
-#    build:
-#      context: ./scraper
-#      dockerfile: Dockerfile
-#    volumes:
-#      - turo_scraper_data:/usr/src/app/database
-#    environment:
-#      SCRAPER_TYPE: search
-#      PORT: 5003
-#      TURTRACK_MANAGER_API_BASE_URL: http://host.docker.internal:9999
-#      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-#    deploy:
-#      replicas: 1
-#    networks:
-#      - turo_scraper_network
-#      - turtrack_common_network
-#      - turtrack-manager-network
-#    ports:
-#      - "5003:5003"
-##      - "9229:9229"
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 10s
+  calibrator:
+    build: ./calibrator
+    volumes:
+      - turo_scraper_data:/usr/src/app/database
+    networks:
+      - turo_scraper_network
+      - turtrack_common_network
+      - turtrack-manager-network
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  plotter:
+    build: ./plotter
+    volumes:
+      - turo_scraper_data:/usr/src/app/public/database/
+    networks:
+      - turo_scraper_network
+      - turtrack_common_network
+    ports:
+      - "5002:5002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  search-scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    volumes:
+      - turo_scraper_data:/usr/src/app/database
+    environment:
+      SCRAPER_TYPE: search
+      PORT: 5003
+      TURTRACK_MANAGER_API_BASE_URL: http://host.docker.internal:9999
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    deploy:
+      replicas: 1
+    networks:
+      - turo_scraper_network
+      - turtrack_common_network
+      - turtrack-manager-network
+    ports:
+      - "5003:5003"
+#      - "9229:9229"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   details-scraper:
     build:

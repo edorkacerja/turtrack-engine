@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -17,14 +19,21 @@ import lombok.NoArgsConstructor;
 public class Rating {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
 
-    @Column(name = "overall_rating", precision = 3)
-    private Double overallRating;
+    @Column(name = "owner_overall", precision = 3)
+    private Double ownerOverall;
+
+    @Column(name = "rating_to_hundredth", precision = 4)
+    private Double ratingToHundredth;
+
+    @Column(name = "ratings_count")
+    private Integer ratingsCount;
 
     @Column(name = "cleanliness", precision = 3)
     private Double cleanliness;
@@ -41,6 +50,8 @@ public class Rating {
     @Column(name = "accuracy", precision = 3)
     private Double accuracy;
 
-    @Column(name = "total_ratings")
-    private Integer totalRatings;
+    // You might want to consider using a more structured approach for storing the histogram data
+    // For simplicity, we'll use a JSON column here, but you could also create a separate entity for this
+//    @Column(name = "histogram", columnDefinition = "json")
+//    private String histogram;
 }

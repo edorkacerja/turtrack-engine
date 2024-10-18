@@ -34,18 +34,18 @@ public class RabbitMQConsumer {
     @RabbitListener(queues = SCRAPED_VEHICLE_DETAILS_QUEUE)
     public void consumeVehicles(Map<String, Object> message) {
         System.out.println("Received vehicle message: " + message);
-        vehicleDetailsService.processAndForwardVehicle(message);
+        vehicleDetailsService.consumeScrapedVehicleDetails(message);
     }
 
     @RabbitListener(queues = SCRAPED_DR_AVAILABILITY_QUEUE)
     public void consumePricing(Map<String, Object> message) {
         System.out.println("Received pricing message: " + message);
-        dailyRateAndAvailabilityService.processAndForwardDailyRates(message);
+        dailyRateAndAvailabilityService.consumeScrapedDailyRates(message);
     }
 
     @RabbitListener(queues = DLQ_DR_AVAILABILITY_QUEUE)
     public void consumeDLQPricing(Map<String, Object> message) {
         System.out.println("Received DLQ pricing message: " + message);
-        dailyRateAndAvailabilityService.processAndForwardDailyRates(message);
+        dailyRateAndAvailabilityService.consumeScrapedDailyRates(message);
     }
 }

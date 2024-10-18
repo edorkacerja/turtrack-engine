@@ -8,7 +8,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Data
@@ -42,6 +44,9 @@ public class Vehicle {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "name", columnDefinition = "TEXT")
+    private String name;
 
     @Column(name = "registration_state")
     private String registrationState;
@@ -79,14 +84,29 @@ public class Vehicle {
     @Column(name = "listing_created_time")
     private LocalDateTime listingCreatedTime;
 
-    @Column(name = "daily_distance")
-    private Integer dailyDistance;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "scalar", column = @Column(name = "daily_distance_scalar")),
+            @AttributeOverride(name = "unit", column = @Column(name = "daily_distance_unit")),
+            @AttributeOverride(name = "unlimited", column = @Column(name = "daily_distance_unlimited"))
+    })
+    private Distance dailyDistance;
 
-    @Column(name = "weekly_distance")
-    private Integer weeklyDistance;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "scalar", column = @Column(name = "weekly_distance_scalar")),
+            @AttributeOverride(name = "unit", column = @Column(name = "weekly_distance_unit")),
+            @AttributeOverride(name = "unlimited", column = @Column(name = "weekly_distance_unlimited"))
+    })
+    private Distance weeklyDistance;
 
-    @Column(name = "monthly_distance")
-    private Integer monthlyDistance;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "scalar", column = @Column(name = "monthly_distance_scalar")),
+            @AttributeOverride(name = "unit", column = @Column(name = "monthly_distance_unit")),
+            @AttributeOverride(name = "unlimited", column = @Column(name = "monthly_distance_unlimited"))
+    })
+    private Distance monthlyDistance;
 
     @Column(name = "weekly_discount_percentage")
     private Integer weeklyDiscountPercentage;
@@ -129,7 +149,30 @@ public class Vehicle {
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Extra> extras;
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<VehicleDeliveryLocation> deliveryLocations;
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<VehicleDeliveryLocation> deliveryLocations = new ArrayList<>();
 
+    @Embeddable
+    @Data
+    public static class Distance {
+        private Integer scalar;
+        private String unit;
+        private Boolean unlimited;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Distance distance = (Distance) o;
+            return Objects.equals(scalar, distance.scalar) &&
+                    Objects.equals(unit, distance.unit) &&
+                    Objects.equals(unlimited, distance.unlimited);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(scalar, unit, unlimited);
+        }
+    }
 }
+

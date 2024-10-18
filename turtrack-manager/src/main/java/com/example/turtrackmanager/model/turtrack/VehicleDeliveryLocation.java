@@ -1,62 +1,70 @@
 package com.example.turtrackmanager.model.turtrack;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.io.Serializable;
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
+
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Table(name = "vehicle_delivery_locations")
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class VehicleDeliveryLocation {
-
-
-    @EmbeddedId
-    private VehicleDeliveryLocationId id;
-
-    @Column(name = "fee", precision = 10)
-    private Double fee;
+    @Id
+    @Column(name = "vehicle_delivery_location_id")
+    private Long vehicleDeliveryLocationId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("vehicleId")
-    @JoinColumn(name = "vehicle_id", nullable = false)
+    @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("locationId")
-    @JoinColumn(name = "location_id", nullable = false)
-    private Location location;
+    @JoinColumn(name = "place_id")
+    private DeliveryLocation deliveryLocation;
+
+    private Boolean enabled;
+    private Boolean valet;
+
+    @Embedded
+    private Fee fee;
+
+    private String instructions;
+
+    @Embedded
+    private CheckInMethod checkInMethod;
+
+    @ElementCollection
+    @CollectionTable(name = "vehicle_delivery_location_non_valet_check_in_methods",
+            joinColumns = @JoinColumn(name = "vehicle_delivery_location_id"))
+    private List<CheckInMethod> validNonValetCheckInMethods = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "vehicle_delivery_location_valet_check_in_methods",
+            joinColumns = @JoinColumn(name = "vehicle_delivery_location_id"))
+    private List<CheckInMethod> validValetCheckInMethods = new ArrayList<>();
 
     @Embeddable
-    public static class VehicleDeliveryLocationId implements Serializable {
+    @Data
+    public static class Fee {
+        private Double amount;
+        private String currencyCode;
+    }
 
-        private Long vehicleId;
-        private Long locationId;
+    @Embeddable
+    @Data
+    public static class CheckInMethod {
+        @Column(name = "check_in_method")
+        private String checkInMethod;
 
-        // Getters and Setters
+        @Column(name = "description")
+        private String description;
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            VehicleDeliveryLocationId that = (VehicleDeliveryLocationId) o;
-            return Objects.equals(vehicleId, that.vehicleId) &&
-                    Objects.equals(locationId, that.locationId);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(vehicleId, locationId);
-        }
+        @Column(name = "title")
+        private String title;
     }
 }
-

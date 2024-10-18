@@ -28,6 +28,9 @@ public class Owner {
     @Column(name = "last_name")
     private String lastName;
 
+    @Column(name = "url")
+    private String url;
+
     @Column(name = "is_all_star_host")
     private Boolean isAllStarHost;
 
@@ -38,7 +41,7 @@ public class Owner {
     private List<Vehicle> vehicles = new ArrayList<>();
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Image> images;
+    private List<Image> images = new ArrayList<>();
 
     public void addVehicle(Vehicle vehicle) {
         vehicles.add(vehicle);
