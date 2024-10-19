@@ -16,7 +16,6 @@ import static com.example.turtrackmanager.util.Constants.RabbitMQ.*;
 @RequiredArgsConstructor
 public class RabbitMQConsumer {
 
-    private final VehicleSkeletonService vehicleSkeletonService;
     private final VehicleDetailsService vehicleDetailsService;
     private final DailyRateAndAvailabilityService dailyRateAndAvailabilityService;
     private final CellService cellService;

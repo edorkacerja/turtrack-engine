@@ -59,6 +59,7 @@ public class VehicleDetailsService {
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElse(new Vehicle());
         vehicle.setId(vehicleId);
+        vehicle = vehicleRepository.save(vehicle);
         Map<String, Object> vehicleData = (Map<String, Object>) scrapedData.get("vehicle");
         if (vehicleData == null) {
             throw new IllegalArgumentException("Vehicle data is missing in scraped data");
@@ -149,7 +150,8 @@ public class VehicleDetailsService {
         DeliveryLocation deliveryLocation = new DeliveryLocation();
         deliveryLocation.setPlaceId(getStringValue(data, "placeId"));
         updateDeliveryLocationFields(deliveryLocation, data);
-        return deliveryLocationRepository.save(deliveryLocation);
+        return deliveryLocation;
+//        return deliveryLocationRepository.save(deliveryLocation);
     }
 
     private void updateDeliveryLocationFields(DeliveryLocation deliveryLocation, Map<String, Object> data) {
@@ -254,7 +256,7 @@ public class VehicleDetailsService {
         updateIfChanged(location::setLongitude, location.getLongitude(), getDoubleValue(locationData, "longitude"));
         updateIfChanged(location::setTimeZone, location.getTimeZone(), getStringValue(locationData, "timeZone"));
 
-        location = locationRepository.save(location);
+//        location = locationRepository.save(location);
         vehicle.setLocation(location);
     }
 
@@ -276,7 +278,7 @@ public class VehicleDetailsService {
 
         processOwnerImage(owner, (Map<String, Object>) ownerData.get("image"));
 
-        owner = ownerRepository.save(owner);
+//        owner = ownerRepository.save(owner);
         vehicle.setOwner(owner);
     }
 
@@ -306,6 +308,8 @@ public class VehicleDetailsService {
             ownerImage.setThumbnail300x300(thumbnails.get("300x300"));
         }
 
+        Image savedImage = saveOrUpdateImage(ownerImage);
+        owner.setImage(savedImage); // Update the owner's image reference
     }
 
     private void processImage(Vehicle vehicle, Map<String, Object> imageData) {
@@ -328,23 +332,17 @@ public class VehicleDetailsService {
         }
     }
 
-    public Image saveOrUpdateImage(Image vehicleImage) {
-        // Check if the image has an ID
-        if (vehicleImage.getId() != null) {
-            // Check if an image with the given ID exists
-            boolean exists = imageRepository.existsById(vehicleImage.getId());
-
+    public Image saveOrUpdateImage(Image image) {
+        if (image.getId() != null) {
+            boolean exists = imageRepository.existsById(image.getId());
             if (exists) {
-                // Update the existing image (merge with new data)
-                Image existingImage = imageRepository.findById(vehicleImage.getId())
-                        .orElseThrow(() -> new RuntimeException("Image not found with ID: " + vehicleImage.getId()));
-                updateImageFields(existingImage, vehicleImage);  // Merge fields
-                return imageRepository.save(existingImage);
+                Image existingImage = imageRepository.findById(image.getId())
+                        .orElseThrow(() -> new RuntimeException("Image not found with ID: " + image.getId()));
+                updateImageFields(existingImage, image);
+                return existingImage;
             }
         }
-
-        // ID is null or does not exist, create a new image
-        return imageRepository.save(vehicleImage);
+        return image;
     }
 
     private void updateImageFields(Image existingImage, Image newImage) {
@@ -418,7 +416,6 @@ public class VehicleDetailsService {
         }
 
         rating.setVehicle(vehicle);
-        rating = ratingRepository.save(rating);
 
         if (!vehicle.getRatings().contains(rating)) {
             vehicle.getRatings().add(rating);
@@ -478,7 +475,7 @@ public class VehicleDetailsService {
         vehicle.getExtras().removeIf(extra -> !newExtraIds.contains(extra.getExtraId()));
         vehicle.getExtras().addAll(updatedExtras);
 
-        extraRepository.saveAll(updatedExtras);
+//        extraRepository.saveAll(updatedExtras);
     }
 
     private void updateJobProgress(Long jobId, boolean success) {

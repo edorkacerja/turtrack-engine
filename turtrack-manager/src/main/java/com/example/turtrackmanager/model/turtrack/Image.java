@@ -19,7 +19,13 @@ import org.hibernate.annotations.DynamicInsert;
 public class Image {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "image_sequence")
+    @SequenceGenerator(
+            name = "image_sequence",
+            sequenceName = "image_seq",
+            allocationSize = 1,
+            initialValue = 20000000
+    )
     private Long id;
 
     @Column(name = "original_url")
