@@ -150,6 +150,63 @@ public class Vehicle {
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL)
     private List<VehicleDeliveryLocation> deliveryLocations = new ArrayList<>();
 
+    // New fields added based on scraped data
+    @Column(name = "average_fuel_economy")
+    private Double averageFuelEconomy;
+
+    @Column(name = "city_fuel_economy")
+    private Integer cityFuelEconomy;
+
+    @Column(name = "highway_fuel_economy")
+    private Integer highwayFuelEconomy;
+
+    @Column(name = "fuel_grade")
+    private String fuelGrade;
+
+    @Column(name = "fuel_type_and_grade_label")
+    private String fuelTypeAndGradeLabel;
+
+    @Column(name = "fuel_unit")
+    private String fuelUnit;
+
+    @Column(name = "fuel_unit_label")
+    private String fuelUnitLabel;
+
+    @ManyToMany
+    @JoinTable(
+            name = "vehicle_badges",
+            joinColumns = @JoinColumn(name = "vehicle_id"),
+            inverseJoinColumns = @JoinColumn(name = "badge_id")
+    )
+    private Set<Badge> badges = new HashSet<>();
+
+    @Column(name = "number_of_favorites")
+    private Integer numberOfFavorites;
+
+    @Column(name = "number_of_rentals")
+    private Integer numberOfRentals;
+
+    @Column(name = "frequently_booked")
+    private Boolean frequentlyBooked;
+
+    @Column(name = "high_value_vehicle")
+    private Boolean highValueVehicle;
+
+    @Column(name = "vehicle_status")
+    private String vehicleStatus;
+
+    @Column(name = "vehicle_protection_level")
+    private String vehicleProtectionLevel;
+
+    @Column(name = "vehicle_value_type")
+    private String vehicleValueType;
+
+    @Column(name = "turo_go")
+    private Boolean turoGo;
+
+    @Column(name = "excess_fee_per_distance")
+    private Double excessFeePerDistance;
+
     @Embeddable
     @Data
     public static class Distance {
@@ -160,7 +217,7 @@ public class Vehicle {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (!(o instanceof Distance)) return false;
             Distance distance = (Distance) o;
             return Objects.equals(scalar, distance.scalar) &&
                     Objects.equals(unit, distance.unit) &&
@@ -176,16 +233,18 @@ public class Vehicle {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Vehicle)) return false;
+        if (o == null || getClass() != o.getClass()) return false;
+
         Vehicle vehicle = (Vehicle) o;
-        return Objects.equals(getId(), vehicle.getId());
+        return Objects.equals(id, vehicle.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId());
+        return Objects.hash(id);
     }
 
+    // Keep the toString method concise to avoid printing large collections
     @Override
     public String toString() {
         return "Vehicle{" +
@@ -193,8 +252,10 @@ public class Vehicle {
                 ", make='" + make + '\'' +
                 ", model='" + model + '\'' +
                 ", year=" + year +
-                // ... other fields ...
+                ", trim='" + trim + '\'' +
+                ", type='" + type + '\'' +
+                ", averageDailyPrice=" + averageDailyPrice +
+                ", automaticTransmission=" + automaticTransmission +
                 '}';
     }
 }
-

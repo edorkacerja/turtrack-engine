@@ -29,6 +29,7 @@ public class VehicleDetailsService {
     private final ExtraRepository extraRepository;
     private final JobRepository jobRepository;
     private final DeliveryLocationRepository deliveryLocationRepository;
+    private final BadgeRepository badgeRepository; // Add BadgeRepository
 
     @Transactional
     public void consumeScrapedVehicleDetails(Map<String, Object> message) {
@@ -60,6 +61,7 @@ public class VehicleDetailsService {
                 .orElse(new Vehicle());
         vehicle.setId(vehicleId);
         vehicle = vehicleRepository.save(vehicle);
+
         Map<String, Object> vehicleData = (Map<String, Object>) scrapedData.get("vehicle");
         if (vehicleData == null) {
             throw new IllegalArgumentException("Vehicle data is missing in scraped data");
@@ -81,6 +83,14 @@ public class VehicleDetailsService {
             updateIfChanged(vehicle::setListingCreatedTime, vehicle.getListingCreatedTime(), createdTime);
         }
 
+        // Process new fields
+        processBasicCarDetails(vehicle, (Map<String, Object>) scrapedData.get("basicCarDetails"));
+        processCurrentVehicleProtection(vehicle, (Map<String, Object>) scrapedData.get("currentVehicleProtection"));
+        processVehicleStatus(vehicle, scrapedData);
+
+        // Process badges
+        processBadges(vehicle, (List<Map<String, Object>>) scrapedData.get("badges"));
+
         // Process nested objects
         processRegistration(vehicle, (Map<String, Object>) vehicleData.get("registration"));
         processImage(vehicle, (Map<String, Object>) vehicleData.get("image"));
@@ -101,11 +111,79 @@ public class VehicleDetailsService {
             updateDistance(vehicle::setMonthlyDistance, vehicle.getMonthlyDistance(), (Map<String, Object>) rate.get("monthlyDistance"));
             updateIfChanged(vehicle::setWeeklyDiscountPercentage, vehicle.getWeeklyDiscountPercentage(), getIntegerValue(rate, "weeklyDiscountPercentage"));
             updateIfChanged(vehicle::setMonthlyDiscountPercentage, vehicle.getMonthlyDiscountPercentage(), getIntegerValue(rate, "monthlyDiscountPercentage"));
+            updateExcessFeePerDistance(vehicle, (Map<String, Object>) rate.get("excessFeePerDistance"));
         }
+
+        // Process other fields
+        updateIfChanged(vehicle::setDescription, vehicle.getDescription(), getStringValue(scrapedData, "description"));
+        updateIfChanged(vehicle::setNumberOfFavorites, vehicle.getNumberOfFavorites(), getIntegerValue(scrapedData, "numberOfFavorites"));
+        updateIfChanged(vehicle::setNumberOfRentals, vehicle.getNumberOfRentals(), getIntegerValue(scrapedData, "numberOfRentals"));
+        updateIfChanged(vehicle::setFrequentlyBooked, vehicle.getFrequentlyBooked(), getBooleanValue(scrapedData, "frequentlyBooked"));
+        updateIfChanged(vehicle::setHighValueVehicle, vehicle.getHighValueVehicle(), getBooleanValue(scrapedData, "highValueVehicle"));
+        updateIfChanged(vehicle::setTuroGo, vehicle.getTuroGo(), getBooleanValue(scrapedData, "turoGo"));
+        updateIfChanged(vehicle::setVehicleStatus, vehicle.getVehicleStatus(), getStringValue(scrapedData, "vehicleStatus"));
+        updateIfChanged(vehicle::setVehicleValueType, vehicle.getVehicleValueType(), getStringValue(scrapedData, "vehicleValueType"));
 
         vehicle.setDetailLastUpdated(LocalDateTime.now());
         return vehicleRepository.save(vehicle);
+    }
 
+    private void processBasicCarDetails(Vehicle vehicle, Map<String, Object> basicCarDetails) {
+        if (basicCarDetails == null) return;
+
+        updateIfChanged(vehicle::setAverageFuelEconomy, vehicle.getAverageFuelEconomy(), getDoubleValue(basicCarDetails, "averageFuelEconomy"));
+        updateIfChanged(vehicle::setCityFuelEconomy, vehicle.getCityFuelEconomy(), getIntegerValue(basicCarDetails, "cityFuelEconomy"));
+        updateIfChanged(vehicle::setHighwayFuelEconomy, vehicle.getHighwayFuelEconomy(), getIntegerValue(basicCarDetails, "highwayFuelEconomy"));
+        updateIfChanged(vehicle::setNumberOfDoors, vehicle.getNumberOfDoors(), getIntegerValue(basicCarDetails, "numberOfDoors"));
+        updateIfChanged(vehicle::setNumberOfSeats, vehicle.getNumberOfSeats(), getIntegerValue(basicCarDetails, "numberOfSeats"));
+
+        Map<String, Object> fuelType = (Map<String, Object>) basicCarDetails.get("fuelType");
+        if (fuelType != null) {
+            updateIfChanged(vehicle::setFuelType, vehicle.getFuelType(), getStringValue(fuelType, "label"));
+        }
+
+        Map<String, Object> fuelGrade = (Map<String, Object>) basicCarDetails.get("fuelGrade");
+        if (fuelGrade != null) {
+            updateIfChanged(vehicle::setFuelGrade, vehicle.getFuelGrade(), getStringValue(fuelGrade, "label"));
+        }
+
+        updateIfChanged(vehicle::setFuelTypeAndGradeLabel, vehicle.getFuelTypeAndGradeLabel(), getStringValue(basicCarDetails, "fuelTypeAndGradeLabel"));
+        updateIfChanged(vehicle::setFuelUnit, vehicle.getFuelUnit(), getStringValue(basicCarDetails, "fuelUnit"));
+        updateIfChanged(vehicle::setFuelUnitLabel, vehicle.getFuelUnitLabel(), getStringValue(basicCarDetails, "fuelUnitLabel"));
+    }
+
+    private void processCurrentVehicleProtection(Vehicle vehicle, Map<String, Object> protectionData) {
+        if (protectionData == null) return;
+
+        updateIfChanged(vehicle::setVehicleProtectionLevel, vehicle.getVehicleProtectionLevel(), getStringValue(protectionData, "vehicleProtectionLevel"));
+    }
+
+    private void processVehicleStatus(Vehicle vehicle, Map<String, Object> scrapedData) {
+        updateIfChanged(vehicle::setVehicleStatus, vehicle.getVehicleStatus(), getStringValue(scrapedData, "vehicleStatus"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void processBadges(Vehicle vehicle, List<Map<String, Object>> badgesData) {
+        if (badgesData == null || badgesData.isEmpty()) return;
+
+        Set<Badge> badges = new HashSet<>();
+
+        for (Map<String, Object> badgeData : badgesData) {
+            Long badgeId = getLongValue(badgeData, "id");
+            if (badgeId == null) continue;
+
+            Badge badge = badgeRepository.findById(badgeId).orElse(new Badge());
+            badge.setId(badgeId);
+            updateIfChanged(badge::setLabel, badge.getLabel(), getStringValue(badgeData, "label"));
+            updateIfChanged(badge::setValue, badge.getValue(), getStringValue(badgeData, "value"));
+
+            // Save badge if it's new
+            badge = badgeRepository.save(badge);
+            badges.add(badge);
+        }
+
+        // Update vehicle's badges
+        vehicle.setBadges(badges);
     }
 
     protected void processVehicleDeliveryLocations(Vehicle vehicle, List<Map<String, Object>> deliveryLocationsData) {
@@ -150,8 +228,7 @@ public class VehicleDetailsService {
         DeliveryLocation deliveryLocation = new DeliveryLocation();
         deliveryLocation.setPlaceId(getStringValue(data, "placeId"));
         updateDeliveryLocationFields(deliveryLocation, data);
-        return deliveryLocation;
-//        return deliveryLocationRepository.save(deliveryLocation);
+        return deliveryLocationRepository.save(deliveryLocation);
     }
 
     private void updateDeliveryLocationFields(DeliveryLocation deliveryLocation, Map<String, Object> data) {
@@ -209,7 +286,6 @@ public class VehicleDetailsService {
         return vehicleDeliveryLocation;
     }
 
-
     private List<VehicleDeliveryLocation.CheckInMethod> createCheckInMethods(List<Map<String, Object>> checkInMethodsData) {
         if (checkInMethodsData == null) return new ArrayList<>();
 
@@ -239,6 +315,12 @@ public class VehicleDetailsService {
         }
     }
 
+    private void updateExcessFeePerDistance(Vehicle vehicle, Map<String, Object> excessFeeData) {
+        if (excessFeeData == null) return;
+
+        updateIfChanged(vehicle::setExcessFeePerDistance, vehicle.getExcessFeePerDistance(), getDoubleValue(excessFeeData, "amount"));
+    }
+
     private void processLocation(Vehicle vehicle, Map<String, Object> locationData) {
         if (locationData == null) return;
 
@@ -256,7 +338,6 @@ public class VehicleDetailsService {
         updateIfChanged(location::setLongitude, location.getLongitude(), getDoubleValue(locationData, "longitude"));
         updateIfChanged(location::setTimeZone, location.getTimeZone(), getStringValue(locationData, "timeZone"));
 
-//        location = locationRepository.save(location);
         vehicle.setLocation(location);
     }
 
@@ -278,7 +359,6 @@ public class VehicleDetailsService {
 
         processOwnerImage(owner, (Map<String, Object>) ownerData.get("image"));
 
-//        owner = ownerRepository.save(owner);
         vehicle.setOwner(owner);
     }
 
@@ -380,8 +460,6 @@ public class VehicleDetailsService {
         }
     }
 
-
-
     @SuppressWarnings("unchecked")
     private void processRatings(Vehicle vehicle, Map<String, Object> ratingsData) {
         if (ratingsData == null) return;
@@ -423,13 +501,6 @@ public class VehicleDetailsService {
                     }
                 }
             }
-
-            try {
-//                String histogramJson = objectMapper.writeValueAsString(histogram);
-//                updateIfChanged(rating::setHistogram, rating.getHistogram(), histogramJson);
-            } catch (Exception e) {
-                log.error("Error serializing histogram data", e);
-            }
         }
 
         rating.setVehicle(vehicle);
@@ -439,10 +510,12 @@ public class VehicleDetailsService {
         }
     }
 
-
     @SuppressWarnings("unchecked")
     private void processExtras(Vehicle vehicle, Map<String, Object> scrapedData) {
-        List<Map<String, Object>> extrasList = (List<Map<String, Object>>) ((Map<String, Object>) scrapedData.get("extras") ).get("extras");
+        Map<String, Object> extrasMap = (Map<String, Object>) scrapedData.get("extras");
+        if (extrasMap == null) return;
+
+        List<Map<String, Object>> extrasList = (List<Map<String, Object>>) extrasMap.get("extras");
         if (extrasList == null || extrasList.isEmpty()) {
             return;
         }
@@ -491,8 +564,6 @@ public class VehicleDetailsService {
         // Remove extras that are no longer associated with the vehicle
         vehicle.getExtras().removeIf(extra -> !newExtraIds.contains(extra.getExtraId()));
         vehicle.getExtras().addAll(updatedExtras);
-
-//        extraRepository.saveAll(updatedExtras);
     }
 
     private void updateJobProgress(Long jobId, boolean success) {
@@ -544,7 +615,7 @@ public class VehicleDetailsService {
 
     private Boolean getBooleanValue(Map<String, Object> data, String key) {
         Object value = data.get(key);
-        return value != null ? (Boolean) value : null;
+        return value != null ? Boolean.valueOf(value.toString()) : null;
     }
 
     private Long extractLongValue(Map<String, Object> data, String key) {
