@@ -283,16 +283,20 @@ public class VehicleDetailsService {
     private void processOwnerImage(Owner owner, Map<String, Object> imageData) {
         if (imageData == null) return;
 
-        Image ownerImage = owner.getImages().stream()
-                .filter(img -> img.getIsPrimary() != null && img.getIsPrimary())
-                .findFirst()
-                .orElse(new Image());
+        Image ownerImage = owner.getImage();
+        if (ownerImage == null) {
+            ownerImage = new Image();
+            owner.setImage(ownerImage);
+        }
 
-        ownerImage.setId(getLongValue(imageData, "id"));
+        Long imageId = getLongValue(imageData, "id");
+        if (imageId != null) {
+            ownerImage.setId(imageId);
+        }
+
         ownerImage.setOriginalUrl(getStringValue(imageData, "originalImageUrl"));
         ownerImage.setResizableUrlTemplate(getStringValue(imageData, "resizableUrlTemplate"));
         ownerImage.setVerified(getBooleanValue(imageData, "verified"));
-        ownerImage.setIsPrimary(true);
         ownerImage.setOwner(owner);
 
         Map<String, String> thumbnails = (Map<String, String>) imageData.get("thumbnails");
@@ -302,10 +306,6 @@ public class VehicleDetailsService {
             ownerImage.setThumbnail300x300(thumbnails.get("300x300"));
         }
 
-        imageRepository.save(ownerImage);
-        if (!owner.getImages().contains(ownerImage)) {
-            owner.getImages().add(ownerImage);
-        }
     }
 
     private void processImage(Vehicle vehicle, Map<String, Object> imageData) {
@@ -328,7 +328,6 @@ public class VehicleDetailsService {
         }
     }
 
-    @Transactional
     public Image saveOrUpdateImage(Image vehicleImage) {
         // Check if the image has an ID
         if (vehicleImage.getId() != null) {
