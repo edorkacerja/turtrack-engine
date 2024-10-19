@@ -315,34 +315,51 @@ public class VehicleDetailsService {
     private void processImage(Vehicle vehicle, Map<String, Object> imageData) {
         if (imageData == null) return;
 
-        Image vehicleImage = vehicle.getImages().stream()
-                .filter(img -> img.getIsPrimary() != null && img.getIsPrimary())
-                .findFirst()
-                .orElse(new Image());
+        Long imageId = getLongValue(imageData, "id");
+        Image vehicleImage = null;
 
-        vehicleImage.setId(getLongValue(imageData, "id"));
+        if (imageId != null) {
+            // Try to find the image by ID in the database
+            vehicleImage = imageRepository.findById(imageId).orElse(null);
+        }
+
+        if (vehicleImage == null) {
+            // No existing image found, create a new one
+            vehicleImage = new Image();
+            vehicleImage.setId(imageId);
+            vehicleImage.setVehicle(vehicle);
+            vehicle.getImages().add(vehicleImage);
+        } else {
+            // Ensure the vehicle association is set
+            if (vehicleImage.getVehicle() == null) {
+                vehicleImage.setVehicle(vehicle);
+            }
+            // Add to vehicle's image collection if not already present
+            if (!vehicle.getImages().contains(vehicleImage)) {
+                vehicle.getImages().add(vehicleImage);
+            }
+        }
+
+        // Update image fields
         vehicleImage.setOriginalUrl(getStringValue(imageData, "originalImageUrl"));
         vehicleImage.setResizableUrlTemplate(getStringValue(imageData, "resizableUrlTemplate"));
         vehicleImage.setIsPrimary(true);
-        vehicleImage.setVehicle(vehicle);
 
-        Image image = saveOrUpdateImage(vehicleImage);
-        if (!vehicle.getImages().contains(image)) {
-            vehicle.getImages().add(image);
-        }
+        // Save the image
+        imageRepository.save(vehicleImage);
     }
 
     public Image saveOrUpdateImage(Image image) {
         if (image.getId() != null) {
-            boolean exists = imageRepository.existsById(image.getId());
-            if (exists) {
-                Image existingImage = imageRepository.findById(image.getId())
-                        .orElseThrow(() -> new RuntimeException("Image not found with ID: " + image.getId()));
+            Image existingImage = imageRepository.findById(image.getId()).orElse(null);
+            if (existingImage != null) {
+                // Update fields without changing the ID
                 updateImageFields(existingImage, image);
-                return existingImage;
+                return imageRepository.save(existingImage);
             }
         }
-        return image;
+        // For new images or images without ID
+        return imageRepository.save(image);
     }
 
     private void updateImageFields(Image existingImage, Image newImage) {
