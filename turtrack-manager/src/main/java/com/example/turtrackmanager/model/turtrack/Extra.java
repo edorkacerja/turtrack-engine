@@ -26,8 +26,7 @@ public class Extra {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
 
-    @Lob
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", length = 5000)
     private String description;
 
     @Column(name = "enabled")
