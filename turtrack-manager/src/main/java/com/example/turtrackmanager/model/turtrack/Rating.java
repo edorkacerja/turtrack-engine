@@ -19,7 +19,7 @@ import java.util.Map;
 public class Rating {
 
     @Id
-//    @GeneratedValue(strategy = GenerationType.IDENTITY) //todo: remove auto generation.
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
