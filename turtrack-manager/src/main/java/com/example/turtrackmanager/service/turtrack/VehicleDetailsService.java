@@ -315,18 +315,18 @@ public class VehicleDetailsService {
     private void processImage(Vehicle vehicle, Map<String, Object> imageData) {
         if (imageData == null) return;
 
-        Long imageId = getLongValue(imageData, "id");
+        Long externalId = getLongValue(imageData, "id");
         Image vehicleImage = null;
 
-        if (imageId != null) {
-            // Try to find the image by ID in the database
-            vehicleImage = imageRepository.findById(imageId).orElse(null);
+        if (externalId != null) {
+            // Try to find the image by external ID
+            vehicleImage = imageRepository.findByExternalId(externalId).orElse(null);
         }
 
         if (vehicleImage == null) {
             // No existing image found, create a new one
             vehicleImage = new Image();
-            vehicleImage.setId(imageId);
+            vehicleImage.setExternalId(externalId);
             vehicleImage.setVehicle(vehicle);
             vehicle.getImages().add(vehicleImage);
         } else {

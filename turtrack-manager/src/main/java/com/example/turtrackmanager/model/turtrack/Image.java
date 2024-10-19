@@ -19,14 +19,11 @@ import org.hibernate.annotations.DynamicInsert;
 public class Image {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "image_sequence")
-    @SequenceGenerator(
-            name = "image_sequence",
-            sequenceName = "image_seq",
-            allocationSize = 1,
-            initialValue = 20000000
-    )
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private Long externalId;
 
     @Column(name = "original_url")
     private String originalUrl;
