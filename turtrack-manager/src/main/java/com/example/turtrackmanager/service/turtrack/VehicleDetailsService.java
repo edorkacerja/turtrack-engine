@@ -87,6 +87,7 @@ public class VehicleDetailsService {
         // Process new fields
         processBasicCarDetails(vehicle, (Map<String, Object>) scrapedData.get("basicCarDetails"));
         processCurrentVehicleProtection(vehicle, (Map<String, Object>) scrapedData.get("currentVehicleProtection"));
+        processInstantBookLocationPreferences(vehicle, (Map<String, Object>) scrapedData.get("instantBookLocationPreferences"));
 
         // Process badges
         processBadges(vehicle, (List<Map<String, Object>>) scrapedData.get("badges"));
@@ -169,6 +170,15 @@ public class VehicleDetailsService {
         updateIfChanged(vehicle::setInsuranceProviderDescription, vehicle.getInsuranceProviderDescription(), getStringValue(protectionData, "insuranceProviderDescription"));
         updateIfChanged(vehicle::setVehicleProtectionLevel, vehicle.getVehicleProtectionLevel(), getStringValue(protectionData, "vehicleProtectionLevel"));
         updateIfChanged(vehicle::setHostTakeRate, vehicle.getHostTakeRate(), getDoubleValue(protectionData, "hostTakeRate"));
+    }
+
+    private void processInstantBookLocationPreferences(Vehicle vehicle, Map<String, Object> instantBookData) {
+        if (instantBookData == null) return;
+
+        updateIfChanged(vehicle::setInstantBookAirportLocationEnabled, vehicle.getInstantBookAirportLocationEnabled(), getBooleanValue(instantBookData, "airportLocationEnabled"));
+        updateIfChanged(vehicle::setInstantBookCustomLocationEnabled, vehicle.getInstantBookCustomLocationEnabled(), getBooleanValue(instantBookData, "customLocationEnabled"));
+        updateIfChanged(vehicle::setInstantBookHomeLocationEnabled, vehicle.getInstantBookHomeLocationEnabled(), getBooleanValue(instantBookData, "homeLocationEnabled"));
+        updateIfChanged(vehicle::setInstantBookPoiLocationEnabled, vehicle.getInstantBookPoiLocationEnabled(), getBooleanValue(instantBookData, "poiLocationEnabled"));
     }
 
     @SuppressWarnings("unchecked")
