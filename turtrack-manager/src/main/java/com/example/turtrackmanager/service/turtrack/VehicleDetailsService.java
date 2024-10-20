@@ -224,7 +224,7 @@ public class VehicleDetailsService {
             DeliveryLocation deliveryLocation = getOrCreateDeliveryLocation(deliveryLocationData);
 
             VehicleDeliveryLocation vehicleDeliveryLocation = vehicle.getVehicleDeliveryLocations().stream()
-                    .filter(vdl -> vdl.getVehicleDeliveryLocationId().equals(vehicleDeliveryLocationId))
+                    .filter(vdl -> vdl.getExternalId().equals(vehicleDeliveryLocationId))
                     .findFirst()
                     .orElseGet(() -> createVehicleDeliveryLocation(vehicle, deliveryLocation, vehicleDeliveryLocationId));
 
@@ -237,7 +237,7 @@ public class VehicleDetailsService {
         }
 
         // Remove vehicle delivery locations that are no longer present
-        vehicle.getVehicleDeliveryLocations().removeIf(vdl -> !processedIds.contains(vdl.getVehicleDeliveryLocationId()));
+        vehicle.getVehicleDeliveryLocations().removeIf(vdl -> !processedIds.contains(vdl.getExternalId()));
     }
 
     private DeliveryLocation getOrCreateDeliveryLocation(Map<String, Object> data) {
@@ -302,7 +302,7 @@ public class VehicleDetailsService {
 
     private VehicleDeliveryLocation createVehicleDeliveryLocation(Vehicle vehicle, DeliveryLocation deliveryLocation, Long vehicleDeliveryLocationId) {
         VehicleDeliveryLocation vehicleDeliveryLocation = new VehicleDeliveryLocation();
-        vehicleDeliveryLocation.setVehicleDeliveryLocationId(vehicleDeliveryLocationId);
+        vehicleDeliveryLocation.setExternalId(vehicleDeliveryLocationId);
         vehicleDeliveryLocation.setVehicle(vehicle);
         vehicleDeliveryLocation.setDeliveryLocation(deliveryLocation);
         return vehicleDeliveryLocation;

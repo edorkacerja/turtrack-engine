@@ -1,23 +1,32 @@
 package com.example.turtrackmanager.model.turtrack;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "vehicle_delivery_locations")
+@Table(name = "vehicle_delivery_locations", indexes = {
+        @Index(name = "idx_external_id", columnList = "external_id")
+})
+@Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class VehicleDeliveryLocation {
+
     @Id
-    @Column(name = "vehicle_delivery_location_id")
-    private Long vehicleDeliveryLocationId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private Long externalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id")
@@ -68,4 +77,18 @@ public class VehicleDeliveryLocation {
         @Column(name = "title")
         private String title;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof VehicleDeliveryLocation)) return false;
+        VehicleDeliveryLocation vehicleDeliveryLocation = (VehicleDeliveryLocation) o;
+        return Objects.equals(externalId, vehicleDeliveryLocation.externalId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(externalId);
+    }
+
 }
