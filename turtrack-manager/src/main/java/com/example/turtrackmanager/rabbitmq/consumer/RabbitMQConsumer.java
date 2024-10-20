@@ -4,7 +4,9 @@ import com.example.turtrackmanager.service.manager.CellService;
 import com.example.turtrackmanager.service.turtrack.DailyRateAndAvailabilityService;
 import com.example.turtrackmanager.service.turtrack.VehicleDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -32,7 +34,11 @@ public class RabbitMQConsumer {
     @RabbitListener(queues = SCRAPED_VEHICLE_DETAILS_QUEUE)
     public void consumeVehicles(Map<String, Object> message) {
         System.out.println("Received vehicle message: " + message);
-        vehicleDetailsService.consumeScrapedVehicleDetails(message);
+        try {
+            vehicleDetailsService.consumeScrapedVehicleDetails(message);
+        } catch (Exception e) {
+            System.out.println("EXCEPTION: " + message);
+        }
     }
 
     @RabbitListener(queues = SCRAPED_DR_AVAILABILITY_QUEUE)

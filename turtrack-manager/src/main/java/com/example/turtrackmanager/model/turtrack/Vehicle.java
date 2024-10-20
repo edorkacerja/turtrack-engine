@@ -216,7 +216,7 @@ public class Vehicle {
     @Column(name = "host_take_rate")
     private Double hostTakeRate;
 
-    @Column(name = "vehicle_value_type")
+    @Column(name = "vehicle_value_type", length = 5000)
     private String vehicleValueType;
 
     @Column(name = "turo_go")
