@@ -1,21 +1,30 @@
 package com.example.turtrackmanager.model.turtrack;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
+import java.util.Objects;
 import java.util.Set;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "badges")
+@Table(name = "badges", indexes = {
+        @Index(name = "idx_external_id", columnList = "external_id")
+})
+@Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Badge {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private Long externalId;
 
     @Column(name = "label")
     private String label;
@@ -27,19 +36,17 @@ public class Badge {
     @ManyToMany(mappedBy = "badges")
     private Set<Vehicle> vehicles;
 
-    // Equals and hashCode based on id
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
+        if (!(o instanceof Badge)) return false;
         Badge badge = (Badge) o;
-
-        return id != null ? id.equals(badge.id) : badge.id == null;
+        return Objects.equals(externalId, badge.externalId);
     }
 
     @Override
     public int hashCode() {
-        return id != null ? id.hashCode() : 0;
+        return Objects.hash(externalId);
     }
+
 }

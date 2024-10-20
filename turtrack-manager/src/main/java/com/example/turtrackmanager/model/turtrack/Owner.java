@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Entity
 @Getter
@@ -27,7 +24,6 @@ public class Owner {
 
     @Column(name = "external_id", unique = true)
     private Long externalId;
-
 
     @Column(name = "first_name")
     private String firstName;
@@ -59,4 +55,18 @@ public class Owner {
         vehicles.remove(vehicle);
         vehicle.setOwner(null);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Owner)) return false;
+        Owner owner = (Owner) o;
+        return Objects.equals(externalId, owner.externalId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(externalId);
+    }
+
 }

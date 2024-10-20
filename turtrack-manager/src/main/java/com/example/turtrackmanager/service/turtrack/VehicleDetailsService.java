@@ -185,24 +185,27 @@ public class VehicleDetailsService {
     private void processBadges(Vehicle vehicle, List<Map<String, Object>> badgesData) {
         if (badgesData == null || badgesData.isEmpty()) return;
 
-        Set<Badge> badges = new HashSet<>();
+        Set<Badge> updatedBadges = new HashSet<>();
 
         for (Map<String, Object> badgeData : badgesData) {
-            Long badgeId = getLongValue(badgeData, "id");
-            if (badgeId == null) continue;
+            Long externalId = getLongValue(badgeData, "id");
+            if (externalId == null) {
+                throw new IllegalArgumentException("Badge ID is missing in badge data");
+            }
 
-            Badge badge = badgeRepository.findById(badgeId).orElse(new Badge());
-            badge.setId(badgeId);
+            Badge badge = badgeRepository.findByExternalId(externalId)
+                    .orElse(new Badge());
+            badge.setExternalId(externalId);
+
             updateIfChanged(badge::setLabel, badge.getLabel(), getStringValue(badgeData, "label"));
             updateIfChanged(badge::setValue, badge.getValue(), getStringValue(badgeData, "value"));
 
-            // Save badge if it's new
             badge = badgeRepository.save(badge);
-            badges.add(badge);
+            updatedBadges.add(badge);
         }
 
         // Update vehicle's badges
-        vehicle.setBadges(badges);
+        vehicle.setBadges(updatedBadges);
     }
 
     protected void processVehicleDeliveryLocations(Vehicle vehicle, List<Map<String, Object>> deliveryLocationsData) {
