@@ -126,7 +126,7 @@ public class VehicleDetailsService {
         updateIfChanged(vehicle::setNumberOfReviews, vehicle.getNumberOfReviews(), getIntegerValue(scrapedData, "numberOfReviews"));
         updateIfChanged(vehicle::setNumberOfRentals, vehicle.getNumberOfRentals(), getIntegerValue(scrapedData, "numberOfRentals"));
         updateIfChanged(vehicle::setTripCount, vehicle.getTripCount(), getIntegerValue(scrapedData, "tripCount"));
-        updateIfChanged(vehicle::setMinimumAgeInYearsToRent, vehicle.getMinimumAgeInYearsToRent(), getIntegerValue(vehicleData, "minimumAgeInYearsToRent"));
+        updateIfChanged(vehicle::setMinimumAgeInYearsToRent, vehicle.getMinimumAgeInYearsToRent(), getIntegerValue(scrapedData, "minimumAgeInYearsToRent"));
         updateIfChanged(vehicle::setFrequentlyBooked, vehicle.getFrequentlyBooked(), getBooleanValue(scrapedData, "frequentlyBooked"));
         updateIfChanged(vehicle::setHighValueVehicle, vehicle.getHighValueVehicle(), getBooleanValue(scrapedData, "highValueVehicle"));
         updateIfChanged(vehicle::setTuroGo, vehicle.getTuroGo(), getBooleanValue(scrapedData, "turoGo"));

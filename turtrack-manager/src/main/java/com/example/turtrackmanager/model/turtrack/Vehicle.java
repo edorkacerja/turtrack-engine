@@ -186,13 +186,13 @@ public class Vehicle {
     @Column(name = "instant_book_airport_location_enabled")
     private Boolean instantBookAirportLocationEnabled;
 
-    @Column(name = "instant_book_airport_location_enabled")
+    @Column(name = "instant_book_custom_location_enabled")
     private Boolean instantBookCustomLocationEnabled;
 
-    @Column(name = "instant_book_airport_location_enabled")
+    @Column(name = "instant_book_home_location_enabled")
     private Boolean instantBookHomeLocationEnabled;
 
-    @Column(name = "instant_book_airport_location_enabled")
+    @Column(name = "instant_book_poi_location_enabled")
     private Boolean instantBookPoiLocationEnabled;
 
     @Column(name = "high_value_vehicle")
