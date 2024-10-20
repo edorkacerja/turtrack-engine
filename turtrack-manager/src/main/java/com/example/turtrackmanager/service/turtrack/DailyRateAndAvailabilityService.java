@@ -2,8 +2,10 @@ package com.example.turtrackmanager.service.turtrack;
 
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.model.turtrack.DailyRateAndAvailability;
+import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import com.example.turtrackmanager.repository.turtrack.DailyRateAndAvailabilityRepository;
+import com.example.turtrackmanager.repository.turtrack.VehicleRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ public class DailyRateAndAvailabilityService {
 
     private final JobRepository jobRepository;
     private final DailyRateAndAvailabilityRepository dailyRateRepository;
+    private final VehicleRepository vehicleRepository;
 
 
     @Transactional
@@ -35,7 +38,10 @@ public class DailyRateAndAvailabilityService {
 
     @Transactional
     public void consumeScrapedDailyRates(Map<String, Object> message) {
-        Long vehicleId = extractVehicleId(message);
+        Long externalVehicleId = extractVehicleId(message);
+        Vehicle vehicle = vehicleRepository.findByExternalId(externalVehicleId).orElseThrow();
+        Long vehicleId = vehicle.getId();
+
         Long jobId = extractJobId(message);
         List<DailyRateAndAvailability> dailyRates = extractDailyRates(message, vehicleId);
 

@@ -4,6 +4,7 @@ import com.example.turtrackmanager.model.manager.OptimalCell;
 import com.example.turtrackmanager.model.turtrack.Vehicle;
 import com.example.turtrackmanager.repository.manager.JobRepository;
 import com.example.turtrackmanager.repository.manager.OptimalCellRepository;
+import com.example.turtrackmanager.repository.turtrack.VehicleRepository;
 import com.example.turtrackmanager.service.turtrack.VehicleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class CellService {
     private final JobRepository jobRepository;
     private final OptimalCellRepository optimalCellRepository;
     private final VehicleService vehicleService;
+    private final VehicleRepository vehicleRepository;
 
     @Transactional
     public void processCell(Map<String, Object> message) throws Exception {
@@ -87,15 +89,15 @@ public class CellService {
             if (scraped.containsKey("vehicles") && scraped.get("vehicles") instanceof List) {
                 List<Object> vehicles = (List<Object>) scraped.get("vehicles");
 
-                List<Vehicle> scrapedVehicles = vehicles.stream()
+                List<Vehicle> processedVehicles = vehicles.stream()
                         .filter(v -> v instanceof Map)
                         .map(v -> (Map<String, Object>) v)
                         .map(this::buildVehicle)
+                        .filter(Objects::nonNull)
                         .collect(Collectors.toList());
 
-                if (!scrapedVehicles.isEmpty()) {
-                    List<Vehicle> savedVehicles = vehicleService.saveAllVehicles(scrapedVehicles);
-                    log.info("Saved {} vehicles", savedVehicles.size());
+                if (!processedVehicles.isEmpty()) {
+                    log.info("Processed {} vehicles", processedVehicles.size());
                 }
             }
         }
@@ -103,19 +105,30 @@ public class CellService {
 
     private Vehicle buildVehicle(Map<String, Object> vehicleMap) {
         try {
-            Long id = Long.parseLong(String.valueOf(vehicleMap.get("id")));
+            Long externalId = Long.parseLong(String.valueOf(vehicleMap.get("id")));
             LocalDateTime searchLastUpdated = convertStringToDateTime((String) vehicleMap.get("searchLastUpdated"));
 
-            return Vehicle.builder()
-                    .id(id)
-                    .searchLastUpdated(searchLastUpdated)
-                    .build();
+            // First, try to find the vehicle in the database
+            Optional<Vehicle> existingVehicle = vehicleRepository.findByExternalId(externalId);
+
+            if (existingVehicle.isPresent()) {
+                // If the vehicle exists, update its searchLastUpdated
+                Vehicle vehicle = existingVehicle.get();
+                vehicle.setSearchLastUpdated(searchLastUpdated);
+                return vehicleRepository.save(vehicle);
+            } else {
+                // If the vehicle doesn't exist, create a new one
+                return vehicleRepository.save(Vehicle.builder()
+                        .externalId(externalId)
+                        .searchLastUpdated(searchLastUpdated)
+                        .build());
+            }
         } catch (NumberFormatException e) {
             log.error("Error parsing vehicle ID: ", e);
-            throw new IllegalArgumentException("Invalid vehicle ID format", e);
+            return null;
         } catch (Exception e) {
-            log.error("Error building vehicle: ", e);
-            throw new IllegalArgumentException("Error building vehicle", e);
+            log.error("Error building or updating vehicle: ", e);
+            return null;
         }
     }
 
