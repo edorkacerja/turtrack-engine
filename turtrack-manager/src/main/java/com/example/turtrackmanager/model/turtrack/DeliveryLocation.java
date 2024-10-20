@@ -1,19 +1,29 @@
 package com.example.turtrackmanager.model.turtrack;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
+
+import java.util.Objects;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "delivery_locations")
+@Table(name = "delivery_locations", indexes = {
+        @Index(name = "idx_external_id", columnList = "external_id")
+})
+@Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DeliveryLocation {
+
     @Id
-    @Column(name = "place_id")
-    private String placeId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private String externalId;
 
     @Column(name = "formatted_address")
     private String formattedAddress;
@@ -38,5 +48,19 @@ public class DeliveryLocation {
 
     // You might want to add these fields if they're not handled elsewhere
     private String banner;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof DeliveryLocation)) return false;
+        DeliveryLocation deliveryLocation = (DeliveryLocation) o;
+        return Objects.equals(externalId, deliveryLocation.externalId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(externalId);
+    }
+
 
 }

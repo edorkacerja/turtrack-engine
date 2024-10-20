@@ -241,14 +241,14 @@ public class VehicleDetailsService {
     }
 
     private DeliveryLocation getOrCreateDeliveryLocation(Map<String, Object> data) {
-        String placeId = getStringValue(data, "placeId");
-        return deliveryLocationRepository.findById(placeId)
+        String externalId = getStringValue(data, "placeId");
+        return deliveryLocationRepository.findByExternalId(externalId)
                 .orElseGet(() -> createDeliveryLocation(data));
     }
 
     private DeliveryLocation createDeliveryLocation(Map<String, Object> data) {
         DeliveryLocation deliveryLocation = new DeliveryLocation();
-        deliveryLocation.setPlaceId(getStringValue(data, "placeId"));
+        deliveryLocation.setExternalId(getStringValue(data, "placeId"));
         updateDeliveryLocationFields(deliveryLocation, data);
         return deliveryLocationRepository.save(deliveryLocation);
     }
