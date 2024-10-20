@@ -52,13 +52,6 @@ public class Vehicle {
     @Column(name = "registration_state")
     private String registrationState;
 
-    @Column(name = "city")
-    private String city;
-
-    // todo: I think i should remove these right here... theyre moved down to the location now.
-    @Column(name = "state")
-    private String state;
-
     @Column(name = "country")
     private String country;
 
@@ -67,12 +60,6 @@ public class Vehicle {
 
     @Column(name = "average_daily_price")
     private Double averageDailyPrice;
-
-//    @Column(name = "cell_id")
-//    private String cellId;
-
-//    @Column(name = "status")
-//    private String status;
 
     @Column(name = "automatic_transmission")
     private Boolean automaticTransmission;
@@ -201,6 +188,12 @@ public class Vehicle {
 
     @Column(name = "vehicle_status")
     private String vehicleStatus;
+
+    @Column(name = "insurance_provider_display_name")
+    private String insuranceProviderDisplayName;
+
+    @Column(name = "insurance_provider_description")
+    private String insuranceProviderDescription;
 
     @Column(name = "vehicle_protection_level")
     private String vehicleProtectionLevel;

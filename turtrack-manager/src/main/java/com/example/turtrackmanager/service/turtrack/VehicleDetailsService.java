@@ -93,7 +93,10 @@ public class VehicleDetailsService {
 
         // Process nested objects
         processRegistration(vehicle, (Map<String, Object>) vehicleData.get("registration"));
-        processImage(vehicle, (Map<String, Object>) vehicleData.get("image"));
+        List<Map<String, Object>> imagesData = (List<Map<String, Object>>) scrapedData.get("images");
+        for(Map<String,Object> imageData: imagesData) {
+            processImage(vehicle, imageData);
+        }
         processVehicleDeliveryLocations(vehicle, (List<Map<String, Object>>) scrapedData.get("vehicleDeliveryLocations"));
 
         // Process other data from scrapedData
@@ -162,6 +165,8 @@ public class VehicleDetailsService {
     private void processCurrentVehicleProtection(Vehicle vehicle, Map<String, Object> protectionData) {
         if (protectionData == null) return;
 
+        updateIfChanged(vehicle::setInsuranceProviderDisplayName, vehicle.getInsuranceProviderDisplayName(), getStringValue(protectionData, "insuranceProviderDisplayName"));
+        updateIfChanged(vehicle::setInsuranceProviderDescription, vehicle.getInsuranceProviderDescription(), getStringValue(protectionData, "insuranceProviderDescription"));
         updateIfChanged(vehicle::setVehicleProtectionLevel, vehicle.getVehicleProtectionLevel(), getStringValue(protectionData, "vehicleProtectionLevel"));
         updateIfChanged(vehicle::setHostTakeRate, vehicle.getHostTakeRate(), getDoubleValue(protectionData, "hostTakeRate"));
     }
@@ -386,13 +391,6 @@ public class VehicleDetailsService {
         ownerImage.setVerified(getBooleanValue(imageData, "verified"));
         ownerImage.setOwner(owner);
 
-        Map<String, String> thumbnails = (Map<String, String>) imageData.get("thumbnails");
-        if (thumbnails != null) {
-            ownerImage.setThumbnail32x32(thumbnails.get("32x32"));
-            ownerImage.setThumbnail84x84(thumbnails.get("84x84"));
-            ownerImage.setThumbnail300x300(thumbnails.get("300x300"));
-        }
-
         Image savedImage = saveOrUpdateImage(ownerImage);
         owner.setImage(savedImage); // Update the owner's image reference
     }
@@ -452,9 +450,6 @@ public class VehicleDetailsService {
         existingImage.setIsPrimary(newImage.getIsPrimary());
         existingImage.setResizableUrlTemplate(newImage.getResizableUrlTemplate());
         existingImage.setVerified(newImage.getVerified());
-        existingImage.setThumbnail32x32(newImage.getThumbnail32x32());
-        existingImage.setThumbnail84x84(newImage.getThumbnail84x84());
-        existingImage.setThumbnail300x300(newImage.getThumbnail300x300());
         existingImage.setVehicle(newImage.getVehicle());
         existingImage.setOwner(newImage.getOwner());
     }

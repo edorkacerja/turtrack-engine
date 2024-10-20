@@ -3,7 +3,6 @@ package com.example.turtrackmanager.rabbitmq.consumer;
 import com.example.turtrackmanager.service.manager.CellService;
 import com.example.turtrackmanager.service.turtrack.DailyRateAndAvailabilityService;
 import com.example.turtrackmanager.service.turtrack.VehicleDetailsService;
-import com.example.turtrackmanager.service.turtrack.VehicleSkeletonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;

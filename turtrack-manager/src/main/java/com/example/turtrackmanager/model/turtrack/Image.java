@@ -37,15 +37,6 @@ public class Image {
     @Column(name = "verified")
     private Boolean verified;
 
-    @Column(name = "thumbnail_32x32")
-    private String thumbnail32x32;
-
-    @Column(name = "thumbnail_84x84")
-    private String thumbnail84x84;
-
-    @Column(name = "thumbnail_300x300")
-    private String thumbnail300x300;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
