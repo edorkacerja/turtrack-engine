@@ -15,7 +15,9 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "locations")
+@Table(name = "locations", indexes = {
+        @Index(name = "idx_external_id", columnList = "external_id")
+})
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Location {

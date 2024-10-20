@@ -14,7 +14,9 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "owners")
+@Table(name = "owners", indexes = {
+        @Index(name = "idx_external_id", columnList = "external_id")
+})
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Owner {
