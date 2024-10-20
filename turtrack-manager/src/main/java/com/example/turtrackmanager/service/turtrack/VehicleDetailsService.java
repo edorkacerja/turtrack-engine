@@ -344,13 +344,13 @@ public class VehicleDetailsService {
     private void processLocation(Vehicle vehicle, Map<String, Object> locationData) {
         if (locationData == null) return;
 
-        Long locationId = extractLongValue(locationData, "id");
-        if (locationId == null) {
-            throw new IllegalArgumentException("Owner ID is missing in owner data");
+        Long externalLocationId = extractLongValue(locationData, "id");
+        if (externalLocationId == null) {
+            throw new IllegalArgumentException("Location ID is missing in location data");
         }
 
-        Location location = locationRepository.findById(locationId).orElse(new Location());
-        location.setId(locationId);
+        Location location = locationRepository.findByExternalId(externalLocationId).orElse(new Location());
+        location.setExternalId(externalLocationId);
 
         updateIfChanged(location::setAddress, location.getAddress(), getStringValue(locationData, "address"));
         updateIfChanged(location::setCity, location.getCity(), getStringValue(locationData, "city"));
@@ -367,13 +367,13 @@ public class VehicleDetailsService {
     private void processOwner(Vehicle vehicle, Map<String, Object> ownerData) {
         if (ownerData == null) return;
 
-        Long ownerId = getLongValue(ownerData, "id");
-        if (ownerId == null) {
+        Long externalId = getLongValue(ownerData, "id");
+        if (externalId == null) {
             throw new IllegalArgumentException("Owner ID is missing in owner data");
         }
 
-        Owner owner = ownerRepository.findById(ownerId).orElse(new Owner());
-        owner.setId(ownerId);
+        Owner owner = ownerRepository.findByExternalId(externalId).orElse(new Owner());
+        owner.setExternalId(externalId);
         updateIfChanged(owner::setFirstName, owner.getFirstName(), getStringValue(ownerData, "firstName"));
         updateIfChanged(owner::setLastName, owner.getLastName(), getStringValue(ownerData, "lastName"));
         updateIfChanged(owner::setIsAllStarHost, owner.getIsAllStarHost(), getBooleanValue(ownerData, "allStarHost"));

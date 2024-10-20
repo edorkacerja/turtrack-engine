@@ -2,16 +2,16 @@ package com.example.turtrackmanager.model.turtrack;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "owners")
@@ -20,7 +20,12 @@ import java.util.List;
 public class Owner {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private Long externalId;
+
 
     @Column(name = "first_name")
     private String firstName;
@@ -38,7 +43,7 @@ public class Owner {
     private Boolean isProHost;
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Vehicle> vehicles = new ArrayList<>();
+    private Set<Vehicle> vehicles = new HashSet<>();
 
     @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Image image;

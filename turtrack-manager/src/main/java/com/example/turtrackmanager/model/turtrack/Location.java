@@ -7,7 +7,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -19,7 +21,11 @@ import java.util.List;
 public class Location {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private Long externalId;
 
     @Column(name = "address", length = 255)
     private String address;
@@ -42,6 +48,6 @@ public class Location {
     @Column(name = "time_zone", length = 50)
     private String timeZone;
 
-    @OneToMany(mappedBy = "location", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Vehicle> vehicles;
+    @OneToMany(mappedBy = "location", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Vehicle> vehicles = new HashSet<>();
 }
