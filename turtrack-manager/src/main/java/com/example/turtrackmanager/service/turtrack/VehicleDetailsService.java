@@ -74,6 +74,7 @@ public class VehicleDetailsService {
         updateIfChanged(vehicle::setTrim, vehicle.getTrim(), getStringValue(vehicleData, "trim"));
         updateIfChanged(vehicle::setType, vehicle.getType(), getStringValue(vehicleData, "type"));
         updateIfChanged(vehicle::setName, vehicle.getName(), getStringValue(vehicleData, "name"));
+        updateIfChanged(vehicle::setUrl, vehicle.getUrl(), getStringValue(vehicleData, "url"));
         updateIfChanged(vehicle::setAutomaticTransmission, vehicle.getAutomaticTransmission(), getBooleanValue(vehicleData, "automaticTransmission"));
 
         // Handle listingCreatedTime
@@ -86,7 +87,6 @@ public class VehicleDetailsService {
         // Process new fields
         processBasicCarDetails(vehicle, (Map<String, Object>) scrapedData.get("basicCarDetails"));
         processCurrentVehicleProtection(vehicle, (Map<String, Object>) scrapedData.get("currentVehicleProtection"));
-        processVehicleStatus(vehicle, scrapedData);
 
         // Process badges
         processBadges(vehicle, (List<Map<String, Object>>) scrapedData.get("badges"));
@@ -115,14 +115,21 @@ public class VehicleDetailsService {
         }
 
         // Process other fields
+        updateIfChanged(vehicle::setColor, vehicle.getColor(), getStringValue(scrapedData, "color"));
         updateIfChanged(vehicle::setDescription, vehicle.getDescription(), getStringValue(scrapedData, "description"));
+        updateIfChanged(vehicle::setGuidelines, vehicle.getGuidelines(), getStringValue(scrapedData, "guidelines"));
         updateIfChanged(vehicle::setNumberOfFavorites, vehicle.getNumberOfFavorites(), getIntegerValue(scrapedData, "numberOfFavorites"));
+        updateIfChanged(vehicle::setNumberOfReviews, vehicle.getNumberOfReviews(), getIntegerValue(scrapedData, "numberOfReviews"));
         updateIfChanged(vehicle::setNumberOfRentals, vehicle.getNumberOfRentals(), getIntegerValue(scrapedData, "numberOfRentals"));
+        updateIfChanged(vehicle::setTripCount, vehicle.getTripCount(), getIntegerValue(scrapedData, "tripCount"));
+        updateIfChanged(vehicle::setMinimumAgeInYearsToRent, vehicle.getMinimumAgeInYearsToRent(), getIntegerValue(vehicleData, "minimumAgeInYearsToRent"));
         updateIfChanged(vehicle::setFrequentlyBooked, vehicle.getFrequentlyBooked(), getBooleanValue(scrapedData, "frequentlyBooked"));
         updateIfChanged(vehicle::setHighValueVehicle, vehicle.getHighValueVehicle(), getBooleanValue(scrapedData, "highValueVehicle"));
         updateIfChanged(vehicle::setTuroGo, vehicle.getTuroGo(), getBooleanValue(scrapedData, "turoGo"));
         updateIfChanged(vehicle::setVehicleStatus, vehicle.getVehicleStatus(), getStringValue(scrapedData, "vehicleStatus"));
         updateIfChanged(vehicle::setVehicleValueType, vehicle.getVehicleValueType(), getStringValue(scrapedData, "vehicleValueType"));
+        updateIfChanged(vehicle::setListingDeleted, vehicle.getListingDeleted(), getBooleanValue(scrapedData, "listingDeleted"));
+        updateIfChanged(vehicle::setListingEnabled, vehicle.getListingEnabled(), getBooleanValue(scrapedData, "listingEnabled"));
 
         vehicle.setDetailLastUpdated(LocalDateTime.now());
         return vehicleRepository.save(vehicle);
@@ -156,10 +163,7 @@ public class VehicleDetailsService {
         if (protectionData == null) return;
 
         updateIfChanged(vehicle::setVehicleProtectionLevel, vehicle.getVehicleProtectionLevel(), getStringValue(protectionData, "vehicleProtectionLevel"));
-    }
-
-    private void processVehicleStatus(Vehicle vehicle, Map<String, Object> scrapedData) {
-        updateIfChanged(vehicle::setVehicleStatus, vehicle.getVehicleStatus(), getStringValue(scrapedData, "vehicleStatus"));
+        updateIfChanged(vehicle::setHostTakeRate, vehicle.getHostTakeRate(), getDoubleValue(protectionData, "hostTakeRate"));
     }
 
     @SuppressWarnings("unchecked")
@@ -319,6 +323,7 @@ public class VehicleDetailsService {
         if (excessFeeData == null) return;
 
         updateIfChanged(vehicle::setExcessFeePerDistance, vehicle.getExcessFeePerDistance(), getDoubleValue(excessFeeData, "amount"));
+        updateIfChanged(vehicle::setExcessFeePerDistanceCurrencyCode, vehicle.getExcessFeePerDistanceCurrencyCode(), getStringValue(excessFeeData, "currencyCode"));
     }
 
     private void processLocation(Vehicle vehicle, Map<String, Object> locationData) {

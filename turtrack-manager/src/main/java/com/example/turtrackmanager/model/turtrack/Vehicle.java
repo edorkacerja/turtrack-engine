@@ -40,8 +40,11 @@ public class Vehicle {
     @Column(name = "color")
     private String color;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT", length = 5000)
     private String description;
+
+    @Column(name = "guidelines", columnDefinition = "TEXT", length = 5000)
+    private String guidelines;
 
     @Column(name = "name", columnDefinition = "TEXT")
     private String name;
@@ -52,26 +55,33 @@ public class Vehicle {
     @Column(name = "city")
     private String city;
 
+    // todo: I think i should remove these right here... theyre moved down to the location now.
     @Column(name = "state")
     private String state;
 
     @Column(name = "country")
     private String country;
 
+    @Column(name = "url")
+    private String url;
+
     @Column(name = "average_daily_price")
     private Double averageDailyPrice;
 
-    @Column(name = "cell_id")
-    private String cellId;
+//    @Column(name = "cell_id")
+//    private String cellId;
 
-    @Column(name = "status")
-    private String status;
+//    @Column(name = "status")
+//    private String status;
 
     @Column(name = "automatic_transmission")
     private Boolean automaticTransmission;
 
     @Column(name = "number_of_doors")
     private Integer numberOfDoors;
+
+    @Column(name = "minimum_age_in_years_to_rent")
+    private Integer minimumAgeInYearsToRent;
 
     @Column(name = "number_of_seats")
     private Integer numberOfSeats;
@@ -112,11 +122,8 @@ public class Vehicle {
     @Column(name = "monthly_discount_percentage")
     private Integer monthlyDiscountPercentage;
 
-    @Column(name = "rating")
-    private Double rating;
-
-    @Column(name = "number_of_trips")
-    private Integer numberOfTrips;
+    @Column(name = "trip_count")
+    private Integer tripCount;
 
     @Column(name = "number_of_reviews")
     private Integer numberOfReviews;
@@ -198,6 +205,9 @@ public class Vehicle {
     @Column(name = "vehicle_protection_level")
     private String vehicleProtectionLevel;
 
+    @Column(name = "host_take_rate")
+    private Double hostTakeRate;
+
     @Column(name = "vehicle_value_type")
     private String vehicleValueType;
 
@@ -206,6 +216,15 @@ public class Vehicle {
 
     @Column(name = "excess_fee_per_distance")
     private Double excessFeePerDistance;
+
+    @Column(name = "excess_fee_per_distance_currency_code")
+    private String excessFeePerDistanceCurrencyCode;
+
+    @Column(name = "listing_deleted")
+    private Boolean listingDeleted;
+
+    @Column(name = "listing_enabled")
+    private Boolean listingEnabled;
 
     @Embeddable
     @Data
