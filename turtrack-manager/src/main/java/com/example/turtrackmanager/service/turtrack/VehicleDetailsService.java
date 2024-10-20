@@ -344,11 +344,13 @@ public class VehicleDetailsService {
     private void processLocation(Vehicle vehicle, Map<String, Object> locationData) {
         if (locationData == null) return;
 
-        Location location = vehicle.getLocation();
-        if (location == null) {
-            location = new Location();
-            location.setId(extractLongValue(locationData, "id"));
+        Long locationId = extractLongValue(locationData, "id");
+        if (locationId == null) {
+            throw new IllegalArgumentException("Owner ID is missing in owner data");
         }
+
+        Location location = locationRepository.findById(locationId).orElse(new Location());
+        location.setId(locationId);
 
         updateIfChanged(location::setAddress, location.getAddress(), getStringValue(locationData, "address"));
         updateIfChanged(location::setCity, location.getCity(), getStringValue(locationData, "city"));
@@ -358,19 +360,20 @@ public class VehicleDetailsService {
         updateIfChanged(location::setLongitude, location.getLongitude(), getDoubleValue(locationData, "longitude"));
         updateIfChanged(location::setTimeZone, location.getTimeZone(), getStringValue(locationData, "timeZone"));
 
+        locationRepository.save(location);
         vehicle.setLocation(location);
     }
 
-    @SuppressWarnings("unchecked")
     private void processOwner(Vehicle vehicle, Map<String, Object> ownerData) {
         if (ownerData == null) return;
 
-        Owner owner = vehicle.getOwner();
-        if (owner == null) {
-            owner = new Owner();
-            owner.setId(getLongValue(ownerData, "id"));
+        Long ownerId = getLongValue(ownerData, "id");
+        if (ownerId == null) {
+            throw new IllegalArgumentException("Owner ID is missing in owner data");
         }
 
+        Owner owner = ownerRepository.findById(ownerId).orElse(new Owner());
+        owner.setId(ownerId);
         updateIfChanged(owner::setFirstName, owner.getFirstName(), getStringValue(ownerData, "firstName"));
         updateIfChanged(owner::setLastName, owner.getLastName(), getStringValue(ownerData, "lastName"));
         updateIfChanged(owner::setIsAllStarHost, owner.getIsAllStarHost(), getBooleanValue(ownerData, "allStarHost"));
@@ -379,7 +382,7 @@ public class VehicleDetailsService {
 
         processOwnerImage(owner, (Map<String, Object>) ownerData.get("image"));
 
-//        ownerRepository.save(owner);
+        ownerRepository.save(owner);
         vehicle.setOwner(owner);
     }
 
@@ -387,20 +390,26 @@ public class VehicleDetailsService {
         if (imageData == null) return;
 
         Long externalId = getLongValue(imageData, "id");
-        if (externalId == null) return;
+        String originalUrl = getStringValue(imageData, "originalImageUrl");
+
+        if (originalUrl == null) return; // We need at least the URL to process the image
 
         Image ownerImage = owner.getImage();
 
-        if (ownerImage == null || !externalId.equals(ownerImage.getExternalId())) {
-            // No existing image or external ID doesn't match, create a new one
+        boolean shouldCreateNewImage = ownerImage == null ||
+                (externalId != null && !externalId.equals(ownerImage.getExternalId())) ||
+                (externalId == null && !originalUrl.equals(ownerImage.getOriginalUrl()));
+
+        if (shouldCreateNewImage) {
+            // No existing image, or IDs don't match, or URLs don't match when ID is null
             ownerImage = new Image();
-            ownerImage.setExternalId(externalId);
             ownerImage.setOwner(owner);
             owner.setImage(ownerImage);
         }
 
         // Update image fields
-        ownerImage.setOriginalUrl(getStringValue(imageData, "originalImageUrl"));
+        ownerImage.setExternalId(externalId); // This might be null, and that's okay
+        ownerImage.setOriginalUrl(originalUrl);
         ownerImage.setResizableUrlTemplate(getStringValue(imageData, "resizableUrlTemplate"));
         ownerImage.setIsPrimary(true);
 
