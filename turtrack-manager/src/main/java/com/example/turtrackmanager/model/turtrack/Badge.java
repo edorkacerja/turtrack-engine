@@ -13,7 +13,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "badges", indexes = {
-        @Index(name = "idx_external_id", columnList = "external_id")
+        @Index(name = "idx_badge_external_id", columnList = "external_id")
 })
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)

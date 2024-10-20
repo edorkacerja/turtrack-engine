@@ -3,20 +3,19 @@ package com.example.turtrackmanager.model.turtrack;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.DynamicInsert;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "images", indexes = {
+        @Index(name = "idx_image_external_id", columnList = "external_id")
+})
 @Builder
-@Table(name = "images")
 @JsonIgnoreProperties(ignoreUnknown = true)
-@DynamicInsert  // Ensure only non-null fields are included in INSERT statements
 public class Image {
 
     @Id
