@@ -20,7 +20,12 @@ import java.util.*;
 public class Vehicle {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "external_id", unique = true)
+//    @Index(name = "idx_external_id")
+    private Long externalId;
 
     @Column(name = "make")
     private String make;
@@ -132,7 +137,7 @@ public class Vehicle {
     @JoinColumn(name = "owner_id")
     private Owner owner;
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Set<Image> images = new HashSet<>();
 
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -142,7 +147,7 @@ public class Vehicle {
     private Set<Extra> extras = new HashSet<>();
 
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL)
-    private List<VehicleDeliveryLocation> deliveryLocations = new ArrayList<>();
+    private List<VehicleDeliveryLocation> vehicleDeliveryLocations = new ArrayList<>();
 
     // New fields added based on scraped data
     @Column(name = "average_fuel_economy")

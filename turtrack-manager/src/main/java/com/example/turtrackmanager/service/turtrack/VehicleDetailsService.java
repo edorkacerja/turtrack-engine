@@ -4,10 +4,10 @@ import com.example.turtrackmanager.model.turtrack.*;
 import com.example.turtrackmanager.model.manager.Job;
 import com.example.turtrackmanager.repository.turtrack.*;
 import com.example.turtrackmanager.repository.manager.JobRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -57,9 +57,9 @@ public class VehicleDetailsService {
 
     @SuppressWarnings("unchecked")
     private Vehicle processVehicleDetails(Map<String, Object> scrapedData, Long vehicleId) {
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+        Vehicle vehicle = vehicleRepository.findByExternalId(vehicleId)
                 .orElse(new Vehicle());
-        vehicle.setId(vehicleId);
+        vehicle.setExternalId(vehicleId);
         vehicle = vehicleRepository.save(vehicle);
 
         Map<String, Object> vehicleData = (Map<String, Object>) scrapedData.get("vehicle");
@@ -96,7 +96,7 @@ public class VehicleDetailsService {
         processRegistration(vehicle, (Map<String, Object>) vehicleData.get("registration"));
         List<Map<String, Object>> imagesData = (List<Map<String, Object>>) scrapedData.get("images");
         for(Map<String,Object> imageData: imagesData) {
-            processImage(vehicle, imageData);
+            processVehicleImage(vehicle, imageData);
         }
         processVehicleDeliveryLocations(vehicle, (List<Map<String, Object>>) scrapedData.get("vehicleDeliveryLocations"));
 
@@ -220,7 +220,7 @@ public class VehicleDetailsService {
             String placeId = getStringValue(deliveryLocationData, "placeId");
             DeliveryLocation deliveryLocation = getOrCreateDeliveryLocation(deliveryLocationData);
 
-            VehicleDeliveryLocation vehicleDeliveryLocation = vehicle.getDeliveryLocations().stream()
+            VehicleDeliveryLocation vehicleDeliveryLocation = vehicle.getVehicleDeliveryLocations().stream()
                     .filter(vdl -> vdl.getVehicleDeliveryLocationId().equals(vehicleDeliveryLocationId))
                     .findFirst()
                     .orElseGet(() -> createVehicleDeliveryLocation(vehicle, deliveryLocation, vehicleDeliveryLocationId));
@@ -228,13 +228,13 @@ public class VehicleDetailsService {
             updateVehicleDeliveryLocationFields(vehicleDeliveryLocation, data);
             processedIds.add(vehicleDeliveryLocationId);
 
-            if (!vehicle.getDeliveryLocations().contains(vehicleDeliveryLocation)) {
-                vehicle.getDeliveryLocations().add(vehicleDeliveryLocation);
+            if (!vehicle.getVehicleDeliveryLocations().contains(vehicleDeliveryLocation)) {
+                vehicle.getVehicleDeliveryLocations().add(vehicleDeliveryLocation);
             }
         }
 
         // Remove vehicle delivery locations that are no longer present
-        vehicle.getDeliveryLocations().removeIf(vdl -> !processedIds.contains(vdl.getVehicleDeliveryLocationId()));
+        vehicle.getVehicleDeliveryLocations().removeIf(vdl -> !processedIds.contains(vdl.getVehicleDeliveryLocationId()));
     }
 
     private DeliveryLocation getOrCreateDeliveryLocation(Map<String, Object> data) {
@@ -379,67 +379,63 @@ public class VehicleDetailsService {
 
         processOwnerImage(owner, (Map<String, Object>) ownerData.get("image"));
 
+//        ownerRepository.save(owner);
         vehicle.setOwner(owner);
     }
 
     private void processOwnerImage(Owner owner, Map<String, Object> imageData) {
         if (imageData == null) return;
 
+        Long externalId = getLongValue(imageData, "id");
+        if (externalId == null) return;
+
         Image ownerImage = owner.getImage();
-        if (ownerImage == null) {
+
+        if (ownerImage == null || !externalId.equals(ownerImage.getExternalId())) {
+            // No existing image or external ID doesn't match, create a new one
             ownerImage = new Image();
+            ownerImage.setExternalId(externalId);
+            ownerImage.setOwner(owner);
             owner.setImage(ownerImage);
         }
 
-        Long imageId = getLongValue(imageData, "id");
-        if (imageId != null) {
-            ownerImage.setId(imageId);
-        }
-
+        // Update image fields
         ownerImage.setOriginalUrl(getStringValue(imageData, "originalImageUrl"));
         ownerImage.setResizableUrlTemplate(getStringValue(imageData, "resizableUrlTemplate"));
-        ownerImage.setVerified(getBooleanValue(imageData, "verified"));
-        ownerImage.setOwner(owner);
+        ownerImage.setIsPrimary(true);
 
-        Image savedImage = saveOrUpdateImage(ownerImage);
-        owner.setImage(savedImage); // Update the owner's image reference
+        // Ensure bidirectional relationship
+        if (ownerImage.getOwner() == null) {
+            ownerImage.setOwner(owner);
+        }
     }
 
-    private void processImage(Vehicle vehicle, Map<String, Object> imageData) {
+    private void processVehicleImage(Vehicle vehicle, Map<String, Object> imageData) {
         if (imageData == null) return;
 
         Long externalId = getLongValue(imageData, "id");
-        Image vehicleImage = null;
+        if (externalId == null) return;
 
-        if (externalId != null) {
-            // Try to find the image by external ID
-            vehicleImage = imageRepository.findByExternalId(externalId).orElse(null);
-        }
-
-        if (vehicleImage == null) {
-            // No existing image found, create a new one
-            vehicleImage = new Image();
-            vehicleImage.setExternalId(externalId);
-            vehicleImage.setVehicle(vehicle);
-            vehicle.getImages().add(vehicleImage);
-        } else {
-            // Ensure the vehicle association is set
-            if (vehicleImage.getVehicle() == null) {
-                vehicleImage.setVehicle(vehicle);
-            }
-            // Add to vehicle's image collection if not already present
-            if (!vehicle.getImages().contains(vehicleImage)) {
-                vehicle.getImages().add(vehicleImage);
-            }
-        }
+        Image vehicleImage = vehicle.getImages().stream()
+                .filter(image -> externalId.equals(image.getExternalId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    Image newImage = new Image();
+                    newImage.setExternalId(externalId);
+                    newImage.setVehicle(vehicle);
+                    vehicle.getImages().add(newImage);
+                    return newImage;
+                });
 
         // Update image fields
         vehicleImage.setOriginalUrl(getStringValue(imageData, "originalImageUrl"));
         vehicleImage.setResizableUrlTemplate(getStringValue(imageData, "resizableUrlTemplate"));
         vehicleImage.setIsPrimary(true);
 
-        // Save the image
-        imageRepository.save(vehicleImage);
+        // Ensure bidirectional relationship
+        if (vehicleImage.getVehicle() == null) {
+            vehicleImage.setVehicle(vehicle);
+        }
     }
 
     public Image saveOrUpdateImage(Image image) {
