@@ -2,25 +2,28 @@ package com.example.turtrackmanager.model.turtrack;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.EqualsAndHashCode;
+import lombok.*;
+
+import java.util.Objects;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "extras", indexes = {
+        @Index(name = "idx_external_id", columnList = "external_id")
+})
 @Builder
-@Table(name = "extras")
 @JsonIgnoreProperties(ignoreUnknown = true)
-@EqualsAndHashCode(exclude = "vehicle")
 public class Extra {
 
     @Id
-    @Column(name = "extra_id")
-    private Long extraId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "external_id", unique = true)
+    private Long externalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", nullable = false)
@@ -49,4 +52,18 @@ public class Extra {
 
     @Column(name = "quantity")
     private Integer quantity;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Extra)) return false;
+        Extra extra = (Extra) o;
+        return Objects.equals(externalId, extra.externalId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(externalId);
+    }
+
 }

@@ -534,28 +534,28 @@ public class VehicleDetailsService {
         if (extrasMap == null) return;
 
         List<Map<String, Object>> extrasList = (List<Map<String, Object>>) extrasMap.get("extras");
-        if (extrasList == null || extrasList.isEmpty()) {
-            return;
-        }
+        if (extrasList == null || extrasList.isEmpty()) return;
 
-        Set<Long> newExtraIds = new HashSet<>();
-        List<Extra> updatedExtras = new ArrayList<>();
+        Set<Long> updatedExternalIds = new HashSet<>();
 
         for (Map<String, Object> extraData : extrasList) {
-            Long extraId = getLongValue(extraData, "extraId");
-            if (extraId == null) {
-                continue;
+            Long externalId = getLongValue(extraData, "extraId");
+            if (externalId == null) {
+                throw new IllegalArgumentException("Extra ID is missing in extra data");
             }
 
-            newExtraIds.add(extraId);
-
             Extra extra = vehicle.getExtras().stream()
-                    .filter(e -> e.getExtraId().equals(extraId))
+                    .filter(e -> e.getExternalId().equals(externalId))
                     .findFirst()
-                    .orElse(new Extra());
+                    .orElseGet(() -> {
+                        Extra newExtra = extraRepository.findByExternalId(externalId)
+                                .orElse(new Extra());
+                        newExtra.setExternalId(externalId);
+                        newExtra.setVehicle(vehicle);
+                        vehicle.getExtras().add(newExtra);
+                        return newExtra;
+                    });
 
-            extra.setExtraId(extraId);
-            extra.setVehicle(vehicle);
             updateIfChanged(extra::setDescription, extra.getDescription(), getStringValue(extraData, "description"));
             updateIfChanged(extra::setEnabled, extra.getEnabled(), getBooleanValue(extraData, "enabled"));
             updateIfChanged(extra::setExtraPricingType, extra.getExtraPricingType(), getStringValue(extraData, "extraPricingType"));
@@ -576,12 +576,12 @@ public class VehicleDetailsService {
                 updateIfChanged(extra::setCurrencyCode, extra.getCurrencyCode(), getStringValue(priceWithCurrency, "currencyCode"));
             }
 
-            updatedExtras.add(extra);
+            extraRepository.save(extra);
+            updatedExternalIds.add(externalId);
         }
 
         // Remove extras that are no longer associated with the vehicle
-        vehicle.getExtras().removeIf(extra -> !newExtraIds.contains(extra.getExtraId()));
-        vehicle.getExtras().addAll(updatedExtras);
+        vehicle.getExtras().removeIf(extra -> !updatedExternalIds.contains(extra.getExternalId()));
     }
 
     private void updateJobProgress(Long jobId, boolean success) {
