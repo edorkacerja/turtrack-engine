@@ -57,8 +57,18 @@ public class VehicleService {
     }
 
     public List<Vehicle> getVehiclesWithLimitAndOffset(int limit, int offset) {
-        Pageable pageable = PageRequest.of(offset / limit, limit);
-        return vehicleRepository.findAll(pageable).getContent();
-    }
+        if (limit < 0 || offset < 0) {
+            throw new IllegalArgumentException("Limit and offset must be non-negative");
+        }
 
+        if (limit == 0) {
+            // If limit is 0, return all vehicles
+            return vehicleRepository.findAll();
+        } else {
+            // Calculate the page number and use the provided limit as page size
+            int pageNumber = offset / limit;
+            Pageable pageable = PageRequest.of(pageNumber, limit);
+            return vehicleRepository.findAll(pageable).getContent();
+        }
+    }
 }

@@ -85,7 +85,7 @@ public class VehicleDetailsJobService {
         vehicles.forEach(vehicle -> {
             try {
                 ToBeScrapedVehicleDetailsMessage message = ToBeScrapedVehicleDetailsMessage.builder()
-                        .vehicleId(String.valueOf(vehicle.getId()))
+                        .vehicleId(String.valueOf(vehicle.getExternalId()))
                         .startDate(startDate)
                         .endDate(endDate)
                         .startTime(startTime)

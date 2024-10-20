@@ -82,7 +82,7 @@ public class DailyRateAndAvailabilityJobService {
         vehicles.forEach(vehicle -> {
             try {
                 ToBeScrapedVehicleAvailabilityMessage message = ToBeScrapedVehicleAvailabilityMessage.builder()
-                        .vehicleId(String.valueOf(vehicle.getId()))
+                        .vehicleId(String.valueOf(vehicle.getExternalId()))
                         .country(vehicle.getCountry())
                         .startDate(getStartDate(vehicle, startDate))
                         .endDate(endDate.format(dateFormatter))
