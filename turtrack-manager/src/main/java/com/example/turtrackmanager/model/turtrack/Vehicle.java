@@ -2,19 +2,19 @@ package com.example.turtrackmanager.model.turtrack;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "vehicles")
+@Table(name = "vehicles", indexes = {
+    @Index(name = "idx_external_id", columnList = "external_id")
+})
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Vehicle {
@@ -24,7 +24,6 @@ public class Vehicle {
     private Long id;
 
     @Column(name = "external_id", unique = true)
-//    @Index(name = "idx_external_id")
     private Long externalId;
 
     @Column(name = "make")
@@ -133,23 +132,22 @@ public class Vehicle {
     @JoinColumn(name = "location_id")
     private Location location;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private Owner owner;
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Image> images = new HashSet<>();
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Rating> ratings = new HashSet<>();
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Extra> extras = new HashSet<>();
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL)
-    private List<VehicleDeliveryLocation> vehicleDeliveryLocations = new ArrayList<>();
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<VehicleDeliveryLocation> vehicleDeliveryLocations = new HashSet<>();
 
-    // New fields added based on scraped data
     @Column(name = "average_fuel_economy")
     private Double averageFuelEconomy;
 
@@ -262,15 +260,14 @@ public class Vehicle {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
+        if (!(o instanceof Vehicle)) return false;
         Vehicle vehicle = (Vehicle) o;
-        return Objects.equals(id, vehicle.id);
+        return Objects.equals(externalId, vehicle.externalId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(externalId);
     }
 
     // Keep the toString method concise to avoid printing large collections
