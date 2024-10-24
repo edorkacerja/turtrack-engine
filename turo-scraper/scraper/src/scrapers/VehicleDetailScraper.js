@@ -44,7 +44,6 @@ class VehicleDetailScraper extends BaseScraper {
       accept: "*/*",
       "accept-language": "en-US,en;q=0.9",
       "content-type": "application/json",
-      "referer": "https://turo.com/"
     };
 
     const requestConfig = {

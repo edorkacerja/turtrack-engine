@@ -283,17 +283,6 @@ class VehicleDetailsScraperPool {
     }
 
     async close() {
-        console.log(`[close] Closing ScraperPool and all scrapers.`);
-        const scraperPromises = Array.from(this.scrapers.values()).map(scraper => scraper.close());
-        await Promise.all(scraperPromises);
-        this.scrapers.clear();
-        this.availableScrapers.clear();
-        this.idleTimers.forEach(timer => clearTimeout(timer));
-        this.idleTimers.clear();
-        console.log(`[close] ScraperPool closed.`);
-    }
-
-    async close() {
         console.log(`[close] Closing VehicleDetailsScraperPool and all scrapers.`);
         const scraperPromises = Array.from(this.scrapers.values()).map(scraper => scraper.close());
         await Promise.all(scraperPromises);

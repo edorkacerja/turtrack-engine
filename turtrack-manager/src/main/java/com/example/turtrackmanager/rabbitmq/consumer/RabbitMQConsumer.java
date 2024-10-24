@@ -35,7 +35,7 @@ public class RabbitMQConsumer {
     public void consumeVehicles(Map<String, Object> message) {
         System.out.println("Received vehicle message: " + message);
         try {
-            vehicleDetailsService.consumeScrapedVehicleDetails(message);
+//            vehicleDetailsService.consumeScrapedVehicleDetails(message);
         } catch (Exception e) {
             System.out.println("EXCEPTION: " + message);
         }

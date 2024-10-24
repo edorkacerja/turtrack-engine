@@ -68,53 +68,66 @@ class BaseScraper {
 
       await this.page.setRequestInterception(true);
 
-      this.requestListener = (request) => {
-        if (this.currentRequestTotalBytes >= this.maxDataLimit) {
-          request.abort();
-        } else if (request.resourceType() === "image" || request.resourceType() === "media" ||
-            request.resourceType() === "font" || request.resourceType() === "stylesheet" ||
-            request.resourceType() === "script" || request.resourceType() === "xhr") {
-          request.abort();
-        } else if (request.url().endsWith(".png") || request.url().includes("base64")) {
-          request.abort();
-        } else {
-          request.continue();
-        }
-      };
+      await new Promise((resolve, reject) => {
+        this.requestListener = (request) => {
+          const url = request.url();
 
-      this.responseListener = async (response) => {
-        const request = response.request();
-        const url = request.url();
-
-        let responseSize = 0;
-        const contentLength = response.headers()['content-length'];
-        if (contentLength) {
-          responseSize = parseInt(contentLength, 10);
-        } else {
-          try {
-            const buffer = await response.buffer();
-            responseSize = buffer.length;
-          } catch (error) {
-            console.error(`[Instance ${this.instanceId}] Error getting response size for ${url}:`, error.message);
+          if (!url.includes("api/vehicle/detail") && this.currentRequestTotalBytes > this.maxDataLimit) {
+            request.abort();
+          } else if (request.resourceType() === "image" || request.resourceType() === "media" ||
+              request.resourceType() === "font" || request.resourceType() === "stylesheet" ||
+              request.resourceType() === "script" || request.resourceType() === "xhr") {
+            request.abort();
+          } else if (request.url().endsWith(".png") || request.url().includes("base64")) {
+            request.abort();
+          } else {
+            request.continue();
           }
-        }
+        };
 
-        if (this.currentRequestTotalBytes + responseSize > this.maxDataLimit) {
-          responseSize = this.maxDataLimit - this.currentRequestTotalBytes;
-          console.warn(`[Instance ${this.instanceId}] Data limit reached for ${url}. Truncating response.`);
-        }
+        this.responseListener = async (response) => {
+          const request = response.request();
+          const url = request.url();
 
-        this.currentRequestTotalBytes += responseSize;
+          let responseSize = 0;
+          const contentLength = response.headers()['content-length'];
+          if (contentLength) {
+            responseSize = parseInt(contentLength, 10);
+          } else {
+            try {
+              const buffer = await response.buffer();
+              responseSize = buffer.length;
+            } catch (error) {
+              console.error(`[Instance ${this.instanceId}] Error getting response size for ${url}:`, error.message);
+            }
+          }
 
-        if (!response.ok()) {
-          console.error(`[Instance ${this.instanceId}] Failed request to ${url}: ${response.status()} ${response.statusText()}. Data received: ${responseSize} Bytes`);
-        }
-      };
+          if (!url.includes("api/vehicle/detail") && this.currentRequestTotalBytes + responseSize > this.maxDataLimit) {
+            responseSize = this.maxDataLimit - this.currentRequestTotalBytes;
+            console.warn(`[Instance ${this.instanceId}] Data limit reached for ${url}. Truncating response.`);
+          }
 
-      this.page.on("request", this.requestListener);
-      this.page.on('response', this.responseListener);
+          this.currentRequestTotalBytes += responseSize;
 
-      await this.logRequestSizes("https://www.turo.com");
+          const status = response.status();
+          if (status === 403 && url.includes("api/vehicle/detail")) {
+            reject(new Error(`ERROR INITIALIZING SCRAPER!!! Status: 403`));
+            return;
+          } else if (!response.ok()) {
+            console.error(`[Instance ${this.instanceId}] Failed request to ${url}: ${response.status()} ${response.statusText()}. Data received: ${responseSize} Bytes`);
+          }
+        };
+
+        this.page.on("request", this.requestListener);
+        this.page.on('response', this.responseListener);
+
+        this.page.goto("https://www.turo.com", {
+          waitUntil: 'domcontentloaded',
+          timeout: 60000, // 60 seconds timeout
+        }).then(resolve);
+      });
+
+      // await this.logRequestSizes("https://www.turo.com");
 
       const sleepDuration = getRandomInt(1, 2) * 1000;
       console.log(`Sleeping for ${sleepDuration / 1000} seconds`);
@@ -126,7 +139,6 @@ class BaseScraper {
       throw error;
     }
   }
-
   async logRequestSizes(url) {
     console.log(`[Instance ${this.instanceId}] Starting request to ${url}`);
 
