@@ -7,13 +7,13 @@ const {
     DLQ_DR_AVAILABILITY_QUEUE
 } = require("../utils/constants");
 const { logMemoryUsage } = require("../utils/utils");
-const ScraperPool = require("../scrapers/PricingScraperPool");
+const PricingScraperPool = require("../scrapers/PricingScraperPool");
 
 class PricingConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 100;
+        this.MAX_POOL_SIZE = 10;
         this.isShuttingDown = false;
 
         this.connection = null;
@@ -38,7 +38,7 @@ class PricingConsumer {
                 console.log(`Initializing Pricing ScraperPool...`);
                 // Note: If I use the real class PricingScraperPool, all the requests to Turo fail!?!?
                 // So instead we use ScraperPool which is not even a subclass. I don't understand...
-                this.scraperPool = new ScraperPool(
+                this.scraperPool = new PricingScraperPool(
                     this.MAX_POOL_SIZE,
                     this.proxyAuth,
                     this.proxyServer,

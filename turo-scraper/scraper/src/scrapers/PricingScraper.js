@@ -78,7 +78,7 @@ class PricingScraper extends BaseScraper {
           { requestConfig, url }
       );
 
-      this.updateTotalBytes(data);
+      // this.updateTotalBytes(data);
       return data;
     } catch (error) {
       console.error(`[${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);

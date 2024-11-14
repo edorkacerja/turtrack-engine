@@ -68,11 +68,16 @@ class BaseScraper {
 
       await this.page.setRequestInterception(true);
 
-      await new Promise((resolve, reject) => {
+      await new Promise(async (resolve, reject) => {
         this.requestListener = (request) => {
           const url = request.url();
 
-          if (!url.includes("api/vehicle/detail") && this.currentRequestTotalBytes > this.maxDataLimit) {
+          // const contentLength = response.headers()['content-length'];
+          // if (contentLength) {
+          //   responseSize = parseInt(contentLength, 10);
+
+
+          if (!url.includes("api/vehicle/detail") && !url.includes("api/vehicle/daily_pricing") && this.currentRequestTotalBytes > this.maxDataLimit) {
             request.abort();
           } else if (request.resourceType() === "image" || request.resourceType() === "media" ||
               request.resourceType() === "font" || request.resourceType() === "stylesheet" ||
@@ -102,28 +107,29 @@ class BaseScraper {
             }
           }
 
-          if (!url.includes("api/vehicle/detail") && this.currentRequestTotalBytes + responseSize > this.maxDataLimit) {
-            responseSize = this.maxDataLimit - this.currentRequestTotalBytes;
+          if (url.includes("api/vehicle/detail") || url.includes("api/vehicle/daily_pricing")) {
+            responseSize = 0;
+          } else if (this.currentRequestTotalBytes + responseSize > this.maxDataLimit) {
             console.warn(`[Instance ${this.instanceId}] Data limit reached for ${url}. Truncating response.`);
           }
 
           this.currentRequestTotalBytes += responseSize;
 
-          const status = response.status();
-          if (status === 403 && url.includes("api/vehicle/detail")) {
-            reject(new Error(`ERROR INITIALIZING SCRAPER!!! Status: 403`));
-            return;
-          } else if (!response.ok()) {
-            console.error(`[Instance ${this.instanceId}] Failed request to ${url}: ${response.status()} ${response.statusText()}. Data received: ${responseSize} Bytes`);
-          }
+          // const status = response.status();
+          // if (status === 403 && !url.includes("api/vehicle/detail")) {
+          //   reject(new Error(`ERROR INITIALIZING SCRAPER!!! Status: 403`));
+          //   return;
+          // } else if (!response.ok()) {
+          //   console.error(`[Instance ${this.instanceId}] Failed request to ${url}: ${response.status()} ${response.statusText()}. Data received: ${responseSize} Bytes`);
+          // }
         };
 
         this.page.on("request", this.requestListener);
         this.page.on('response', this.responseListener);
 
-        this.page.goto("https://www.turo.com", {
-          waitUntil: 'domcontentloaded',
-          timeout: 60000, // 60 seconds timeout
+        await this.page.goto("https://www.turo.com", {
+          waitUntil: 'networkidle2',
+          timeout: 180000, // 60 seconds timeout
         }).then(resolve);
       });
 
@@ -178,6 +184,7 @@ class BaseScraper {
 
   async destroy() {
     console.log(`[Instance ${this.instanceId}] Destroying scraper instance...`);
+    this.currentRequestTotalBytes = 0;
 
     try {
       // Remove specific listeners
@@ -231,6 +238,7 @@ class BaseScraper {
       this.page = null;
       this.browser = null;
       console.log(`[Instance ${this.instanceId}] Scraper instance destroyed.`);
+      this.currentRequestTotalBytes = 0;
     }
   }
 

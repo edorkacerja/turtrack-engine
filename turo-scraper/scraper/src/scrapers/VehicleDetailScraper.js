@@ -18,6 +18,7 @@ class VehicleDetailScraper extends BaseScraper {
   }
 
   async scrape(vehicleId, jobId, startDate, startTime, endDate, endTime) {
+
     this.currentRequestTotalBytes = 0;
     await sleep(this.delay);
 
@@ -79,7 +80,7 @@ class VehicleDetailScraper extends BaseScraper {
           { requestConfig, url }
       );
 
-      this.updateTotalBytes(data);
+      // this.updateTotalBytes(data);
       return data;
     } catch (error) {
       console.error(`[${this.instanceId}] Error fetching data for vehicle ${vehicleId}: ${error.message}`);

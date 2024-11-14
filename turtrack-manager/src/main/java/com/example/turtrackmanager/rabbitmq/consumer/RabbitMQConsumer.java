@@ -31,15 +31,15 @@ public class RabbitMQConsumer {
         }
     }
 
-    @RabbitListener(queues = SCRAPED_VEHICLE_DETAILS_QUEUE)
-    public void consumeVehicles(Map<String, Object> message) {
-        System.out.println("Received vehicle message: " + message);
-        try {
+//    @RabbitListener(queues = SCRAPED_VEHICLE_DETAILS_QUEUE)
+//    public void consumeVehicles(Map<String, Object> message) {
+//        System.out.println("Received vehicle message: " + message);
+//        try {
 //            vehicleDetailsService.consumeScrapedVehicleDetails(message);
-        } catch (Exception e) {
-            System.out.println("EXCEPTION: " + message);
-        }
-    }
+//        } catch (Exception e) {
+//            System.out.println("EXCEPTION: " + message);
+//        }
+//    }
 
     @RabbitListener(queues = SCRAPED_DR_AVAILABILITY_QUEUE)
     public void consumePricing(Map<String, Object> message) {

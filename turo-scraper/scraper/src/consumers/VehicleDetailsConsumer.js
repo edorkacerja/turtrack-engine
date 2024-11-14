@@ -7,14 +7,13 @@ const {
     DLQ_VEHICLE_DETAILS_QUEUE
 } = require("../utils/constants");
 const { logMemoryUsage } = require("../utils/utils");
-const JobService = require("../services/JobService");
-const ScraperPool = require("../scrapers/VehicleDetailsScraperPool");
+const VehicleDetailsScraperPool = require("../scrapers/VehicleDetailsScraperPool");
 
 class VehicleDetailsConsumer {
     constructor() {
         this.proxyAuth = process.env.PROXY_AUTH;
         this.proxyServer = process.env.PROXY_SERVER;
-        this.MAX_POOL_SIZE = 15;
+        this.MAX_POOL_SIZE = 5;
         this.isShuttingDown = false;
 
         this.connection = null;
@@ -33,10 +32,11 @@ class VehicleDetailsConsumer {
                 await this.channel.assertQueue(SCRAPED_VEHICLE_DETAILS_QUEUE, { durable: true });
                 await this.channel.assertQueue(DLQ_VEHICLE_DETAILS_QUEUE, { durable: true });
 
+                // Set the prefetch count to control concurrency
                 await this.channel.prefetch(this.MAX_POOL_SIZE);
 
                 console.log(`Initializing Vehicle Details ScraperPool...`);
-                this.scraperPool = new ScraperPool(
+                this.scraperPool = new VehicleDetailsScraperPool(
                     this.MAX_POOL_SIZE,
                     this.proxyAuth,
                     this.proxyServer,
@@ -67,33 +67,37 @@ class VehicleDetailsConsumer {
             }
 
             const messageData = JSON.parse(message.content.toString());
-            const { vehicleId, startDate, endDate, startTime, endTime, jobId } = messageData;
+            const jobId = this.extractJobId(message);
             console.log(`Received message from ${TO_BE_SCRAPED_VEHICLE_DETAILS_QUEUE} JobID: ${jobId}`);
 
             try {
-                const isJobRunning = await JobService.isJobRunning(jobId);
-                if (!isJobRunning) {
-                    console.log(`Job ${jobId} is no longer running. Acknowledging message.`);
-                    this.channel.ack(message);
-                    return;
-                }
 
                 await this.scraperPool.handleMessage(messageData, this.channel);
                 console.log(`Finished processing message for job ${jobId}`);
             } catch (error) {
                 console.error(`Error processing message for job ${jobId}:`, error);
-                await this.handleFailedScrape({ id: vehicleId }, error, jobId);
+                // await this.handleFailedScrape({ id: vehicleId }, error, jobId);
             } finally {
                 this.channel.ack(message);
             }
         }, { noAck: false });
     }
 
+    extractJobId(message) {
+        try {
+            const messageContent = JSON.parse(message.content.toString());
+            return messageContent.jobId;
+        } catch (error) {
+            console.error('Error extracting jobId from message:', error);
+            return null;
+        }
+    }
+
     async handleFailedScrape(vehicle, error, jobId) {
-        console.error(`Scraping failed for vehicle ${vehicle.id}`);
+        console.error(`Scraping failed for vehicle ${vehicle.getId()}`);
 
         const dlqMessage = {
-            vehicleId: vehicle.id,
+            vehicleId: vehicle.getId(),
             error: error ? (error.message || String(error)) : 'Unknown error',
             timestamp: new Date().toISOString(),
             jobId
@@ -101,9 +105,9 @@ class VehicleDetailsConsumer {
 
         try {
             await this.channel.sendToQueue(DLQ_VEHICLE_DETAILS_QUEUE, Buffer.from(JSON.stringify(dlqMessage)));
-            console.log(`Failed vehicle ${vehicle.id} sent to DLQ`);
+            console.log(`Failed vehicle ${vehicle.getId()} sent to DLQ`);
         } catch (dlqError) {
-            console.error(`Failed to send to DLQ for vehicle ${vehicle.id}:`, dlqError);
+            console.error(`Failed to send to DLQ for vehicle ${vehicle.getId()}:`, dlqError);
         }
     }
 
