@@ -1,6 +1,7 @@
 package com.example.turtrackmanager.controller;
 
 import com.example.turtrackmanager.dto.UserDTO;
+import com.example.turtrackmanager.model.turtrack.User;
 import com.example.turtrackmanager.service.turtrack.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<UserDTO.AuthResponse> getCurrentUser(@RequestHeader("Authorization") String token) {
-        // TODO: Implement getting current user details
-        return ResponseEntity.ok().build();
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        return ResponseEntity.ok(userService.getCurrentUser(token));
     }
 }

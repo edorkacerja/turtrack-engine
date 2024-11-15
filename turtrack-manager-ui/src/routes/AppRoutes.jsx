@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import JobsDashboard from '../features/jobs/pages/JobsDashboard/JobsDashboard';
 import {selectIsAuthenticated} from "../features/auth/redux/authSlice.jsx";
 import LandingPage from "../features/landing/pages/LandingPage.jsx";
+import OAuth2Callback from "../features/auth/components/AuthModal/Auth2Callback.jsx";
 
 const ProtectedRoute = ({ children }) => {
     const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -39,6 +40,9 @@ const AppRoutes = () => {
                     </PublicRoute>
                 }
             />
+
+            {/* OAuth Callback Route - This should be public but not redirected */}
+            <Route path="/oauth/callback" element={<OAuth2Callback />} />
 
             {/* Protected Routes */}
             <Route

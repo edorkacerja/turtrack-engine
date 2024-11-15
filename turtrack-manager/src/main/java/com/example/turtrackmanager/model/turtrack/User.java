@@ -60,6 +60,9 @@ public class User {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "picture")
+    private String profilePicture;
+
     public enum SubscriptionStatus {
         NONE,
         ACTIVE,

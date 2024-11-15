@@ -1,8 +1,8 @@
 // src/common/components/AuthModal/AuthModal.jsx
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import Login from './Login';
-import Register from './Register';
+import Login from './Login.jsx';
+import Register from './Register.jsx';
 import "./AuthModal.scss"
 
 const AuthModal = ({ isOpen, onClose }) => {

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,12 +59,31 @@ public class UserService {
     }
 
     private UserDTO.AuthResponse createAuthResponse(User user, String token) {
-        UserDTO.AuthResponse response = new UserDTO.AuthResponse();
-        response.setToken(token);
-        response.setEmail(user.getEmail());
-        response.setFirstName(user.getFirstName());
-        response.setLastName(user.getLastName());
-        response.setSubscriptionStatus(user.getSubscriptionStatus());
-        return response;
+        return UserDTO.AuthResponse.builder()
+                .token(token)
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .subscriptionStatus(user.getSubscriptionStatus())
+                .build();
     }
+
+    public UserDTO.AuthResponse getCurrentUser(String token) {
+        // Extract email from token
+        String email = jwtTokenProvider.getEmailFromJWT(token);
+
+        // Find user
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // Create and return auth response
+        return UserDTO.AuthResponse.builder()
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .subscriptionStatus(user.getSubscriptionStatus())
+                .token(token) // Return the same token
+                .build();
+    }
+
 }

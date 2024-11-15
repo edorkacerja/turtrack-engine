@@ -1,11 +1,33 @@
-// src/common/layouts/NavBar/NavBar.jsx
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { ExternalLink, LogIn, User } from 'lucide-react';
+import { ExternalLink, LogIn } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../../../features/auth/redux/authSlice';
-import AuthModal from '../../components/AuthModal/AuthModal';
+import AuthModal from '../../../features/auth/components/AuthModal/AuthModal';
 import "./NavBar.scss";
+
+const ProfileAvatar = ({ user }) => {
+    if (user?.photoURL) {
+        return (
+            <img
+                src={user.photoURL}
+                alt={`${user.firstName}'s profile`}
+                className="profile-avatar"
+            />
+        );
+    }
+
+    // If no photo, show initials
+    const initials = user?.firstName && user?.lastName
+        ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+        : user?.firstName?.[0]?.toUpperCase() || 'U';
+
+    return (
+        <div className="profile-initials">
+            {initials}
+        </div>
+    );
+};
 
 const NavBar = () => {
     const location = useLocation();
@@ -47,7 +69,7 @@ const NavBar = () => {
                             onClick={handleLogout}
                             className="profile-button"
                         >
-                            <User />
+                            <ProfileAvatar user={user} />
                             <span>{user?.firstName || 'Profile'}</span>
                         </button>
                     ) : (

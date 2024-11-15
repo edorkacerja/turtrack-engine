@@ -3,6 +3,7 @@ package com.example.turtrackmanager.dto;
 import com.example.turtrackmanager.model.turtrack.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Builder;
 import lombok.Data;
 
 public class UserDTO {
@@ -21,6 +22,8 @@ public class UserDTO {
 
         @NotBlank(message = "Last name is required")
         private String lastName;
+
+        private String profilePicture;
     }
 
     @Data
@@ -34,11 +37,13 @@ public class UserDTO {
     }
 
     @Data
+    @Builder
     public static class AuthResponse {
         private String token;
         private String email;
         private String firstName;
         private String lastName;
+        private String profilePicture;  // Add this for Google profile picture
         private User.SubscriptionStatus subscriptionStatus;
     }
 }
