@@ -1,17 +1,67 @@
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+// src/routes/AppRoutes.jsx
+import { Route, Routes, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import JobsDashboard from '../features/jobs/pages/JobsDashboard/JobsDashboard';
-// import JobDetails from '../features/jobs/pages/JobDetails';
-// import CreateJob from '../features/jobs/pages/CreateJob';
+import {selectIsAuthenticated} from "../features/auth/redux/authSlice.jsx";
+import LandingPage from "../features/landing/pages/LandingPage.jsx";
+
+const ProtectedRoute = ({ children }) => {
+    const isAuthenticated = useSelector(selectIsAuthenticated);
+
+    if (!isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
+
+    return children;
+};
+
+const PublicRoute = ({ children }) => {
+    const isAuthenticated = useSelector(selectIsAuthenticated);
+
+    if (isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return children;
+};
 
 const AppRoutes = () => {
+    const isAuthenticated = useSelector(selectIsAuthenticated);
+
     return (
-        // <Router>
-            <Routes>
-                <Route path="/" element={<JobsDashboard />} />
-                {/*<Route path="/jobs/create" element={<CreateJob />} />*/}
-                {/*<Route path="/jobs/:id" element={<JobDetails />} />*/}
-            </Routes>
-        // </Router>
+        <Routes>
+            {/* Public Routes */}
+            <Route
+                path="/"
+                element={
+                    <PublicRoute>
+                        <LandingPage />
+                    </PublicRoute>
+                }
+            />
+
+            {/* Protected Routes */}
+            <Route
+                path="/dashboard"
+                element={
+                    <ProtectedRoute>
+                        <JobsDashboard />
+                    </ProtectedRoute>
+                }
+            />
+
+            {/* Catch all route */}
+            <Route
+                path="*"
+                element={
+                    isAuthenticated ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Navigate to="/" replace />
+                    )
+                }
+            />
+        </Routes>
     );
 };
 

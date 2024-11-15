@@ -3,9 +3,11 @@ import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch } from 'react-redux';
 import logger from 'redux-logger';
 import jobsReducer from '../features/jobs/redux/jobsSlice';
+import authReducer from '../features/auth/redux/authSlice';
 
 const rootReducer = {
     jobs: jobsReducer,
+    auth: authReducer,
     // Add other reducers here as your application grows
 };
 

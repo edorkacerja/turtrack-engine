@@ -1,10 +1,25 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
-import "./NavBar.scss"
+// src/common/layouts/NavBar/NavBar.jsx
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { ExternalLink, LogIn, User } from 'lucide-react';
+import { selectIsAuthenticated, selectCurrentUser, logout } from '../../../features/auth/redux/authSlice';
+import AuthModal from '../../components/AuthModal/AuthModal';
+import "./NavBar.scss";
 
 const NavBar = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+    const isAuthenticated = useSelector(selectIsAuthenticated);
+    const user = useSelector(selectCurrentUser);
+
+    const handleLogout = () => {
+        dispatch(logout());
+        navigate('/');
+    };
 
     return (
         <nav className="navbar">
@@ -19,16 +34,38 @@ const NavBar = () => {
                             href="http://localhost:8080/ui/clusters"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="nav-link flex items-center"
+                            className="nav-link"
                         >
                             Kafka UI
                             <ExternalLink className="external-link-icon" size={16} />
                         </a>
                     </li>
-                    {/*<li><Link to="/jobs/create" className={`nav-link ${location.pathname === '/jobs/create' ? 'active' : ''}`}>Create Job</Link></li>*/}
                 </ul>
-                <div className="navbar-placeholder"></div>
+                <div className="navbar-auth">
+                    {isAuthenticated ? (
+                        <button
+                            onClick={handleLogout}
+                            className="profile-button"
+                        >
+                            <User />
+                            <span>{user?.firstName || 'Profile'}</span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setIsAuthModalOpen(true)}
+                            className="auth-button"
+                        >
+                            <LogIn />
+                            <span>Sign In</span>
+                        </button>
+                    )}
+                </div>
             </div>
+
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+            />
         </nav>
     );
 };
