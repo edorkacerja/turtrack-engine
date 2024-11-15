@@ -31,20 +31,30 @@ const Register = ({ onClose }) => {
         setError('');
 
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            // First, get the CSRF token
+            const csrfResponse = await fetch(`http://localhost:9999/csrf`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+            const csrfToken = csrfResponse.headers.get('X-XSRF-TOKEN');
+
+            // Then make the registration request
+            const response = await fetch(`http://localhost:9999/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken,
                 },
                 credentials: 'include',
                 body: JSON.stringify(formData),
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json();
                 throw new Error(data.message || 'Registration failed');
             }
+
+            const data = await response.json();
 
             dispatch(setCredentials({
                 user: {
@@ -59,12 +69,11 @@ const Register = ({ onClose }) => {
             onClose();
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'An error occurred during registration');
         } finally {
             setIsLoading(false);
         }
     };
-
     return (
         <form onSubmit={handleSubmit} className="form">
             {error && (

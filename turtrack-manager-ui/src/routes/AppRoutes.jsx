@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import JobsDashboard from '../features/jobs/pages/JobsDashboard/JobsDashboard';
 import {selectIsAuthenticated} from "../features/auth/redux/authSlice.jsx";
 import LandingPage from "../features/landing/pages/LandingPage.jsx";
-import OAuth2Callback from "../features/auth/components/AuthModal/Auth2Callback.jsx";
+import OAuth2Callback from "../features/auth/components/AuthModal/OAuth2Callback.jsx";
 
 const ProtectedRoute = ({ children }) => {
     const isAuthenticated = useSelector(selectIsAuthenticated);

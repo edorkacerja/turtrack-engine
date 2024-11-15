@@ -43,7 +43,7 @@ public class UserDTO {
         private String email;
         private String firstName;
         private String lastName;
-        private String profilePicture;  // Add this for Google profile picture
+        private String profilePicture;
         private User.SubscriptionStatus subscriptionStatus;
     }
 }
