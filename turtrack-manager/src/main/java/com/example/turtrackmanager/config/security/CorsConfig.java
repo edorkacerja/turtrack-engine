@@ -15,9 +15,15 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Be specific about allowed origins
+        // Allow your frontend origin
         configuration.setAllowedOrigins(Collections.singletonList("http://localhost:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+
+        // Allow all common methods
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"
+        ));
+
+        // Allow all necessary headers
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -26,14 +32,26 @@ public class CorsConfig {
                 "Accept",
                 "Origin",
                 "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
+                "Access-Control-Request-Headers",
+                "X-Auth-Token",
+                "X-Frame-Options",
+                "Referer",
+                "Cookie",
+                "Set-Cookie"
         ));
+
+        // Expose necessary headers to the frontend
         configuration.setExposedHeaders(Arrays.asList(
                 "X-XSRF-TOKEN",
                 "Authorization",
-                "Set-Cookie"
+                "Set-Cookie",
+                "X-Auth-Token"
         ));
+
+        // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
+
+        // Cache preflight requests for 1 hour
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

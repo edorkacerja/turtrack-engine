@@ -57,22 +57,22 @@ const JobList = React.memo(() => {
         }
     }, [dispatch]);
 
-    useEffect(() => {
-        // Set initial sorting to 'createdAt' in descending order
-        if (sortBy !== 'createdAt' || sortDirection !== 'desc') {
-            dispatch(setSorting({ sortBy: 'createdAt', sortDirection: 'desc' }));
-        }
-
-        fetchJobsData();
-
-        intervalRef.current = setInterval(fetchJobsData, 100);
-
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, [fetchJobsData, dispatch, sortBy, sortDirection]);
+    // useEffect(() => {
+    //     // Set initial sorting to 'createdAt' in descending order
+    //     if (sortBy !== 'createdAt' || sortDirection !== 'desc') {
+    //         dispatch(setSorting({ sortBy: 'createdAt', sortDirection: 'desc' }));
+    //     }
+    //
+    //     fetchJobsData();
+    //
+    //     intervalRef.current = setInterval(fetchJobsData, 100);
+    //
+    //     return () => {
+    //         if (intervalRef.current) {
+    //             clearInterval(intervalRef.current);
+    //         }
+    //     };
+    // }, [fetchJobsData, dispatch, sortBy, sortDirection]);
 
     const handleChangePage = useCallback((event, newPage) => {
         dispatch(setCurrentPage(newPage));

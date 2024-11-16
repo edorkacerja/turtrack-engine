@@ -1,3 +1,4 @@
+// src/components/NavBar/NavBar.jsx
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -5,6 +6,7 @@ import { ExternalLink, LogIn } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../../../features/auth/redux/authSlice';
 import AuthModal from '../../../features/auth/components/AuthModal/AuthModal';
 import "./NavBar.scss";
+import { selectSubscriptionStatus } from "../../../features/subscription/redux/subscriptionSlice.js";
 
 const ProfileAvatar = ({ user }) => {
     if (user?.photoURL) {
@@ -37,6 +39,7 @@ const NavBar = () => {
 
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const user = useSelector(selectCurrentUser);
+    const subscriptionStatus = useSelector(selectSubscriptionStatus);
 
     const handleLogout = () => {
         dispatch(logout());
@@ -50,7 +53,14 @@ const NavBar = () => {
                     <Link to="/" className="logo-link">TurTrack Manager</Link>
                 </div>
                 <ul className="navbar-links">
-                    <li><Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>Jobs</Link></li>
+                    <li>
+                        <Link
+                            to="/"
+                            className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+                        >
+                            Jobs
+                        </Link>
+                    </li>
                     <li>
                         <a
                             href="http://localhost:8080/ui/clusters"
@@ -62,6 +72,26 @@ const NavBar = () => {
                             <ExternalLink className="external-link-icon" size={16} />
                         </a>
                     </li>
+                    {isAuthenticated && (
+                        <li>
+                            <Link
+                                to="/subscription"
+                                className={`nav-link ${location.pathname.startsWith('/subscription') ? 'active' : ''}`}
+                            >
+                                {subscriptionStatus === 'active' ? 'Manage Subscription' : 'Subscribe'}
+                            </Link>
+                        </li>
+                    )}
+                    {isAuthenticated && (
+                        <li>
+                            <Link
+                                to="/pricing"
+                                className={`nav-link ${location.pathname.startsWith('/pricing') ? 'active' : ''}`}
+                            >
+                                Pricing
+                            </Link>
+                        </li>
+                    )}
                 </ul>
                 <div className="navbar-auth">
                     {isAuthenticated ? (
