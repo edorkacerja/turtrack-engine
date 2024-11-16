@@ -1,0 +1,138 @@
+.dashboard-container {
+  padding: 24px;
+  background: #f6f6f6;
+
+  .dashboard-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+
+    .date-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .metrics-grid {
+    margin-bottom: 24px;
+
+    .metric-card {
+      height: 100%;
+
+      .MuiCardContent-root {
+        padding: 16px;
+
+        h6 {
+          color: rgba(0, 0, 0, 0.6);
+          margin-bottom: 8px;
+        }
+      }
+    }
+  }
+
+  .charts-grid {
+    .chart-card {
+      height: 100%;
+
+      .MuiCardContent-root {
+        padding: 24px;
+
+        h6 {
+          margin-bottom: 16px;
+        }
+      }
+
+      .vehicle-types-content,
+      .protection-plan-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .legend {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .legend-color {
+              width: 12px;
+              height: 12px;
+              border-radius: 50%;
+            }
+          }
+        }
+      }
+
+      .chart-container {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        overflow: hidden;
+
+        // Make charts responsive
+        .recharts-wrapper {
+          width: 100% !important;
+          height: auto !important;
+
+          .recharts-surface {
+            width: 100% !important;
+            height: auto !important;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive styles
+@media (max-width: 960px) {
+  .dashboard-container {
+    padding: 16px;
+
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .charts-grid {
+      .chart-card {
+        .vehicle-types-content,
+        .protection-plan-content {
+          flex-direction: column;
+          gap: 24px;
+
+          .legend {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+        }
+      }
+    }
+  }
+}
+
+//// Dark mode support
+//@media (prefers-color-scheme: dark) {
+//  .dashboard-container {
+//    .metric-card,
+//    .chart-card {
+//      background-color: #1e1e1e;
+//      color: #ffffff;
+//
+//      .MuiCardContent-root {
+//        h6 {
+//          color: rgba(255, 255, 255, 0.7);
+//        }
+//      }
+//    }
+//  }
+//}

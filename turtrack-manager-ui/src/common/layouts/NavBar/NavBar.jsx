@@ -92,6 +92,14 @@ const NavBar = () => {
                 <ul className="navbar-links">
                     <li>
                         <Link
+                            to="/dashboard"
+                            className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+                        >
+                            Dashboard
+                        </Link>
+                    </li>
+                    <li>
+                        <Link
                             to="/"
                             className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
                         >

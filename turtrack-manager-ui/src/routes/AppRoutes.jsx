@@ -11,6 +11,7 @@ import SubscriptionSuccessPage from "../features/subscription/pages/Subscription
 import RenewSubscriptionPage from "../features/subscription/pages/RenewSubscriptionPage.jsx";
 import ManageSubscriptionPage from "../features/subscription/pages/ManageSubscriptionPage.jsx";
 import LoginPage from "../features/auth/pages/LoginPage.jsx";
+import TurTrackDashboard from "../features/jobs/pages/TurtrackDashboard/TurTrackDashboard.jsx";
 
 // Enhanced ProtectedRoute to save attempted URL
 const ProtectedRoute = ({ children }) => {
@@ -49,6 +50,7 @@ const AppRoutes = () => {
 
             {/* Subscription Routes */}
             <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><TurTrackDashboard /></ProtectedRoute>} />
             <Route
                 path="/subscription/success"
                 element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>}
