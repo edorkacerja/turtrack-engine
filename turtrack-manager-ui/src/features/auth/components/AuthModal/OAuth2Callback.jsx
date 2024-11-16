@@ -27,6 +27,7 @@ const OAuth2Callback = () => {
                         email: userData.email,
                         firstName: userData.firstName,
                         lastName: userData.lastName,
+                        profilePicture: userData.profilePicture,
                         subscriptionStatus: userData.subscriptionStatus,
                     },
                 }));

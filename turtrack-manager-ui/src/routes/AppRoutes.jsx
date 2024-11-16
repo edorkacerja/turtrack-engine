@@ -10,7 +10,8 @@ import SubscriptionGate from "../features/subscription/components/SubscriptionGa
 import PricingPage from "../features/subscription/pages/PricingPage.jsx";
 import SubscriptionSuccessPage from "../features/subscription/pages/SubscriptionSuccessPage.jsx";
 import RenewSubscriptionPage from "../features/subscription/pages/RenewSubscriptionPage.jsx";
-import ManageSubscriptionPage from "../features/subscription/pages/ManageSubscriptionPage.jsx"; // Import the new page
+import ManageSubscriptionPage from "../features/subscription/pages/ManageSubscriptionPage.jsx";
+import LoginPage from "../features/auth/pages/LoginPage.jsx"; // Import the new page
 
 const ProtectedRoute = ({ children }) => {
     const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -47,15 +48,15 @@ const AppRoutes = () => {
                     </PublicRoute>
                 }
             />
-            {/*<Route*/}
-            {/*    path="/login"*/}
-            {/*    element={*/}
-            {/*        <PublicRoute>*/}
-            {/*            /!* Replace with your actual Login component if different *!/*/}
-            {/*            <LoginPage />*/}
-            {/*        </PublicRoute>*/}
-            {/*    }*/}
-            {/*/>*/}
+            <Route
+                path="/login"
+                element={
+                    <PublicRoute>
+                        {/* Replace with your actual Login component if different */}
+                        <LoginPage />
+                    </PublicRoute>
+                }
+            />
             <Route
                 path="/oauth2/callback"
                 element={<OAuth2Callback />}
@@ -64,15 +65,24 @@ const AppRoutes = () => {
             {/* Subscription Routes */}
             <Route
                 path="/pricing"
-                element={<PricingPage />}
+                element={
+                    <ProtectedRoute>
+                        <PricingPage />
+                    </ProtectedRoute>}
             />
             <Route
                 path="/subscription/success"
-                element={<SubscriptionSuccessPage />}
+                element={
+                    <ProtectedRoute>
+                        <SubscriptionSuccessPage />
+                    </ProtectedRoute>}
             />
             <Route
                 path="/subscription/renew"
-                element={<RenewSubscriptionPage />}
+                element={
+                    <ProtectedRoute>
+                        <RenewSubscriptionPage />
+                    </ProtectedRoute>}
             />
 
             {/* Manage Subscription Route */}

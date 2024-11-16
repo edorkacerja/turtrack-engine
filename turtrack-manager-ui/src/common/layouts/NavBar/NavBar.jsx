@@ -1,25 +1,24 @@
-// src/components/NavBar/NavBar.jsx
-import React, { useState } from 'react';
+// NavBar.jsx
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { ExternalLink, LogIn } from 'lucide-react';
+import { ExternalLink, LogIn, LogOut } from 'lucide-react';
 import { selectIsAuthenticated, selectCurrentUser, logout } from '../../../features/auth/redux/authSlice';
 import AuthModal from '../../../features/auth/components/AuthModal/AuthModal';
-import "./NavBar.scss";
 import { selectSubscriptionStatus } from "../../../features/subscription/redux/subscriptionSlice.js";
+import "./NavBar.scss";
 
 const ProfileAvatar = ({ user }) => {
-    if (user?.photoURL) {
+    if (user?.profilePicture) {
         return (
             <img
-                src={user.photoURL}
+                src={user.profilePicture}
                 alt={`${user.firstName}'s profile`}
                 className="profile-avatar"
             />
         );
     }
 
-    // If no photo, show initials
     const initials = user?.firstName && user?.lastName
         ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
         : user?.firstName?.[0]?.toUpperCase() || 'U';
@@ -31,19 +30,51 @@ const ProfileAvatar = ({ user }) => {
     );
 };
 
+const ProfileDropdown = ({ user, onLogout, isOpen }) => {
+    return (
+        <div className={`profile-dropdown ${isOpen ? 'show' : ''}`}>
+            <div className="profile-dropdown-header">
+                <p className="user-name">{user.firstName} {user.lastName}</p>
+                <p className="user-email">{user.email}</p>
+            </div>
+            <button
+                onClick={onLogout}
+                className="logout-button"
+            >
+                <LogOut size={16} />
+                <span>Sign out</span>
+            </button>
+        </div>
+    );
+};
+
 const NavBar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const user = useSelector(selectCurrentUser);
     const subscriptionStatus = useSelector(selectSubscriptionStatus);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleLogout = () => {
         dispatch(logout());
         navigate('/');
+        setIsDropdownOpen(false);
     };
 
     return (
@@ -75,16 +106,6 @@ const NavBar = () => {
                     {isAuthenticated && (
                         <li>
                             <Link
-                                to="/subscription"
-                                className={`nav-link ${location.pathname.startsWith('/subscription') ? 'active' : ''}`}
-                            >
-                                {subscriptionStatus === 'active' ? 'Manage Subscription' : 'Subscribe'}
-                            </Link>
-                        </li>
-                    )}
-                    {isAuthenticated && (
-                        <li>
-                            <Link
                                 to="/pricing"
                                 className={`nav-link ${location.pathname.startsWith('/pricing') ? 'active' : ''}`}
                             >
@@ -93,15 +114,21 @@ const NavBar = () => {
                         </li>
                     )}
                 </ul>
-                <div className="navbar-auth">
+                <div className="navbar-auth" ref={dropdownRef}>
                     {isAuthenticated ? (
-                        <button
-                            onClick={handleLogout}
-                            className="profile-button"
-                        >
-                            <ProfileAvatar user={user} />
-                            <span>{user?.firstName || 'Profile'}</span>
-                        </button>
+                        <div className="profile-container">
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="profile-button"
+                            >
+                                <ProfileAvatar user={user} />
+                            </button>
+                            <ProfileDropdown
+                                user={user}
+                                onLogout={handleLogout}
+                                isOpen={isDropdownOpen}
+                            />
+                        </div>
                     ) : (
                         <button
                             onClick={() => setIsAuthModalOpen(true)}

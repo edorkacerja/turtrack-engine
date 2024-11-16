@@ -1,88 +1,245 @@
 // src/features/auth/pages/LoginPage.jsx
 import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { login, selectAuthError, selectIsAuthenticated } from '../redux/authSlice';
-import { useNavigate, Navigate } from 'react-router-dom';
-import './LoginPage.scss'; // Create this file for styling
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import './LoginPage.scss';
+import {setCredentials} from "../redux/authSlice.jsx"; // Create this file for styling
 
 const LoginPage = () => {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
-    const isAuthenticated = useSelector(selectIsAuthenticated);
-    const authError = useSelector(selectAuthError);
-
+    const dispatch = useDispatch();
+    const [activeTab, setActiveTab] = useState('login');
     const [formData, setFormData] = useState({
         email: '',
         password: '',
+        firstName: '',
+        lastName: '',
     });
-
+    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const { email, password } = formData;
-
     const handleChange = (e) => {
-        setFormData(prev => ({
-            ...prev,
+        setFormData({
+            ...formData,
             [e.target.name]: e.target.value,
-        }));
+        });
+        if (error) setError('');
     };
 
-    const handleSubmit = async (e) => {
+    const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        setError('');
+
         try {
-            await dispatch(login({ email, password })).unwrap();
+            const response = await fetch(`http://localhost:9999/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Login failed');
+            }
+
+            const data = await response.json();
+
+            dispatch(setCredentials({
+                user: {
+                    email: data.email,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    subscriptionStatus: data.subscriptionStatus,
+                },
+            }));
+
             navigate('/dashboard');
-        } catch (error) {
-            console.error('Failed to login:', error);
+        } catch (err) {
+            setError(err.message || 'An error occurred during login. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    // If already authenticated, redirect to dashboard
-    if (isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
-    }
+    const handleRegisterSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch(`http://localhost:9999/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Registration failed');
+            }
+
+            const data = await response.json();
+
+            dispatch(setCredentials({
+                user: {
+                    email: data.email,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    subscriptionStatus: data.subscriptionStatus,
+                },
+            }));
+
+            navigate('/dashboard');
+        } catch (err) {
+            setError(err.message || 'An error occurred during registration. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = () => {
+        window.location.href = `http://localhost:9999/oauth2/authorization/google`;
+    };
 
     return (
         <div className="login-page">
-            <h2>Login</h2>
-            <form onSubmit={handleSubmit} className="login-form">
-                <div className="form-group">
-                    <label htmlFor="email">Email:</label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={email}
-                        onChange={handleChange}
-                        required
-                        placeholder="Enter your email"
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="password">Password:</label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        value={password}
-                        onChange={handleChange}
-                        required
-                        placeholder="Enter your password"
-                    />
-                </div>
-                {authError && <div className="error-message">{authError}</div>}
-                <button type="submit" className="submit-button" disabled={isLoading}>
-                    {isLoading ? 'Logging in...' : 'Login'}
+            <div className="tabs">
+                <button
+                    className={`tab ${activeTab === 'login' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('login')}
+                >
+                    Login
                 </button>
-            </form>
-            <div className="additional-options">
-                <p>Or login with:</p>
-                <button onClick={() => navigate('/oauth2/callback')} className="oauth-button">
-                    OAuth2 Login
+                <button
+                    className={`tab ${activeTab === 'register' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('register')}
+                >
+                    Register
                 </button>
+            </div>
+
+            <div className="form-container">
+                {activeTab === 'login' ? (
+                    <form onSubmit={handleLoginSubmit} className="form">
+                        {error && <div className="error-message">{error}</div>}
+                        <div className="form-group">
+                            <label className="form-label">Email</label>
+                            <input
+                                type="email"
+                                name="email"
+                                required
+                                value={formData.email}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Enter your email"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Password</label>
+                            <input
+                                type="password"
+                                name="password"
+                                required
+                                value={formData.password}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Enter your password"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="form-submit"
+                        >
+                            {isLoading ? 'Logging in...' : 'Login'}
+                        </button>
+                        <div className="oauth-section">
+                            <p>Or login with:</p>
+                            <button
+                                type="button"
+                                onClick={handleGoogleLogin}
+                                disabled={isLoading}
+                                className="google-login-button"
+                            >
+                                Continue with Google
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <form onSubmit={handleRegisterSubmit} className="form">
+                        {error && <div className="error-message">{error}</div>}
+                        <div className="form-group">
+                            <label className="form-label">First Name</label>
+                            <input
+                                type="text"
+                                name="firstName"
+                                required
+                                value={formData.firstName}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Enter your first name"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Last Name</label>
+                            <input
+                                type="text"
+                                name="lastName"
+                                required
+                                value={formData.lastName}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Enter your last name"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Email</label>
+                            <input
+                                type="email"
+                                name="email"
+                                required
+                                value={formData.email}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Enter your email"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Password</label>
+                            <input
+                                type="password"
+                                name="password"
+                                required
+                                value={formData.password}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Choose a password"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="form-submit"
+                        >
+                            {isLoading ? 'Creating account...' : 'Create Account'}
+                        </button>
+                    </form>
+                )}
             </div>
         </div>
     );
