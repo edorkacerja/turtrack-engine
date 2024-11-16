@@ -2,10 +2,8 @@ package com.example.turtrackmanager.config.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -13,16 +11,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
+@Slf4j
 public class JwtTokenProvider {
-    private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
+    @Value("${app.jwt.refresh-secret}")
+    private String jwtRefreshSecret;
+
     @Value("${app.jwt.expiration-milliseconds}")
     private long jwtExpirationInMs;
 
-    // Generate token from email
+    @Value("${app.jwt.refresh-expiration-milliseconds}")
+    private long jwtRefreshExpirationInMs;
+
+    // Generate Access Token
     public String generateToken(String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
@@ -31,20 +35,63 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .setSubject(email)
-                .setIssuedAt(new Date())
+                .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key)
                 .compact();
     }
 
-    // Generate token from authentication object
-    public String generateToken(Authentication authentication) {
-        return generateToken(authentication.getName());
+    // Generate Refresh Token
+    public String generateRefreshToken(String email) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationInMs);
+
+        SecretKey key = Keys.hmacShaKeyFor(jwtRefreshSecret.getBytes(StandardCharsets.UTF_8));
+
+        return Jwts.builder()
+                .setSubject(email)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(key)
+                .compact();
     }
 
-    // Get email from JWT token
+    // Validate Access Token
+    public boolean validateToken(String authToken) {
+        return validateToken(authToken, jwtSecret);
+    }
+
+    // Validate Refresh Token
+    public boolean validateRefreshToken(String refreshToken) {
+        return validateToken(refreshToken, jwtRefreshSecret);
+    }
+
+    private boolean validateToken(String token, String secret) {
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token);
+            return true;
+        } catch (JwtException ex) {
+            log.error("Invalid JWT token: {}", ex.getMessage());
+        }
+        return false;
+    }
+
+    // Get email from Access Token
     public String getEmailFromJWT(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        return getEmailFromToken(token, jwtSecret);
+    }
+
+    // Get email from Refresh Token
+    public String getEmailFromRefreshToken(String token) {
+        return getEmailFromToken(token, jwtRefreshSecret);
+    }
+
+    private String getEmailFromToken(String token, String secret) {
+        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -53,26 +100,5 @@ public class JwtTokenProvider {
                 .getBody();
 
         return claims.getSubject();
-    }
-
-    // Validate JWT token
-    public boolean validateToken(String authToken) {
-        try {
-            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-            Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(authToken);
-            return true;
-        } catch (MalformedJwtException ex) {
-            logger.error("Invalid JWT token");
-        } catch (ExpiredJwtException ex) {
-            logger.error("Expired JWT token");
-        } catch (UnsupportedJwtException ex) {
-            logger.error("Unsupported JWT token");
-        } catch (IllegalArgumentException ex) {
-            logger.error("JWT claims string is empty");
-        }
-        return false;
     }
 }

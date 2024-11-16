@@ -10,52 +10,45 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
-@EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter; // Inject JwtAuthenticationFilter
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // Apply CORS first
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                // Then CSRF
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                )
+                .csrf(csrf -> csrf.disable()) // Disable CSRF for JWT-based authentication
                 .authorizeHttpRequests(auth -> auth
-                        // Add plans endpoint to permitted paths
                         .requestMatchers(
                                 HttpMethod.POST, "/auth/register", "/auth/login"
                         ).permitAll()
                         .requestMatchers(
+                                "/auth/refresh",
                                 "/auth/**",
                                 "/oauth2/**",
                                 "/login/**",
                                 "/error",
-                                "/csrf",
-                                "/api/v1/subscriptions/plans", // Add this line
-                                "/api/v1/products/**",  // Add this line to permit access to products endpoints
-                                "/api/v1/products"      // Add this line to permit access to products endpoint
+                                "/api/v1/subscriptions/plans",
+                                "/api/v1/products/**",
+                                "/api/v1/products"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .maximumSessions(1)
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .formLogin(form -> form.disable())
                 .oauth2Login(oauth2 -> oauth2
@@ -64,7 +57,6 @@ public class SecurityConfig {
                         )
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
-                // Add this to handle unauthorized requests
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -72,10 +64,15 @@ public class SecurityConfig {
                         })
                 );
 
+        // Add JWT filter before UsernamePasswordAuthenticationFilter
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
+
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 

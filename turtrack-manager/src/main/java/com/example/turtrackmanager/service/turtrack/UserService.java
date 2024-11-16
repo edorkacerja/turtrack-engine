@@ -1,5 +1,6 @@
 package com.example.turtrackmanager.service.turtrack;
 
+import com.example.turtrackmanager.config.security.JwtTokenProvider;
 import com.example.turtrackmanager.dto.UserDTO;
 import com.example.turtrackmanager.model.turtrack.User;
 import com.example.turtrackmanager.repository.turtrack.UserRepository;
@@ -11,8 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -20,7 +19,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
-
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
     public UserDTO.AuthResponse register(UserDTO.RegisterRequest request) {
@@ -40,7 +39,11 @@ public class UserService {
 
         user = userRepository.save(user);
 
-        return createAuthResponse(user);
+        // Generate tokens
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        return createAuthResponse(user, token, refreshToken);
     }
 
     public UserDTO.AuthResponse authenticate(UserDTO.LoginRequest request) {
@@ -51,11 +54,32 @@ public class UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return createAuthResponse(user);
+        // Generate tokens
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        return createAuthResponse(user, token, refreshToken);
     }
 
-    private UserDTO.AuthResponse createAuthResponse(User user) {
+    public UserDTO.AuthResponse refreshAccessToken(String refreshToken) {
+        if (jwtTokenProvider.validateRefreshToken(refreshToken)) {
+            String email = jwtTokenProvider.getEmailFromRefreshToken(refreshToken);
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Generate new access token
+            String newToken = jwtTokenProvider.generateToken(user.getEmail());
+
+            return createAuthResponse(user, newToken, null); // No need to return refresh token again
+        } else {
+            throw new RuntimeException("Invalid refresh token");
+        }
+    }
+
+    private UserDTO.AuthResponse createAuthResponse(User user, String token, String refreshToken) {
         return UserDTO.AuthResponse.builder()
+                .token(token)
+                .refreshToken(refreshToken)
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())

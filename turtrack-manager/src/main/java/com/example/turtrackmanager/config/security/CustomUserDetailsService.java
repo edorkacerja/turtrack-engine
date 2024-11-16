@@ -19,8 +19,22 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email : " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
+        // Handle OAuth2 users who do not have a password
+        if (user.getProvider() == User.AuthProvider.GOOGLE) {
+            return org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getEmail())
+                    .password("") // No password for OAuth2 users
+                    .authorities("USER")
+                    .accountExpired(!user.getIsActive())
+                    .accountLocked(!user.getIsActive())
+                    .credentialsExpired(false)
+                    .disabled(!user.getIsActive())
+                    .build();
+        }
+
+        // Handle local users with a password
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(user.getPasswordHash())

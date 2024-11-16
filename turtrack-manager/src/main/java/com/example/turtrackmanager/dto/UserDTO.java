@@ -39,7 +39,8 @@ public class UserDTO {
     @Data
     @Builder
     public static class AuthResponse {
-        private String token;
+        private String token; // Access Token (JWT)
+        private String refreshToken; // Refresh Token
         private String email;
         private String firstName;
         private String lastName;

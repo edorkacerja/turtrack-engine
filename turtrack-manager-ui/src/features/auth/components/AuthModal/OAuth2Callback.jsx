@@ -1,8 +1,8 @@
+// src/common/components/AuthModal/OAuth2Callback.jsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { API_BASE_URL } from "../../../../common/util/constants.js";
-import {setCredentials} from "../../redux/authSlice.jsx";
+import { setCredentials } from '../../redux/authSlice'; // Adjust path as needed
 
 const OAuth2Callback = () => {
     const navigate = useNavigate();
@@ -11,9 +11,9 @@ const OAuth2Callback = () => {
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                // The session is already established, just fetch the current user data
+                // The session is already established via cookies
                 const response = await fetch(`http://localhost:9999/auth/me`, {
-                    credentials: 'include', // Important for sending the session cookie
+                    credentials: 'include', // Include cookies
                 });
 
                 if (!response.ok) {
@@ -27,8 +27,8 @@ const OAuth2Callback = () => {
                         email: userData.email,
                         firstName: userData.firstName,
                         lastName: userData.lastName,
-                        subscriptionStatus: userData.subscriptionStatus
-                    }
+                        subscriptionStatus: userData.subscriptionStatus,
+                    },
                 }));
 
                 // Redirect to dashboard after successful login

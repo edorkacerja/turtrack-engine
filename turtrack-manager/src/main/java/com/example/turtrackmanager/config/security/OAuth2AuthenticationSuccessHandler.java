@@ -1,8 +1,10 @@
 package com.example.turtrackmanager.config.security;
 
+import com.example.turtrackmanager.config.security.JwtTokenProvider;
 import com.example.turtrackmanager.model.turtrack.User;
 import com.example.turtrackmanager.repository.turtrack.UserRepository;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -17,10 +19,12 @@ import java.io.IOException;
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
-    private final String clientRedirectUri = "http://localhost:5173/oauth/callback";
+    private final JwtTokenProvider jwtTokenProvider; // Inject JwtTokenProvider
+    private final String clientRedirectUri = "http://localhost:5173/oauth2/callback";
 
-    public OAuth2AuthenticationSuccessHandler(UserRepository userRepository) {
+    public OAuth2AuthenticationSuccessHandler(UserRepository userRepository, JwtTokenProvider jwtTokenProvider) {
         this.userRepository = userRepository;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @Override
@@ -42,11 +46,44 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             return userRepository.save(newUser);
         });
 
-        // Spring Security will automatically handle the session
+        // Generate JWT and Refresh Tokens
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        // Set tokens as secure, HTTP-only cookies
+        setAuthCookies(response, token, refreshToken);
+
+        // Redirect to frontend without tokens in URL
         String redirectUrl = UriComponentsBuilder.fromUriString(clientRedirectUri)
                 .queryParam("success", "true")
                 .build().toUriString();
 
         response.sendRedirect(redirectUrl);
+    }
+
+    private void setAuthCookies(HttpServletResponse response, String token, String refreshToken) {
+        // Set JWT cookie
+        if (token != null) {
+            Cookie jwtCookie = new Cookie("token", token);
+            jwtCookie.setHttpOnly(true);
+            jwtCookie.setSecure(true); // Set to true in production (requires HTTPS)
+            jwtCookie.setPath("/");
+            jwtCookie.setMaxAge(15 * 60); // 15 minutes
+            // Set SameSite attribute if needed
+            // jwtCookie.setComment("SameSite=Strict"); // For Java versions that support it
+            response.addCookie(jwtCookie);
+        }
+
+        // Set Refresh Token cookie
+        if (refreshToken != null) {
+            Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
+            refreshCookie.setHttpOnly(true);
+            refreshCookie.setSecure(true);
+            refreshCookie.setPath("/auth/refresh"); // Only sent to the refresh endpoint
+            refreshCookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
+            // Set SameSite attribute if needed
+            // refreshCookie.setComment("SameSite=Strict");
+            response.addCookie(refreshCookie);
+        }
     }
 }

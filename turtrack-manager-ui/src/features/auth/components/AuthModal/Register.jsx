@@ -2,9 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import {setCredentials} from "../../redux/authSlice.jsx";
-import {API_BASE_URL} from "../../../../common/util/constants.js";
-
+import { setCredentials } from '../../redux/authSlice'; // Adjust path as needed
 
 const Register = ({ onClose }) => {
     const navigate = useNavigate();
@@ -23,6 +21,7 @@ const Register = ({ onClose }) => {
             ...formData,
             [e.target.name]: e.target.value,
         });
+        if (error) setError('');
     };
 
     const handleSubmit = async (e) => {
@@ -31,19 +30,10 @@ const Register = ({ onClose }) => {
         setError('');
 
         try {
-            // First, get the CSRF token
-            const csrfResponse = await fetch(`http://localhost:9999/csrf`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            const csrfToken = csrfResponse.headers.get('X-XSRF-TOKEN');
-
-            // Then make the registration request
             const response = await fetch(`http://localhost:9999/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': csrfToken,
                 },
                 credentials: 'include',
                 body: JSON.stringify(formData),
@@ -56,14 +46,15 @@ const Register = ({ onClose }) => {
 
             const data = await response.json();
 
+            // Since the token is stored in an HTTP-only cookie, we cannot access it from JavaScript
+            // Instead, we can store the user information in the Redux store
             dispatch(setCredentials({
                 user: {
                     email: data.email,
                     firstName: data.firstName,
                     lastName: data.lastName,
-                    subscriptionStatus: data.subscriptionStatus
+                    subscriptionStatus: data.subscriptionStatus,
                 },
-                token: data.token
             }));
 
             onClose();
@@ -74,6 +65,7 @@ const Register = ({ onClose }) => {
             setIsLoading(false);
         }
     };
+
     return (
         <form onSubmit={handleSubmit} className="form">
             {error && (

@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -35,17 +36,15 @@ public class CorsConfig {
                 "Access-Control-Request-Headers",
                 "X-Auth-Token",
                 "X-Frame-Options",
-                "Referer",
-                "Cookie",
-                "Set-Cookie"
+                "Referer"
         ));
 
         // Expose necessary headers to the frontend
         configuration.setExposedHeaders(Arrays.asList(
-                "X-XSRF-TOKEN",
                 "Authorization",
                 "Set-Cookie",
-                "X-Auth-Token"
+                "X-Auth-Token",
+                "X-XSRF-TOKEN"
         ));
 
         // Allow credentials (cookies, authorization headers)
@@ -54,8 +53,10 @@ public class CorsConfig {
         // Cache preflight requests for 1 hour
         configuration.setMaxAge(3600L);
 
+        // Apply this configuration to all endpoints
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }
