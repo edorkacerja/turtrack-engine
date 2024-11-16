@@ -1,4 +1,3 @@
-// NavBar.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -83,6 +82,46 @@ const NavBar = () => {
         }
     };
 
+    const AuthenticatedLinks = () => (
+        <>
+            <li>
+                <Link
+                    to="/dashboard"
+                    className={`nav-link ${location.pathname.startsWith('/dashboard') ? 'active' : ''}`}
+                >
+                    Dashboard
+                </Link>
+            </li>
+            <li>
+                <Link
+                    to="/"
+                    className={`nav-link ${location.pathname.startsWith('/jobs') ? 'active' : ''}`}
+                >
+                    Jobs
+                </Link>
+            </li>
+            <li>
+                <a
+                    href="http://localhost:8080/ui/clusters"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="nav-link"
+                >
+                    Kafka UI
+                    <ExternalLink className="external-link-icon" size={16} />
+                </a>
+            </li>
+            <li>
+                <Link
+                    to="/pricing"
+                    className={`nav-link ${location.pathname.startsWith('/pricing') ? 'active' : ''}`}
+                >
+                    Pricing
+                </Link>
+            </li>
+        </>
+    );
+
     return (
         <nav className="navbar">
             <div className="navbar-container">
@@ -90,43 +129,7 @@ const NavBar = () => {
                     <Link to="/" className="logo-link">TurTrack Manager</Link>
                 </div>
                 <ul className="navbar-links">
-                    <li>
-                        <Link
-                            to="/dashboard"
-                            className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-                        >
-                            Dashboard
-                        </Link>
-                    </li>
-                    <li>
-                        <Link
-                            to="/"
-                            className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
-                        >
-                            Jobs
-                        </Link>
-                    </li>
-                    <li>
-                        <a
-                            href="http://localhost:8080/ui/clusters"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="nav-link"
-                        >
-                            Kafka UI
-                            <ExternalLink className="external-link-icon" size={16} />
-                        </a>
-                    </li>
-                    {isAuthenticated && (
-                        <li>
-                            <Link
-                                to="/pricing"
-                                className={`nav-link ${location.pathname.startsWith('/pricing') ? 'active' : ''}`}
-                            >
-                                Pricing
-                            </Link>
-                        </li>
-                    )}
+                    {isAuthenticated ? <AuthenticatedLinks /> : null}
                 </ul>
                 <div className="navbar-auth" ref={dropdownRef}>
                     {isAuthenticated ? (

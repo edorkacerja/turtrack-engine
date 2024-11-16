@@ -1,10 +1,11 @@
 .dashboard-container {
   padding: 24px;
-  background: #f6f6f6;
+  background: #f1f1f1;
+  flex-direction: column;
+
 
   .dashboard-header {
     display: flex;
-    flex-direction: column;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
