@@ -1,8 +1,8 @@
-// src/common/components/AuthModal/OAuth2Callback.jsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setCredentials } from '../../redux/authSlice'; // Adjust path as needed
+import { setCredentials } from '../../redux/authSlice';
+import api from "../../../../common/api/axios.js";
 
 const OAuth2Callback = () => {
     const navigate = useNavigate();
@@ -12,15 +12,7 @@ const OAuth2Callback = () => {
         const fetchUserData = async () => {
             try {
                 // The session is already established via cookies
-                const response = await fetch(`http://localhost:9999/auth/me`, {
-                    credentials: 'include', // Include cookies
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to get user data');
-                }
-
-                const userData = await response.json();
+                const { data: userData } = await api.get('/auth/me');
 
                 dispatch(setCredentials({
                     user: {

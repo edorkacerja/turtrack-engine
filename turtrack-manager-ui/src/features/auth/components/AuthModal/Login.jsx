@@ -1,8 +1,8 @@
-// src/common/components/AuthModal/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setCredentials } from '../../redux/authSlice'; // Adjust path as needed
+import { setCredentials } from '../../redux/authSlice';
+import api from '../../../../common/api/axios';
 
 const Login = ({ onClose }) => {
     const navigate = useNavigate();
@@ -23,7 +23,7 @@ const Login = ({ onClose }) => {
     };
 
     const handleGoogleLogin = () => {
-        window.location.href = `http://localhost:9999/oauth2/authorization/google`;
+        window.location.href = `${api.defaults.baseURL}/oauth2/authorization/google`;
     };
 
     const handleSubmit = async (e) => {
@@ -32,24 +32,8 @@ const Login = ({ onClose }) => {
         setError('');
 
         try {
-            const response = await fetch(`http://localhost:9999/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include', // Include cookies
-                body: JSON.stringify(formData),
-            });
+            const { data } = await api.post('/auth/login', formData);
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Login failed');
-            }
-
-            const data = await response.json();
-
-            // Since the token is stored in an HTTP-only cookie, we cannot access it from JavaScript
-            // Instead, we can store the user information in the Redux store
             dispatch(setCredentials({
                 user: {
                     email: data.email,
@@ -62,7 +46,7 @@ const Login = ({ onClose }) => {
             onClose();
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'An error occurred during login. Please try again.');
+            setError(typeof err === 'string' ? err : 'An error occurred during login. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -138,7 +122,6 @@ const Login = ({ onClose }) => {
                 />
                 Continue with Google
             </button>
-
         </form>
     );
 };

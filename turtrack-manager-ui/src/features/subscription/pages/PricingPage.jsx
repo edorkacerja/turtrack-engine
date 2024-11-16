@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getCsrfToken } from "../../../common/api.js";
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe } from '@stripe/react-stripe-js';
 import {
@@ -21,6 +22,7 @@ import {
     Stack
 } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
+import api from "../../../common/api/axios.js";
 
 const stripePromise = loadStripe('your_publishable_key_here');
 
@@ -33,37 +35,30 @@ const PricingContent = () => {
     const stripe = useStripe();
 
     useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const { data } = await api.get('/api/v1/products');
+
+                const formattedProducts = data.map(product => ({
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    features: product.features || [],
+                    prices: product.availablePrices || [],
+                    defaultPrice: product.availablePrices?.[0] || null
+                }));
+
+                setProducts(formattedProducts);
+                setError(null);
+            } catch (err) {
+                setError(err?.message || 'Failed to fetch products');
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchProducts();
     }, []);
-
-    const fetchProducts = async () => {
-        try {
-            const response = await fetch('http://localhost:9999/api/v1/products', {
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch products');
-            }
-
-            const data = await response.json();
-            const formattedProducts = data.map(product => ({
-                id: product.id,
-                name: product.name,
-                description: product.description,
-                features: product.features || [],
-                prices: product.availablePrices || [],
-                defaultPrice: product.availablePrices?.[0] || null
-            }));
-
-            setProducts(formattedProducts);
-            setLoading(false);
-        } catch (err) {
-            setError(err.message);
-            setLoading(false);
-            console.error('Error fetching products:', err);
-        }
-    };
 
     const getProductPrice = (product) => {
         const price = product.prices.find(p => p.interval === selectedInterval) || product.defaultPrice;
@@ -80,35 +75,18 @@ const PricingContent = () => {
             if (!stripe) return;
 
             setSelectedProduct(priceId);
-            const csrfToken = await getCsrfToken();
 
-            const response = await fetch('http://localhost:9999/api/subscriptions/create-checkout-session', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': csrfToken,
-                },
-                body: JSON.stringify({
-                    priceId: priceId,
-                    successUrl: `${window.location.origin}/success`,
-                    cancelUrl: `${window.location.origin}/pricing`,
-                }),
+            const { data } = await api.post('/api/subscriptions/create-checkout-session', {
+                priceId,
+                successUrl: `${window.location.origin}/subscription/success`,
+                cancelUrl: `${window.location.origin}/pricing`,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create checkout session');
-            }
-
-            const { sessionId } = await response.json();
-            const { error } = await stripe.redirectToCheckout({ sessionId });
-
+            const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
             if (error) throw error;
         } catch (err) {
-            setError(err.message);
+            setError(err?.message || 'Failed to create checkout session');
             setSelectedProduct(null);
-            console.error('Error creating subscription:', err);
         }
     };
 
@@ -133,9 +111,6 @@ const PricingContent = () => {
             <Stack spacing={4} alignItems="center">
                 <Typography variant="h3" component="h1" align="center" gutterBottom>
                     Choose Your Plan
-                </Typography>
-                <Typography variant="h6" align="center" color="text.secondary">
-                    Select the plan that best fits your needs
                 </Typography>
 
                 <ToggleButtonGroup

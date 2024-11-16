@@ -1,21 +1,20 @@
 // src/features/subscription/redux/subscriptionSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { API_BASE_URL } from "../../../common/util/constants.js";
-import {getCsrfToken} from "../../../common/api.js";
 
 // Async thunk to fetch subscription details
 export const fetchSubscription = createAsyncThunk(
     'subscription/fetchSubscription',
     async (_, { rejectWithValue }) => {
         try {
-            const csrfToken = await getCsrfToken(); // Fetch CSRF token
+            // const csrfToken = await getCsrfToken(); // Fetch CSRF token
 
             const response = await fetch(`${API_BASE_URL}/subscriptions`, {
                 method: 'GET',
                 credentials: 'include', // Include cookies for authentication
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': csrfToken, // Include CSRF token in headers
+                    // 'X-XSRF-TOKEN': csrfToken, // Include CSRF token in headers
                 },
             });
 

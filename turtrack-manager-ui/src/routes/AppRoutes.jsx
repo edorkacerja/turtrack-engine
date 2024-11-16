@@ -1,5 +1,4 @@
-// src/routes/AppRoutes.jsx
-import { Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import JobsDashboard from '../features/jobs/pages/JobsDashboard/JobsDashboard';
 import LandingPage from "../features/landing/pages/LandingPage.jsx";
@@ -11,18 +10,22 @@ import PricingPage from "../features/subscription/pages/PricingPage.jsx";
 import SubscriptionSuccessPage from "../features/subscription/pages/SubscriptionSuccessPage.jsx";
 import RenewSubscriptionPage from "../features/subscription/pages/RenewSubscriptionPage.jsx";
 import ManageSubscriptionPage from "../features/subscription/pages/ManageSubscriptionPage.jsx";
-import LoginPage from "../features/auth/pages/LoginPage.jsx"; // Import the new page
+import LoginPage from "../features/auth/pages/LoginPage.jsx";
 
+// Enhanced ProtectedRoute to save attempted URL
 const ProtectedRoute = ({ children }) => {
     const isAuthenticated = useSelector(selectIsAuthenticated);
+    const location = useLocation();
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        // Save the attempted URL for redirect after login
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
     return children;
 };
 
+// PublicRoute remains the same - it's already good
 const PublicRoute = ({ children }) => {
     const isAuthenticated = useSelector(selectIsAuthenticated);
 
@@ -40,49 +43,19 @@ const AppRoutes = () => {
     return (
         <Routes>
             {/* Public Routes */}
-            <Route
-                path="/"
-                element={
-                    <PublicRoute>
-                        <LandingPage />
-                    </PublicRoute>
-                }
-            />
-            <Route
-                path="/login"
-                element={
-                    <PublicRoute>
-                        {/* Replace with your actual Login component if different */}
-                        <LoginPage />
-                    </PublicRoute>
-                }
-            />
-            <Route
-                path="/oauth2/callback"
-                element={<OAuth2Callback />}
-            />
+            <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
+            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+            <Route path="/oauth2/callback" element={<OAuth2Callback />} />
 
             {/* Subscription Routes */}
-            <Route
-                path="/pricing"
-                element={
-                    <ProtectedRoute>
-                        <PricingPage />
-                    </ProtectedRoute>}
-            />
+            <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
             <Route
                 path="/subscription/success"
-                element={
-                    <ProtectedRoute>
-                        <SubscriptionSuccessPage />
-                    </ProtectedRoute>}
+                element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>}
             />
             <Route
                 path="/subscription/renew"
-                element={
-                    <ProtectedRoute>
-                        <RenewSubscriptionPage />
-                    </ProtectedRoute>}
+                element={<ProtectedRoute><RenewSubscriptionPage /></ProtectedRoute>}
             />
 
             {/* Manage Subscription Route */}
@@ -108,13 +81,9 @@ const AppRoutes = () => {
                     </ProtectedRoute>
                 }
             />
-            {/* Add more protected routes here as needed */}
 
             {/* Catch All Route */}
-            <Route
-                path="*"
-                element={<Navigate to="/" replace />}
-            />
+            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
 };

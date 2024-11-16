@@ -71,10 +71,16 @@ const NavBar = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleLogout = () => {
-        dispatch(logout());
-        navigate('/');
-        setIsDropdownOpen(false);
+    const handleLogout = async () => {
+        try {
+            await fetch('http://localhost:9999/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+        } finally {
+            dispatch(logout());
+            navigate('/login');
+        }
     };
 
     return (

@@ -1,8 +1,8 @@
-// src/common/components/AuthModal/Register.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setCredentials } from '../../redux/authSlice'; // Adjust path as needed
+import { setCredentials } from '../../redux/authSlice';
+import api from '../../../../common/api/axios';
 
 const Register = ({ onClose }) => {
     const navigate = useNavigate();
@@ -30,24 +30,8 @@ const Register = ({ onClose }) => {
         setError('');
 
         try {
-            const response = await fetch(`http://localhost:9999/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify(formData),
-            });
+            const { data } = await api.post('/auth/register', formData);
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Registration failed');
-            }
-
-            const data = await response.json();
-
-            // Since the token is stored in an HTTP-only cookie, we cannot access it from JavaScript
-            // Instead, we can store the user information in the Redux store
             dispatch(setCredentials({
                 user: {
                     email: data.email,
@@ -60,7 +44,7 @@ const Register = ({ onClose }) => {
             onClose();
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'An error occurred during registration');
+            setError(typeof err === 'string' ? err : 'An error occurred during registration');
         } finally {
             setIsLoading(false);
         }

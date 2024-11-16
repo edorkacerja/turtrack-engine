@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import './LoginPage.scss';
-import {setCredentials} from "../redux/authSlice.jsx"; // Create this file for styling
+import { setCredentials } from "../redux/authSlice.jsx";
+import api from "../../../common/api/axios.js";
 
 const LoginPage = () => {
     const navigate = useNavigate();
@@ -32,37 +33,15 @@ const LoginPage = () => {
         setError('');
 
         try {
-            const response = await fetch(`http://localhost:9999/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                }),
+            const { data } = await api.post('/auth/login', {
+                email: formData.email,
+                password: formData.password,
             });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Login failed');
-            }
-
-            const data = await response.json();
-
-            dispatch(setCredentials({
-                user: {
-                    email: data.email,
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    subscriptionStatus: data.subscriptionStatus,
-                },
-            }));
-
+            dispatch(setCredentials({ user: data }));
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'An error occurred during login. Please try again.');
+            setError(err || 'Login failed');
         } finally {
             setIsLoading(false);
         }
@@ -74,46 +53,24 @@ const LoginPage = () => {
         setError('');
 
         try {
-            const response = await fetch(`http://localhost:9999/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                }),
+            const { data } = await api.post('/auth/register', {
+                email: formData.email,
+                password: formData.password,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
             });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Registration failed');
-            }
-
-            const data = await response.json();
-
-            dispatch(setCredentials({
-                user: {
-                    email: data.email,
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    subscriptionStatus: data.subscriptionStatus,
-                },
-            }));
-
+            dispatch(setCredentials({ user: data }));
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'An error occurred during registration. Please try again.');
+            setError(err || 'Registration failed');
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleGoogleLogin = () => {
-        window.location.href = `http://localhost:9999/oauth2/authorization/google`;
+        window.location.href = `${api.defaults.baseURL}/oauth2/authorization/google`;
     };
 
     return (

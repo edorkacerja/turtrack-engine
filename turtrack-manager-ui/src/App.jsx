@@ -1,17 +1,23 @@
+// App.jsx
 import { BrowserRouter } from 'react-router-dom'
 import './App.scss'
 import AppRoutes from './routes/AppRoutes.jsx'
 import NavBar from "./common/layouts/NavBar/NavBar.jsx";
-import {fetchSubscription} from "./features/subscription/redux/subscriptionSlice.js";
-import {useEffect} from "react";
-import {useDispatch} from "react-redux";
+import { fetchSubscription } from "./features/subscription/redux/subscriptionSlice.js";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { selectIsAuthenticated } from './features/auth/redux/authSlice';
 
 function App() {
     const dispatch = useDispatch();
+    const isAuthenticated = useSelector(selectIsAuthenticated);
 
-    // useEffect(() => {
-    //     dispatch(fetchSubscription());
-    // }, [dispatch]);
+    useEffect(() => {
+        // Only fetch subscription if user is authenticated
+        if (isAuthenticated) {
+            // dispatch(fetchSubscription());
+        }
+    }, [dispatch, isAuthenticated]);
 
     return (
         <BrowserRouter>
@@ -21,4 +27,4 @@ function App() {
     )
 }
 
-export default App
+export default App;
