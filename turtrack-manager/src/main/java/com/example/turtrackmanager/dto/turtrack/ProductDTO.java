@@ -15,5 +15,6 @@ public class ProductDTO {
     private List<String> features;
     private String priceId;
     private String interval;
-    private List<PriceDTO> availablePrices; // Added this field
+    private List<PriceDTO> availablePrices;
+    private boolean isCurrentPlan;
 }

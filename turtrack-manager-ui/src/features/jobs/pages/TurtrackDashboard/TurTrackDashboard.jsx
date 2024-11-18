@@ -11,6 +11,7 @@ import {
 import { CalendarToday } from '@mui/icons-material';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import './TurTrackDashboard.scss';
+import VehicleScatterPlot from "@/features/jobs/pages/TurtrackDashboard/VehicleScatterPlot.jsx";
 
 const TurTrackDashboard = () => {
     // Sample data
@@ -199,6 +200,9 @@ const TurTrackDashboard = () => {
                             </Box>
                         </CardContent>
                     </Card>
+                </Grid>
+                <Grid item xs={36} md={30}>
+                    <VehicleScatterPlot/>
                 </Grid>
             </Grid>
         </Box>

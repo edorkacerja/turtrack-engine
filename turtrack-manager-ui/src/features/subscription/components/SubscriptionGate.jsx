@@ -12,7 +12,7 @@ export const SubscriptionGate = ({ children }) => {
     }
 
     if (subscriptionStatus === 'none') {
-        return <Navigate to="/pricing" />;
+        return <Navigate to="/subscription" />;
     }
 
     if (subscriptionStatus === 'expired') {

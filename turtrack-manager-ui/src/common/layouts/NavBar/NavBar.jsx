@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { ExternalLink, LogIn, LogOut } from 'lucide-react';
-import { selectIsAuthenticated, selectCurrentUser, logout } from '../../../features/auth/redux/authSlice';
+import { selectIsAuthenticated, selectCurrentUser, logout } from '@/features/auth/redux/authSlice.jsx';
 import AuthModal from '../../../features/auth/components/AuthModal/AuthModal';
-import { selectSubscriptionStatus } from "../../../features/subscription/redux/subscriptionSlice.js";
+import { selectSubscriptionStatus } from "@/features/subscription/redux/subscriptionSlice.js";
 import "./NavBar.scss";
 
 const ProfileAvatar = ({ user }) => {
@@ -117,6 +117,14 @@ const NavBar = () => {
                     className={`nav-link ${location.pathname.startsWith('/pricing') ? 'active' : ''}`}
                 >
                     Pricing
+                </Link>
+            </li>
+            <li>
+                <Link
+                    to="/subscription"
+                    className={`nav-link ${location.pathname.startsWith('/subscription') ? 'active' : ''}`}
+                >
+                    Subscription
                 </Link>
             </li>
         </>

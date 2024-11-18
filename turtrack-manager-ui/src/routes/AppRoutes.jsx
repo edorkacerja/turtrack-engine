@@ -50,7 +50,11 @@ const AppRoutes = () => {
 
             {/* Subscription Routes */}
             <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><TurTrackDashboard /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute>
+                <SubscriptionGate>
+                    <TurTrackDashboard />
+                </SubscriptionGate>
+            </ProtectedRoute>} />
             <Route
                 path="/subscription/success"
                 element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>}
@@ -65,9 +69,19 @@ const AppRoutes = () => {
                 path="/subscription"
                 element={
                     <ProtectedRoute>
-                        <SubscriptionGate>
+                        {/*<SubscriptionGate>*/}
                             <ManageSubscriptionPage />
-                        </SubscriptionGate>
+                        {/*</SubscriptionGate>*/}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/pricing"
+                element={
+                    <ProtectedRoute>
+                        {/*<SubscriptionGate>*/}
+                            <PricingPage />
+                        {/*</SubscriptionGate>*/}
                     </ProtectedRoute>
                 }
             />

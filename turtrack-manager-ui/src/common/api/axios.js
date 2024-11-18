@@ -1,6 +1,6 @@
 // src/api/axios.js
 import axios from 'axios';
-import {store} from "../../store/store.js";
+import {store} from "@/store/store.js";
 import {logout} from "../../features/auth/redux/authSlice.jsx";
 
 const api = axios.create({

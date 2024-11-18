@@ -1,74 +1,65 @@
-// src/features/subscription/redux/subscriptionSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { API_BASE_URL } from "../../../common/util/constants.js";
+import api from "../../../common/api/axios.js";
 
 // Async thunk to fetch subscription details
 export const fetchSubscription = createAsyncThunk(
     'subscription/fetchSubscription',
     async (_, { rejectWithValue }) => {
         try {
-            // const csrfToken = await getCsrfToken(); // Fetch CSRF token
-
-            const response = await fetch(`${API_BASE_URL}/subscriptions`, {
-                method: 'GET',
-                credentials: 'include', // Include cookies for authentication
-                headers: {
-                    'Content-Type': 'application/json',
-                    // 'X-XSRF-TOKEN': csrfToken, // Include CSRF token in headers
-                },
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch subscription');
-            }
-
-            const data = await response.json();
-            return data; // Assuming it returns { status: 'active' | 'none' | 'expired', ... }
-        } catch (err) {
-            return rejectWithValue(err.message || 'An error occurred while fetching subscription details.');
+            const { data } = await api.get('/api/v1/subscriptions/current');
+            return data;
+        } catch (error) {
+            return rejectWithValue(
+                error.response?.data?.error ||
+                error.message ||
+                'Failed to fetch subscription details'
+            );
         }
     }
 );
 
-// Async thunk to update subscription
+// Unified async thunk to update subscription
 export const updateSubscription = createAsyncThunk(
     'subscription/updateSubscription',
-    async ({ plan }, { rejectWithValue }) => {
+    async (updateData, { rejectWithValue }) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/subscription/update`, {
-                method: 'POST',
-                credentials: 'include', // Include cookies for authentication
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ plan }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to update subscription');
-            }
-
-            const data = await response.json();
-            return data; // Assuming it returns updated subscription details
-        } catch (err) {
-            return rejectWithValue(err.message || 'An error occurred while updating subscription.');
+            const { data } = await api.post('/api/v1/subscriptions/update', updateData);
+            return data;
+        } catch (error) {
+            return rejectWithValue(
+                error.response?.data?.error ||
+                error.message ||
+                'Failed to update subscription'
+            );
         }
     }
 );
 
+// Initial state with more detailed subscription information
 const initialState = {
     status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-    subscriptionStatus: 'none', // 'active' | 'none' | 'expired'
     error: null,
+    subscription: {
+        id: null,
+        status: 'none', // 'active' | 'none' | 'cancelled' | 'expired' | 'trialing'
+        currentPeriodEnd: null,
+        currentPeriodStart: null,
+        billingCycle: 'month', // 'week' | 'month' | 'year'
+        nextPaymentAmount: null,
+        nextPaymentDate: null,
+        trialEnd: null,
+        cancelAtPeriodEnd: false,
+        priceId: null
+    }
 };
 
 const subscriptionSlice = createSlice({
     name: 'subscription',
     initialState,
     reducers: {
-        // Add synchronous reducers if needed
+        resetSubscriptionError: (state) => {
+            state.error = null;
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -79,12 +70,14 @@ const subscriptionSlice = createSlice({
             })
             .addCase(fetchSubscription.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.subscriptionStatus = action.payload.status;
-                // Update other subscription details if available
+                state.subscription = {
+                    ...state.subscription,
+                    ...action.payload
+                };
             })
             .addCase(fetchSubscription.rejected, (state, action) => {
                 state.status = 'failed';
-                state.error = action.payload || 'Failed to fetch subscription';
+                state.error = action.payload;
             })
             // Update Subscription
             .addCase(updateSubscription.pending, (state) => {
@@ -93,19 +86,31 @@ const subscriptionSlice = createSlice({
             })
             .addCase(updateSubscription.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.subscriptionStatus = action.payload.status;
-                // Update other subscription details if available
+                state.subscription = {
+                    ...state.subscription,
+                    ...action.payload
+                };
             })
             .addCase(updateSubscription.rejected, (state, action) => {
                 state.status = 'failed';
-                state.error = action.payload || 'Failed to update subscription';
+                state.error = action.payload;
             });
     },
 });
 
-// Selectors
-export const selectSubscriptionStatus = (state) => state.subscription.subscriptionStatus;
-export const selectSubscriptionError = (state) => state.subscription.error;
+// Actions
+export const { resetSubscriptionError } = subscriptionSlice.actions;
 
-// Export the reducer
+// Selectors
+export const selectSubscriptionStatus = (state) => state.subscription.status;
+export const selectSubscriptionError = (state) => state.subscription.error;
+export const selectSubscription = (state) => state.subscription.subscription;
+export const selectIsSubscriptionActive = (state) =>
+    state.subscription.subscription.status === 'active' ||
+    state.subscription.subscription.status === 'trialing';
+export const selectIsCancelled = (state) =>
+    state.subscription.subscription.cancelAtPeriodEnd;
+export const selectBillingCycle = (state) =>
+    state.subscription.subscription.billingCycle;
+
 export default subscriptionSlice.reducer;
