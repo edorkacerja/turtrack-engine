@@ -2,58 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
+// ---------------------------------
 // Design Tokens
+// ---------------------------------
 $tokens: (
         spacing: (
                 xs: 0.25rem,
                 sm: 0.5rem,
                 md: 1rem,
                 lg: 1.5rem,
-                xl: 2rem
+                xl: 2rem,
+                xxl: 3rem
         ),
         colors: (
                 primary: (
-                        base: #646cff,
-                        hover: #535bf2,
-                        light: #747bff
+                        base: #f59e0b,      // A rich, vibrant amber
+                        hover: #d97706,     // A slightly darker amber for hover states
+                        light: #fbbf24,     // A lighter amber for accents
+                        dark: #b45309       // A deep amber for contrast
                 ),
                 text: (
-                        dark: rgba(255, 255, 255, 0.87),
-                        light: #213547
+                        dark: rgba(255, 255, 255, 0.87), // Bright white for text in dark mode
+                        light: #1f2937,                  // A rich dark gray for better readability
+                        muted: #6b7280                   // A muted gray for secondary text
                 ),
                 background: (
-                        dark: #242424,
-                        light: #ffffff,
+                        dark: #1c1917,       // A warm dark brown-gray for dark mode
+                        light: #fff7ed,      // A very soft amber-tinted light background for light mode
+                        surface: #ffffff,    // Pure white for cards and elevated elements
                         button: (
-                                dark: #1a1a1a,
-                                light: #f9f9f9
+                                dark: #292524,   // A warm dark gray-brown for buttons in dark mode
+                                light: #fde68a   // A soft amber-tinted light gray for buttons in light mode
                         )
                 )
         ),
+
         typography: (
                 fonts: (
-                        primary: (Inter, system-ui, Avenir, Helvetica, Arial, sans-serif)
+                        primary: ("Inter", system-ui, Avenir, Helvetica, Arial, sans-serif)
                 ),
                 weights: (
                         normal: 400,
                         medium: 500,
-                        bold: 700
+                        bold: 700,
+                        extra-bold: 800
                 ),
                 sizes: (
                         base: 1rem,
+                        sm: 0.875rem,
                         lg: 1.25rem,
                         xl: 1.5rem,
-                        h1: 3.2em
+                        h1: 3rem,
+                        h2: 2.25rem,
+                        h3: 1.75rem
                 ),
                 line-heights: (
-                        tight: 1.1,
+                        tight: 1.2,
                         normal: 1.5,
                         relaxed: 1.75
                 )
+        ),
+        borders: (
+                radius: 0.5rem
+        ),
+        shadows: (
+                light: 0px 2px 4px rgba(0, 0, 0, 0.1),
+                medium: 0px 4px 8px rgba(0, 0, 0, 0.15),
+                heavy: 0px 8px 16px rgba(0, 0, 0, 0.2)
         )
 );
 
-// Simplified token access function
+// ---------------------------------
+// Token Access Function
+// ---------------------------------
 @function t($key...) {
   $map: $tokens;
   @each $key in $key {
@@ -62,35 +83,48 @@ $tokens: (
   @return $map;
 }
 
+// ---------------------------------
 // Mixins
+// ---------------------------------
 @mixin focus-ring {
   &:focus-visible {
-    outline: 4px auto -webkit-focus-ring-color;
-    outline-offset: 2px;
+    outline: 2px solid t(colors, primary, base);
+    outline-offset: 3px;
   }
 }
 
-@mixin hover-transition {
-  transition: all 0.2s ease-in-out;
+@mixin hover-transition($duration: 0.25s) {
+  transition: all $duration ease-in-out;
 }
 
-// Base styles
+@mixin container($max-width: 1200px) {
+  width: 100%;
+  max-width: $max-width;
+  margin: 0 auto;
+  padding: 0 t(spacing, md);
+}
+
+// ---------------------------------
+// Base Styles
+// ---------------------------------
 :root {
   font-family: t(typography, fonts, primary);
   line-height: t(typography, line-heights, normal);
   font-weight: t(typography, weights, normal);
 
-  color-scheme: light dark;
-  color: t(colors, text, dark);
-  background-color: t(colors, background, dark);
+  color: t(colors, text, light);
+  background-color: t(colors, background, light);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  border-radius: t(borders, radius);
+  box-shadow: t(shadows, light);
 }
 
-// Reset & Global styles
+// Reset & Global Styles
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -101,26 +135,41 @@ body {
   display: flex;
   min-height: 100vh;
   min-width: 320px;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  background-color: t(colors, background, light);
+  color: t(colors, text, dark);
 }
 
+// ---------------------------------
 // Typography
+// ---------------------------------
 h1, h2, h3, h4, h5, h6 {
-  line-height: t(typography, line-heights, tight);
+  margin-bottom: t(spacing, lg);
   font-weight: t(typography, weights, bold);
-  margin-bottom: map-get(map-get($tokens, spacing), lg);
 }
 
 h1 {
   font-size: t(typography, sizes, h1);
 }
 
+h2 {
+  font-size: t(typography, sizes, h2);
+}
+
+h3 {
+  font-size: t(typography, sizes, h3);
+}
+
+// ---------------------------------
 // Links
+// ---------------------------------
 a {
   font-weight: t(typography, weights, medium);
   color: t(colors, primary, base);
   text-decoration: none;
-  @include hover-transition;
+
+  @include hover-transition();
 
   &:hover {
     color: t(colors, primary, hover);
@@ -128,21 +177,28 @@ a {
   }
 }
 
+// ---------------------------------
 // Buttons
+// ---------------------------------
 button {
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: t(borders, radius);
   border: 1px solid transparent;
-  padding: map-get(map-get($tokens, spacing), md) map-get(map-get($tokens, spacing), lg);
+  padding: t(spacing, sm) t(spacing, lg);
   font-size: t(typography, sizes, base);
   font-weight: t(typography, weights, medium);
   font-family: inherit;
-  background-color: t(colors, background, button, dark);
+  background-color: t(colors, background, button, light);
+  color: t(colors, text, light);
   cursor: pointer;
-  @include hover-transition;
+
+  @include hover-transition();
 
   &:hover {
+    background-color: lighten(t(colors, background, button, light), 5%);
     border-color: t(colors, primary, base);
-    background-color: lighten(t(colors, background, button, dark), 5%);
   }
 
   &:active {
@@ -152,19 +208,20 @@ button {
   @include focus-ring;
 }
 
-// Container utils
+// ---------------------------------
+// Containers
+// ---------------------------------
 .container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 map-get(map-get($tokens, spacing), md);
+  @include container();
 }
 
-// Media queries
-@media (prefers-color-scheme: light) {
+// ---------------------------------
+// Dark Mode
+// ---------------------------------
+@media (prefers-color-scheme: dark) {
   :root {
-    color: t(colors, text, light);
-    background-color: t(colors, background, light);
+    color: t(colors, text, dark);
+    background-color: t(colors, background, dark);
   }
 
   a:hover {
@@ -172,15 +229,16 @@ button {
   }
 
   button {
-    background-color: t(colors, background, button, light);
+    background-color: t(colors, background, button, dark);
+    color: t(colors, text, dark);
 
     &:hover {
-      background-color: darken(t(colors, background, button, light), 5%);
+      background-color: darken(t(colors, background, button, dark), 5%);
     }
   }
 }
 
-// Dark mode override class
+// Optional `.dark` class for toggling dark mode
 .dark {
   color: t(colors, text, dark);
   background-color: t(colors, background, dark);

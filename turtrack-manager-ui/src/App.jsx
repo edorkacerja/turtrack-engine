@@ -1,6 +1,7 @@
 // App.jsx
 import { BrowserRouter } from 'react-router-dom'
 import './App.scss'
+// import './index.scss'
 import AppRoutes from './routes/AppRoutes.jsx'
 import NavBar from "./common/layouts/NavBar/NavBar.jsx";
 import { fetchSubscription } from "./features/subscription/redux/subscriptionSlice.js";
