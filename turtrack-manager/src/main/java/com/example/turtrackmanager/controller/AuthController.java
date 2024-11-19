@@ -1,6 +1,7 @@
 package com.example.turtrackmanager.controller;
 
 import com.example.turtrackmanager.dto.UserDTO;
+import com.example.turtrackmanager.model.turtrack.User;
 import com.example.turtrackmanager.service.turtrack.UserService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -89,8 +90,14 @@ public class AuthController {
             }
 
             if (email != null) {
-                UserDTO.AuthResponse authResponse = userService.getCurrentUserByEmail(email);
-                return ResponseEntity.ok(authResponse);
+                User user = userService.findUserByEmail(email);
+                return ResponseEntity.ok( UserDTO.AuthResponse.builder()
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .profilePicture(user.getImageUrl())
+                        .subscriptionStatus(user.getSubscriptionStatus())
+                        .build());
             }
         }
         return ResponseEntity.status(401).build();

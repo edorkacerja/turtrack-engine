@@ -3,6 +3,8 @@ package com.example.turtrackmanager.controller.stripe;
 import com.example.turtrackmanager.config.StripeConfig;
 import com.example.turtrackmanager.dto.payment.CreateSessionRequest;
 import com.example.turtrackmanager.dto.payment.CreateSessionResponse;
+import com.example.turtrackmanager.dto.payment.CreatePortalSessionRequest;
+import com.example.turtrackmanager.dto.payment.CreatePortalSessionResponse;
 import com.example.turtrackmanager.dto.turtrack.ProductDTO;
 import com.example.turtrackmanager.service.stripe.StripeService;
 import com.stripe.Stripe;
@@ -13,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.stripe.model.Price;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -36,6 +40,23 @@ public class CheckoutController {
             return ResponseEntity.ok(products);
         } catch (StripeException e) {
             log.error("Error fetching prices from Stripe", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/create-portal-session")
+    public ResponseEntity<CreatePortalSessionResponse> createPortalSession(
+            @RequestBody CreatePortalSessionRequest request) {
+        try {
+            String portalUrl = stripeService.createPortalSession(
+                    request.getEmail(),
+                    request.getReturnUrl()
+//                    request.getSelectedPriceId(),
+//                    request.getCurrentPriceId()
+            );
+            return ResponseEntity.ok(new CreatePortalSessionResponse(portalUrl));
+        } catch (StripeException e) {
+            log.error("Error creating portal session", e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -82,4 +103,11 @@ public class CheckoutController {
                 .connectedAccountId(session.getClientReferenceId())
                 .build();
     }
+
+    @GetMapping("/current-price")
+    public ResponseEntity<Price> getCurrentPrice(Principal principal) {
+        Price price = stripeService.getCurrentPrice(principal.getName());
+        return ResponseEntity.ok(price);
+    }
+
 }

@@ -6,6 +6,8 @@ import { selectIsAuthenticated, selectCurrentUser, logout } from '@/features/aut
 import AuthModal from '../../../features/auth/components/AuthModal/AuthModal';
 import { selectSubscriptionStatus } from "@/features/subscription/redux/subscriptionSlice.js";
 import "./NavBar.scss";
+import ProfileDropdown from "@/common/layouts/ProfileDropdown/ProfileDropdown.jsx";
+
 
 const ProfileAvatar = ({ user }) => {
     if (user?.profilePicture) {
@@ -29,23 +31,6 @@ const ProfileAvatar = ({ user }) => {
     );
 };
 
-const ProfileDropdown = ({ user, onLogout, isOpen }) => {
-    return (
-        <div className={`profile-dropdown ${isOpen ? 'show' : ''}`}>
-            <div className="profile-dropdown-header">
-                <p className="user-name">{user.firstName} {user.lastName}</p>
-                <p className="user-email">{user.email}</p>
-            </div>
-            <button
-                onClick={onLogout}
-                className="logout-button"
-            >
-                <LogOut size={16} />
-                <span>Sign out</span>
-            </button>
-        </div>
-    );
-};
 
 const NavBar = () => {
     const location = useLocation();

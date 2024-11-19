@@ -1,55 +1,53 @@
-import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-import { selectCurrentUser } from "@/features/auth/redux/authSlice.jsx";
-import api from "@/common/api/axios.js";
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
-import stripePromise from "@/features/subscription/config/stripe.js";
-import { Alert } from "@/components/ui/alert.jsx";
-import { Button } from "@/components/ui/button.jsx";
-import PricingCard from "@/features/subscription/components/PricingCard.jsx";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { selectCurrentUser } from "@/features/auth/redux/authSlice";
+import { Alert } from "@/components/ui/alert";
+import PricingCard from "@/features/subscription/components/PricingCard";
+import {
+    fetchProducts,
+    fetchCurrentPrice,
+    selectProducts,
+    selectProductsStatus,
+    selectProductsError,
+    selectCurrentPrice,
+    selectCurrentPriceStatus,
+    selectCurrentPriceError,  // Added this selector
+} from "../redux/subscriptionSlice";
+import api from "@/common/api/axios";
 
 const PricingPage = () => {
+    const dispatch = useDispatch();
     const user = useSelector(selectCurrentUser);
-    const [error, setError] = useState(null);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [checkoutData, setCheckoutData] = useState(null);
-    const [products, setProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const products = useSelector(selectProducts);
+    const productsStatus = useSelector(selectProductsStatus);
+    const productsError = useSelector(selectProductsError);
+    const currentPrice = useSelector(selectCurrentPrice);
+    const currentPriceStatus = useSelector(selectCurrentPriceStatus);
+    const currentPriceError = useSelector(selectCurrentPriceError);  // Added this line
+    const isProcessing = productsStatus === 'loading' || currentPriceStatus === 'loading';
+    const error = productsError || currentPriceError;
 
     useEffect(() => {
-        fetchProducts();
-    }, []);
-
-    const fetchProducts = async () => {
-        try {
-            const response = await api.get("/api/v1/payment/prices");
-            setProducts(response.data);
-        } catch (err) {
-            setError("Failed to load pricing information");
-        } finally {
-            setIsLoading(false);
+        dispatch(fetchProducts());
+        if (user) {
+            dispatch(fetchCurrentPrice());
         }
-    };
+    }, [dispatch, user]);
 
-    const handleSubscribe = async (priceId) => {
-        setIsProcessing(true);
-        setError(null);
-
+    const handleSubscribe = async (selectedPriceId) => {
         try {
-            const response = await api.post("/api/v1/payment/create-checkout-session", {
+            const response = await api.post("/api/v1/payment/create-portal-session", {
                 email: user.email,
-                priceId: priceId,
+                returnUrl: window.location.origin + '/subscription'
             });
 
-            setCheckoutData({
-                clientSecret: response.data.clientSecret,
-                connectedAccountId: response.data.connectedAccountId,
-            });
+            if (response.data?.url) {
+                window.location.href = response.data.url;
+            } else {
+                throw new Error('No portal URL received');
+            }
         } catch (err) {
-            setError(err.response?.data?.error || "Failed to create checkout session");
-            setCheckoutData(null);
-        } finally {
-            setIsProcessing(false);
+            console.error('Failed to access subscription portal:', err);
         }
     };
 
@@ -61,7 +59,7 @@ const PricingPage = () => {
         );
     }
 
-    if (isLoading) {
+    if (isProcessing) {
         return (
             <div className="container mx-auto py-8 flex justify-center">
                 Loading...
@@ -70,46 +68,44 @@ const PricingPage = () => {
     }
 
     return (
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100 min-h-screen py-8">
+        <div className="bg-gradient-to-r from-amber-50 to-amber-100 min-h-screen py-12">
             <div className="container mx-auto px-4">
-                {checkoutData?.clientSecret ? (
-                    <div className="max-w-2xl mx-auto mb-8">
-                        <Button
-                            variant="outline"
-                            onClick={() => setCheckoutData(null)}
-                            className="mb-4"
-                        >
-                            Back to Plans
-                        </Button>
-                        <EmbeddedCheckoutProvider
-                            stripe={stripePromise}
-                            options={{ clientSecret: checkoutData.clientSecret }}
-                        >
-                            <div className="bg-white shadow-md rounded-lg p-4">
-                                <EmbeddedCheckout />
-                            </div>
-                        </EmbeddedCheckoutProvider>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {products.map((product) => {
-                            const selectedInterval = product.interval || "week";
-                            const price = product.availablePrices[0]?.amount || "0";
+                <div className="text-center mb-12">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Plan</h2>
+                    <p className="text-lg text-gray-600">Get started with our flexible pricing options</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                    {products.map((product) => {
+                        const prices = product.availablePrices || [];
+                        const features = product.features || [
+                            "Basic features",
+                            "Customer support",
+                            "Regular updates"
+                        ];
+
+                        return prices.map((price) => {
+                            const isPopular = price.metadata?.popular === "true";
+                            const isCurrentPlan = currentPrice?.id === price.id;
 
                             return (
                                 <PricingCard
-                                    key={product.id}
-                                    title={product.name}
-                                    price={price}
-                                    interval={selectedInterval}
-                                    isTestMode={product.isTestMode || false}
-                                    onSubscribe={() => handleSubscribe(product.availablePrices[0]?.id)}
+                                    key={price.id}
+                                    title={`${product.name} ${price.nickname || ''}`}
+                                    price={price.amount}
+                                    interval={price.interval || "month"}
+                                    features={features}
+                                    isPopular={isPopular}
+                                    isCurrentPlan={isCurrentPlan}
+                                    isTestMode={product.isTestMode}
+                                    onSubscribe={handleSubscribe}
                                     isProcessing={isProcessing}
+                                    priceId={price.id}
                                 />
                             );
-                        })}
-                    </div>
-                )}
+                        });
+                    })}
+                </div>
             </div>
         </div>
     );

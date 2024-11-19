@@ -1,0 +1,193 @@
+.profile-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s ease-in-out;
+  overflow: hidden;
+  z-index: 50;
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .profile-dropdown-header {
+    padding: 1rem 1.25rem;
+    background: linear-gradient(to right, #f8f9fa, #f1f3f5);
+    border-bottom: 1px solid #edf2f7;
+
+    .user-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 0.25rem;
+    }
+
+    .user-email {
+      font-size: 0.875rem;
+      color: #666;
+    }
+  }
+
+  .subscription-info {
+    padding: 1rem 1.25rem;
+    background: #ffffff;
+    border-color: #f0f0f0;
+
+    &:hover {
+      background: #fafafa;
+    }
+
+    .flex {
+      padding: 0.375rem 0;
+
+      span:first-child {
+        color: #666;
+      }
+
+      .font-medium {
+        font-weight: 500;
+
+        &.text-green-600 {
+          color: #059669;
+          position: relative;
+          padding-left: 1rem;
+
+          &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #059669;
+            border-radius: 50%;
+          }
+        }
+      }
+    }
+  }
+
+  .dropdown-button,
+  .logout-button {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #374151;
+    transition: all 0.15s ease;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+
+    svg {
+      color: #6b7280;
+      transition: all 0.15s ease;
+    }
+
+    &:hover {
+      background-color: #f9fafb;
+      color: #111827;
+
+      svg {
+        color: #111827;
+      }
+    }
+
+    &:active {
+      background-color: #f3f4f6;
+    }
+  }
+
+  .dropdown-button {
+    color: #2563eb;
+    font-weight: 500;
+
+    svg {
+      color: #2563eb;
+    }
+
+    &:hover {
+      background-color: #eff6ff;
+      color: #1d4ed8;
+
+      svg {
+        color: #1d4ed8;
+      }
+    }
+  }
+
+  .logout-button {
+    color: #ef4444;
+
+    svg {
+      color: #ef4444;
+    }
+
+    &:hover {
+      background-color: #fef2f2;
+      color: #dc2626;
+
+      svg {
+        color: #dc2626;
+      }
+    }
+  }
+
+  // Add a subtle animation for the status dot
+  @keyframes pulse {
+    0% {
+      transform: translateY(-50%) scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translateY(-50%) scale(1.1);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-50%) scale(1);
+      opacity: 0.8;
+    }
+  }
+
+  .text-green-600::before {
+    animation: pulse 2s infinite;
+  }
+
+  // Add nice hover effect for the entire card
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+}
+
+// Add a backdrop when dropdown is open
+.profile-dropdown-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease-in-out;
+  z-index: 40;
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+  }
+}
